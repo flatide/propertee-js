@@ -1,0 +1,2 @@
+// Test: Calling undefined function should error
+bogus()

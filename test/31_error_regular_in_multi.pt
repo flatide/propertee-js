@@ -1,0 +1,8 @@
+// Test: Using regular function (not thread) in multi should error
+function notThread() do
+    return 1
+end
+
+multi
+    notThread() -> r
+end

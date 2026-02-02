@@ -1,0 +1,5 @@
+// Test: Loop without 'infinite' should error after max iterations (1000)
+i = 0
+loop true do
+    i = i + 1
+end

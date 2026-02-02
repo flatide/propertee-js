@@ -1,0 +1,11 @@
+// Test: Assignment inside monitor block should error
+thread dummy() do
+    SLEEP(50)
+    return null
+end
+
+multi
+    dummy() -> r
+monitor 10
+    x = 1
+end

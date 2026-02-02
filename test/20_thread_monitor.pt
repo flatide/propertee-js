@@ -1,0 +1,16 @@
+// Test: Monitor block runs during multi execution
+thread counter(n) do
+    i = 0
+    loop i < n infinite do
+        i = i + 1
+    end
+    return i
+end
+
+multi
+    counter(10) -> r
+monitor 20
+    PRINT("tick")
+end
+
+PRINT("r=" + TO_STRING(r))

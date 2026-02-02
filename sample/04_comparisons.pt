@@ -1,0 +1,25 @@
+// 04 - Comparisons and Logic
+// Comparison: ==  !=  >  <  >=  <=
+// Logic: and  or  not  (operands must be booleans -- no truthy/falsy coercion)
+
+x = 10
+y = 20
+
+PRINT("x == 10:", x == 10)
+PRINT("x != y:", x != y)
+PRINT("x > y:", x > y)
+PRINT("x < y:", x < y)
+PRINT("x >= 10:", x >= 10)
+PRINT("y <= 15:", y <= 15)
+
+// Logical operators (both sides must be booleans)
+a = true
+b = false
+
+PRINT("a and b:", a and b)
+PRINT("a or b:", a or b)
+PRINT("not a:", not a)
+
+// Combining comparisons
+age = 25
+PRINT("Is adult (18-65):", age >= 18 and age <= 65)

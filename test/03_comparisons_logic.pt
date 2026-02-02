@@ -1,0 +1,30 @@
+// Test: Comparisons and logical operators
+PRINT(10 == 10)
+PRINT(10 == 20)
+PRINT(10 != 20)
+PRINT(10 != 10)
+PRINT(10 > 5)
+PRINT(10 > 20)
+PRINT(10 < 20)
+PRINT(10 < 5)
+PRINT(10 >= 10)
+PRINT(10 >= 11)
+PRINT(10 <= 10)
+PRINT(10 <= 9)
+
+// String equality
+PRINT("abc" == "abc")
+PRINT("abc" == "def")
+PRINT("abc" != "def")
+
+// Boolean logic
+PRINT(true and true)
+PRINT(true and false)
+PRINT(false or true)
+PRINT(false or false)
+PRINT(not true)
+PRINT(not false)
+
+// Compound
+PRINT(true and true or false)
+PRINT(not false and true)

@@ -1,0 +1,47 @@
+// 07 - Functions
+// Syntax: function <name>(<params>) do <body> end
+
+// Basic function
+function greet(name) do
+    return "Hello, " + name + "!"
+end
+
+PRINT(greet("World"))
+
+// Function with multiple parameters
+function add(a, b) do
+    return a + b
+end
+
+PRINT("3 + 4 =", add(3, 4))
+
+// Functions can use local variables
+function factorial(n) do
+    result = 1
+    i = 1
+    loop i <= n infinite do
+        result = result * i
+        i = i + 1
+    end
+    return result
+end
+
+PRINT("5! =", factorial(5))
+
+// Recursive function
+function fib(n) do
+    if n <= 1 then
+        return n
+    end
+    return fib(n - 1) + fib(n - 2)
+end
+
+PRINT("fib(10) =", fib(10))
+
+// Function without return (returns null)
+function say(msg) do
+    PRINT(">> " + msg)
+end
+
+result = say("no return value")
+PRINT("result:", result)

@@ -1,0 +1,28 @@
+// Test: Thread functions with loops
+thread accumulate(n) do
+    total = 0
+    i = 1
+    loop i <= n infinite do
+        total = total + i
+        i = i + 1
+    end
+    return total
+end
+
+thread buildList(n) do
+    result = []
+    i = 0
+    loop i < n infinite do
+        result = PUSH(result, i * 10)
+        i = i + 1
+    end
+    return result
+end
+
+multi
+    accumulate(10) -> sum
+    buildList(4) -> list
+end
+
+PRINT(sum)
+PRINT(list)

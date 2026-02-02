@@ -1,0 +1,31 @@
+// 03 - Arithmetic and Expressions
+// Operators: +  -  *  /  %
+// Note: + also concatenates strings, but both sides must be the same type.
+
+a = 10
+b = 3
+
+PRINT("a + b =", a + b)
+PRINT("a - b =", a - b)
+PRINT("a * b =", a * b)
+PRINT("a / b =", a / b)
+PRINT("a % b =", a % b)
+
+// Unary minus
+PRINT("Negative a:", -a)
+
+// String concatenation
+greeting = "Hello" + " " + "World"
+PRINT(greeting)
+
+// To mix numbers and strings, convert first
+PRINT("Score: " + TO_STRING(100))
+
+// Built-in math functions
+PRINT("ABS(-5):", ABS(-5))
+PRINT("FLOOR(3.7):", FLOOR(3.7))
+PRINT("CEIL(3.2):", CEIL(3.2))
+PRINT("ROUND(3.5):", ROUND(3.5))
+PRINT("MIN(4, 2, 7):", MIN(4, 2, 7))
+PRINT("MAX(4, 2, 7):", MAX(4, 2, 7))
+PRINT("SUM(1, 2, 3, 4):", SUM(1, 2, 3, 4))

@@ -1,0 +1,30 @@
+// Test: String built-in functions
+PRINT(LEN("hello"))
+PRINT(LEN(""))
+
+PRINT(UPPERCASE("hello"))
+PRINT(LOWERCASE("HELLO"))
+PRINT(TRIM("  hi  "))
+
+// SUBSTRING (1-based start)
+PRINT(SUBSTRING("abcdef", 1, 3))
+PRINT(SUBSTRING("abcdef", 4))
+
+// SPLIT and JOIN
+parts = SPLIT("a,b,c", ",")
+PRINT(parts)
+PRINT(LEN(parts))
+PRINT(JOIN(parts, "-"))
+
+// CHARS
+PRINT(CHARS("xyz"))
+
+// Type conversion
+PRINT(TO_STRING(42))
+PRINT(TO_STRING(true))
+PRINT(TO_STRING(null))
+PRINT(TO_NUMBER("123"))
+
+// String equality
+PRINT("abc" == "abc")
+PRINT("abc" == "ABC")

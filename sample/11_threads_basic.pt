@@ -1,0 +1,25 @@
+// 11 - Threads (Basic)
+// Thread functions run concurrently inside a "multi" block.
+// They are pure: can read globals (snapshot), cannot write globals.
+
+// Define a thread function with the "thread" keyword
+thread worker(name, steps) do
+    i = 0
+    loop i < steps infinite do
+        PRINT(name + " step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return name + " done"
+end
+
+// Run threads in parallel with "multi ... end"
+// Use "->" to capture each thread's return value
+multi
+    worker("Alpha", 3) -> resultA
+    worker("Beta", 3) -> resultB
+end
+
+// Results are available after the multi block
+PRINT("---")
+PRINT("Alpha returned:", resultA)
+PRINT("Beta returned:", resultB)

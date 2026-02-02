@@ -1,0 +1,8 @@
+// Test: Built-in properties (passed via -p flag)
+// This test requires: node pt.js -p '{"width":100,"height":200,"name":"test"}' test/34_builtin_properties.pt
+// The run_tests.sh runner handles this via a special case.
+PRINT(width)
+PRINT(height)
+PRINT(name)
+total = width + height
+PRINT(total)

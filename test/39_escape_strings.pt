@@ -1,0 +1,7 @@
+// Test: String literals
+// Note: ProperTee does not process escape sequences (\n, \t, etc.)
+// The lexer allows \" inside strings for embedding quotes.
+PRINT("hello")
+PRINT("with spaces")
+PRINT("")
+PRINT("123")

@@ -1,0 +1,24 @@
+// Test: Key-value loops
+// Array: keys are 1-based indices
+arr = ["a", "b", "c"]
+loop i, v in arr do
+    PRINT(TO_STRING(i) + ":" + v)
+end
+
+PRINT("---")
+
+// Object: keys are property names
+obj = { x: 1, y: 2, z: 3 }
+loop k, v in obj do
+    PRINT(k + "=" + TO_STRING(v))
+end
+
+PRINT("---")
+
+// Empty object
+empty = {}
+loop k, v in empty do
+    PRINT("should not print")
+end
+
+PRINT("done")

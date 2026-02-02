@@ -1,0 +1,40 @@
+// Test: Nested loops
+// Nested condition loops
+i = 0
+loop i < 3 do
+    j = 0
+    loop j < 3 do
+        PRINT(TO_STRING(i) + "," + TO_STRING(j))
+        j = j + 1
+    end
+    i = i + 1
+end
+
+PRINT("---")
+
+// Nested value loops
+rows = ["A", "B"]
+cols = [1, 2, 3]
+loop r in rows do
+    loop c in cols do
+        PRINT(r + TO_STRING(c))
+    end
+end
+
+PRINT("---")
+
+// Break only breaks inner loop
+i = 0
+loop i < 3 do
+    j = 0
+    loop j < 5 do
+        if j == 2 then
+            break
+        end
+        PRINT(TO_STRING(i) + ":" + TO_STRING(j))
+        j = j + 1
+    end
+    i = i + 1
+end
+
+PRINT("done")

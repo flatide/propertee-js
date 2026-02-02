@@ -1,0 +1,44 @@
+// Test: Functions
+function add(a, b) do
+    return a + b
+end
+
+PRINT(add(3, 4))
+
+// Function with no return
+function greet(name) do
+    PRINT("Hi " + name)
+end
+
+result = greet("Alice")
+PRINT(result)
+
+// Function with local variables
+function square(x) do
+    r = x * x
+    return r
+end
+
+PRINT(square(5))
+
+// Function with early return
+function abs_val(n) do
+    if n < 0 then
+        return -n
+    end
+    return n
+end
+
+PRINT(abs_val(-7))
+PRINT(abs_val(3))
+
+// Function with default null for missing args
+function opt(a, b) do
+    if b == null then
+        return a
+    end
+    return a + b
+end
+
+PRINT(opt(10))
+PRINT(opt(10, 5))

@@ -1,0 +1,13 @@
+// 16 - Comments
+// ProperTee supports single-line and block comments.
+
+// This is a single-line comment
+
+/* This is a
+   block comment
+   spanning multiple lines */
+
+x = 42 // inline comment after code
+
+PRINT("Comments don't affect execution")
+PRINT("x =", x)

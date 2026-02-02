@@ -1,0 +1,14 @@
+// Test: Basic thread execution and interleaving
+thread worker(id) do
+    PRINT("start " + TO_STRING(id))
+    PRINT("end " + TO_STRING(id))
+    return id
+end
+
+multi
+    worker(1) -> r1
+    worker(2) -> r2
+end
+
+PRINT("r1=" + TO_STRING(r1))
+PRINT("r2=" + TO_STRING(r2))

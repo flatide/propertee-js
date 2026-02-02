@@ -1,0 +1,22 @@
+// Test: Variable types and basic assignment
+x = 10
+PRINT(x)
+
+y = 3.14
+PRINT(y)
+
+s = "hello"
+PRINT(s)
+
+b = true
+PRINT(b)
+
+b2 = false
+PRINT(b2)
+
+n = null
+PRINT(n)
+
+// Reassignment
+x = 99
+PRINT(x)

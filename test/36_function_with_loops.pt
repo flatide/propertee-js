@@ -1,0 +1,36 @@
+// Test: Functions containing loops and flow control
+function sumArray(arr) do
+    total = 0
+    loop v in arr do
+        total = total + v
+    end
+    return total
+end
+
+PRINT(sumArray([1, 2, 3, 4, 5]))
+
+// Function with early return in loop
+function findFirst(arr, target) do
+    loop v in arr do
+        if v == target then
+            return v
+        end
+    end
+    return null
+end
+
+PRINT(findFirst([10, 20, 30], 20))
+PRINT(findFirst([10, 20, 30], 99))
+
+// Function that builds an array
+function range(n) do
+    result = []
+    i = 0
+    loop i < n do
+        result = PUSH(result, i)
+        i = i + 1
+    end
+    return result
+end
+
+PRINT(range(5))

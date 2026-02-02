@@ -1,0 +1,27 @@
+// 12 - Threads with SLEEP
+// SLEEP(ms) pauses only the calling thread.
+// Other threads keep running while one sleeps.
+
+thread fast_worker(name) do
+    PRINT(name + ": start")
+    PRINT(name + ": working...")
+    PRINT(name + ": done!")
+    return "fast"
+end
+
+thread slow_worker(name, ms) do
+    PRINT(name + ": start, sleeping " + TO_STRING(ms) + "ms")
+    SLEEP(ms)
+    PRINT(name + ": woke up, done!")
+    return "slow"
+end
+
+multi
+    slow_worker("Sleepy", 200) -> r1
+    fast_worker("Speedy") -> r2
+end
+
+// Speedy finishes while Sleepy is asleep
+PRINT("---")
+PRINT("Sleepy:", r1)
+PRINT("Speedy:", r2)

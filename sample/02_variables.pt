@@ -1,0 +1,38 @@
+// 02 - Variables and Types
+// ProperTee has numbers, strings, booleans, null, arrays, and objects.
+
+// Numbers
+x = 10
+y = 3.14
+
+// Strings
+name = "ProperTee"
+
+// Booleans
+active = true
+done = false
+
+// Null
+nothing = null
+
+// Arrays (use 1-based indexing)
+colors = ["red", "green", "blue"]
+PRINT("First color:", colors.1)
+PRINT("Third color:", colors.3)
+
+// Objects
+person = {
+    name: "Alice",
+    age: 30,
+    active: true
+}
+PRINT("Name:", person.name)
+PRINT("Age:", person.age)
+
+// Nested structures
+team = {
+    lead: { name: "Bob", role: "manager" },
+    members: ["Alice", "Charlie", "Dana"]
+}
+PRINT("Lead:", team.lead.name)
+PRINT("Second member:", team.members.2)

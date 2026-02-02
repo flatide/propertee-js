@@ -1,0 +1,48 @@
+// 06 - Loops
+// ProperTee has three loop forms: condition, value-in, and key-value-in.
+
+// --- Condition loop (like while) ---
+count = 0
+loop count < 5 do
+    PRINT("count =", count)
+    count = count + 1
+end
+
+PRINT("---")
+
+// --- Value loop (iterate over array) ---
+fruits = ["apple", "banana", "cherry"]
+loop fruit in fruits do
+    PRINT("Fruit:", fruit)
+end
+
+PRINT("---")
+
+// --- Key-value loop (iterate with index or key) ---
+// On arrays: key is the 1-based index
+scores = [95, 82, 71]
+loop i, score in scores do
+    PRINT("Student " + TO_STRING(i) + ": " + TO_STRING(score))
+end
+
+PRINT("---")
+
+// On objects: key is the property name
+config = { host: "localhost", port: "8080", debug: "true" }
+loop key, val in config do
+    PRINT(key + " = " + val)
+end
+
+PRINT("---")
+
+// --- break and continue ---
+nums = [1, 2, 3, 4, 5, 6, 7, 8]
+loop n in nums do
+    if n == 3 then
+        continue       // skip 3
+    end
+    if n == 6 then
+        break          // stop at 6
+    end
+    PRINT(n)
+end

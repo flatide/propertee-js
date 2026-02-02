@@ -1,0 +1,41 @@
+// Test: Scope rules - local vs global
+x = "global"
+
+function readX() do
+    return x
+end
+
+function writeLocal() do
+    x = "local"
+    return x
+end
+
+// Function reads global
+PRINT(readX())
+
+// Function creates local x, doesn't overwrite global
+writeLocal()
+PRINT(x)
+
+// Nested function scopes
+function outer() do
+    a = 10
+    function inner() do
+        return a
+    end
+    return inner()
+end
+
+// Note: inner() is defined globally, but 'a' won't be in scope
+// when called from outer's scope, it should see outer's local 'a'
+
+// Functions calling functions
+function double(n) do
+    return n * 2
+end
+
+function quadruple(n) do
+    return double(double(n))
+end
+
+PRINT(quadruple(3))

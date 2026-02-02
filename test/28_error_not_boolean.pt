@@ -1,0 +1,2 @@
+// Test: Logical AND with non-boolean should error
+PRINT(1 and 2)

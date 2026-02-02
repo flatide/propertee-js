@@ -1,0 +1,4 @@
+// 01 - Hello World
+// The simplest ProperTee program. PRINT is a built-in function.
+
+PRINT("Hello, World!")

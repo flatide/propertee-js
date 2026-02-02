@@ -1,0 +1,19 @@
+// Test: Complex expression evaluation
+// Operator precedence and associativity
+PRINT(2 + 3 * 4 - 1)
+PRINT((2 + 3) * (4 - 1))
+PRINT(100 / 10 / 2)
+PRINT(10 % 3 + 1)
+
+// Nested function calls
+PRINT(MAX(MIN(10, 20), MIN(30, 5)))
+PRINT(ABS(MIN(-3, -7)))
+
+// Boolean expressions
+PRINT(true or false and false)
+PRINT((true or false) and false)
+
+// Comparison chains (via 'and')
+x = 15
+PRINT(x > 10 and x < 20)
+PRINT(x > 10 and x < 12)

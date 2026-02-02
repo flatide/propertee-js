@@ -1,0 +1,21 @@
+// Test: Multiple threads executing concurrently
+thread work(id) do
+    result = id * id
+    return result
+end
+
+multi
+    work(1) -> r1
+    work(2) -> r2
+    work(3) -> r3
+    work(4) -> r4
+    work(5) -> r5
+end
+
+PRINT(r1)
+PRINT(r2)
+PRINT(r3)
+PRINT(r4)
+PRINT(r5)
+total = r1 + r2 + r3 + r4 + r5
+PRINT(total)

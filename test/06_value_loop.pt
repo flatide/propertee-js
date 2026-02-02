@@ -1,0 +1,24 @@
+// Test: Value-in loops (for-each)
+items = [10, 20, 30]
+loop v in items do
+    PRINT(v)
+end
+
+PRINT("---")
+
+// String iteration characters
+// (strings aren't iterable directly, use CHARS)
+chars = CHARS("ABC")
+loop c in chars do
+    PRINT(c)
+end
+
+PRINT("---")
+
+// Empty array loop
+empty = []
+loop v in empty do
+    PRINT("should not print")
+end
+
+PRINT("done")

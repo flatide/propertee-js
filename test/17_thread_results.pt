@@ -1,0 +1,35 @@
+// Test: Threads returning different types
+thread retNum() do
+    return 42
+end
+
+thread retStr() do
+    return "hello"
+end
+
+thread retArr() do
+    return [1, 2, 3]
+end
+
+thread retObj() do
+    return { key: "value", num: 99 }
+end
+
+thread retNull() do
+    return null
+end
+
+multi
+    retNum() -> n
+    retStr() -> s
+    retArr() -> a
+    retObj() -> o
+    retNull() -> nl
+end
+
+PRINT(n)
+PRINT(s)
+PRINT(a)
+PRINT(o.key)
+PRINT(o.num)
+PRINT(nl)

@@ -1,0 +1,17 @@
+// Test: Thread function calling a built-in function
+// Note: when a thread calls another thread function directly,
+// the return value is wrapped as {local, result} -- this is a known behavior.
+// Threads should call built-ins or other thread functions via multi.
+
+thread worker(n) do
+    doubled = n * 2
+    str = TO_STRING(doubled)
+    PRINT("computed: " + str)
+    return doubled
+end
+
+multi
+    worker(5) -> r
+end
+
+PRINT(r)

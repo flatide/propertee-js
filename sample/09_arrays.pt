@@ -1,0 +1,42 @@
+// 09 - Array Functions
+// Arrays use 1-based indexing.
+
+items = [10, 20, 30, 40, 50]
+PRINT("Array:", items)
+PRINT("Length:", LEN(items))
+
+// Access (1-based)
+PRINT("First:", items.1)
+PRINT("Third:", items.3)
+
+// PUSH - returns a new array with item added
+items = PUSH(items, 60)
+PRINT("After PUSH(60):", items)
+
+// POP - returns a new array with last item removed
+items = POP(items)
+PRINT("After POP:", items)
+
+// SLICE (1-based start, exclusive end)
+middle = SLICE(items, 2, 4)
+PRINT("Slice(2,4):", middle)
+
+tail = SLICE(items, 3)
+PRINT("Slice(3):", tail)
+
+// CONCAT - merge arrays
+a = [1, 2, 3]
+b = [4, 5, 6]
+c = CONCAT(a, b)
+PRINT("Concat:", c)
+
+// Modify elements
+items.2 = 999
+PRINT("After items.2 = 999:", items)
+
+// SUM on arrays (pass individual elements via loop)
+total = 0
+loop v in items do
+    total = total + v
+end
+PRINT("Total:", total)

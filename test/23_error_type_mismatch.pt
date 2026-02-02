@@ -1,0 +1,4 @@
+// Test: Type error - adding string + number should error
+x = "hello"
+y = 5
+PRINT(x + y)

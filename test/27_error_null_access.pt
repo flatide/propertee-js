@@ -1,0 +1,3 @@
+// Test: Property access on null should error
+x = null
+PRINT(x.name)

@@ -1,0 +1,45 @@
+// Test: Array operations
+arr = [1, 2, 3]
+PRINT(arr)
+PRINT(LEN(arr))
+
+// 1-based access
+PRINT(arr.1)
+PRINT(arr.2)
+PRINT(arr.3)
+
+// Mutation
+arr.1 = 99
+PRINT(arr.1)
+
+// PUSH returns new array
+arr2 = PUSH(arr, 4, 5)
+PRINT(arr2)
+PRINT(LEN(arr2))
+
+// POP returns new array
+arr3 = POP(arr2)
+PRINT(arr3)
+
+// SLICE (1-based start, exclusive end)
+data = [10, 20, 30, 40, 50]
+PRINT(SLICE(data, 2, 4))
+PRINT(SLICE(data, 3))
+
+// CONCAT
+a = [1, 2]
+b = [3, 4]
+PRINT(CONCAT(a, b))
+
+// Empty array
+empty = []
+PRINT(LEN(empty))
+PRINT(empty)
+
+// Nested arrays
+nested = [[1, 2], [3, 4]]
+PRINT(nested.1)
+// Note: nested.2.1 won't work -- "2.1" is lexed as a single float.
+// Use a temp variable to chain access:
+inner = nested.2
+PRINT(inner.1)

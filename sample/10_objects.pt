@@ -1,0 +1,45 @@
+// 10 - Objects and Access Patterns
+// Objects are key-value maps with several access styles.
+
+person = {
+    name: "Alice",
+    age: 30,
+    city: "Seoul"
+}
+
+// Static access
+PRINT("Name:", person.name)
+
+// String key access (useful for keys with special chars)
+PRINT("City:", person."city")
+
+// Dynamic access with a variable
+field = "age"
+PRINT("Age via $field:", person.$field)
+
+// Dynamic access with an expression
+fields = ["name", "age", "city"]
+loop f in fields do
+    PRINT(f + ":", person.$(f))
+end
+
+// Modify properties
+person.age = 31
+person."email" = "alice@example.com"
+PRINT("Updated age:", person.age)
+PRINT("Email:", person.email)
+
+// Nested objects
+company = {
+    name: "Acme",
+    address: {
+        street: "123 Main St",
+        zip: "10001"
+    }
+}
+PRINT("Street:", company.address.street)
+
+// Iterate over object keys and values
+loop key, val in person do
+    PRINT(key + " => " + TO_STRING(val))
+end

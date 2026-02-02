@@ -1,0 +1,1 @@
+Runtime error: Runtime Error at line 7:4: Function 'notThread' is not a thread function. Only thread functions can be used in MULTI blocks.

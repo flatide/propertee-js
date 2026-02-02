@@ -1,0 +1,21 @@
+// Test: Thread reads global snapshot, main can still modify globals after multi
+x = 100
+
+thread readGlobal() do
+    // Should see x from snapshot
+    PRINT("thread sees x=" + TO_STRING(x))
+    return x
+end
+
+multi
+    readGlobal() -> result
+end
+
+PRINT("result=" + TO_STRING(result))
+
+// Globals remain intact after multi
+PRINT("x=" + TO_STRING(x))
+
+// Can modify globals after multi
+x = 200
+PRINT("x=" + TO_STRING(x))

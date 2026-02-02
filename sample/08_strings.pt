@@ -1,0 +1,39 @@
+// 08 - String Functions
+// Built-in functions for working with strings.
+
+text = "  Hello, ProperTee World!  "
+
+// Length
+PRINT("Length:", LEN(text))
+
+// Trim whitespace
+trimmed = TRIM(text)
+PRINT("Trimmed:", trimmed)
+
+// Case conversion
+PRINT("Upper:", UPPERCASE(trimmed))
+PRINT("Lower:", LOWERCASE(trimmed))
+
+// Substring (1-based start, optional length)
+PRINT("First 5 chars:", SUBSTRING(trimmed, 1, 5))
+PRINT("From position 8:", SUBSTRING(trimmed, 8))
+
+// Split and Join
+csv = "apple,banana,cherry,date"
+parts = SPLIT(csv, ",")
+PRINT("Split:", parts)
+PRINT("Second item:", parts.2)
+
+rejoined = JOIN(parts, " | ")
+PRINT("Joined:", rejoined)
+
+// Convert string to character array
+chars = CHARS("ABC")
+PRINT("Chars:", chars)
+
+// Type conversion
+num = TO_NUMBER("42")
+PRINT("As number:", num + 8)
+
+str = TO_STRING(3.14)
+PRINT("As string:", str + " is pi")

@@ -1,0 +1,36 @@
+// Test: Object operations
+obj = { name: "Alice", age: 30 }
+PRINT(obj.name)
+PRINT(obj.age)
+
+// String key access
+PRINT(obj."name")
+
+// Dynamic access with $var
+field = "age"
+PRINT(obj.$field)
+
+// Dynamic access with $(expr)
+fields = ["name", "age"]
+loop f in fields do
+    PRINT(obj.$(f))
+end
+
+// Mutation
+obj.age = 31
+PRINT(obj.age)
+
+// Add new property
+obj.email = "alice@test.com"
+PRINT(obj.email)
+
+// Nested objects
+data = {
+    user: { name: "Bob", scores: [90, 85, 92] }
+}
+PRINT(data.user.name)
+PRINT(data.user.scores.2)
+
+// Empty object
+empty = {}
+PRINT(empty)

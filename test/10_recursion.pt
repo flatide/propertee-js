@@ -1,0 +1,25 @@
+// Test: Recursive functions
+function factorial(n) do
+    if n <= 1 then
+        return 1
+    end
+    return n * factorial(n - 1)
+end
+
+PRINT(factorial(0))
+PRINT(factorial(1))
+PRINT(factorial(5))
+PRINT(factorial(10))
+
+// Fibonacci
+function fib(n) do
+    if n <= 1 then
+        return n
+    end
+    return fib(n - 1) + fib(n - 2)
+end
+
+PRINT(fib(0))
+PRINT(fib(1))
+PRINT(fib(2))
+PRINT(fib(10))

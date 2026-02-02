@@ -1,0 +1,45 @@
+// Test: break and continue in loops
+// Break out of condition loop
+i = 0
+loop true infinite do
+    if i == 3 then
+        break
+    end
+    PRINT(i)
+    i = i + 1
+end
+PRINT("after break:", i)
+
+PRINT("---")
+
+// Continue in value loop
+items = [1, 2, 3, 4, 5]
+loop v in items do
+    if v == 3 then
+        continue
+    end
+    PRINT(v)
+end
+
+PRINT("---")
+
+// Break in value loop
+loop v in items do
+    if v == 4 then
+        break
+    end
+    PRINT(v)
+end
+
+PRINT("---")
+
+// Break in key-value loop
+obj = { a: 1, b: 2, c: 3 }
+loop k, v in obj do
+    if k == "b" then
+        break
+    end
+    PRINT(k)
+end
+
+PRINT("done")

@@ -1,0 +1,27 @@
+// 15 - Infinite Loops
+// By default, loops are limited to 1000 iterations (safety net).
+// Add "infinite" keyword to allow unlimited iterations.
+
+// This would error after 1000 iterations without "infinite":
+//   loop count < 5000 do ... end
+
+// With "infinite", no limit is enforced
+count = 0
+loop count < 5 infinite do
+    PRINT("tick " + TO_STRING(count))
+    count = count + 1
+end
+
+PRINT("---")
+
+// Infinite loop with break
+i = 0
+loop true infinite do
+    i = i + 1
+    if i > 3 then
+        break
+    end
+    PRINT("loop " + TO_STRING(i))
+end
+
+PRINT("Broke out at i =", i)

@@ -1,0 +1,24 @@
+// Test: Condition loops (while-style)
+i = 0
+loop i < 5 do
+    PRINT(i)
+    i = i + 1
+end
+
+PRINT("---")
+
+// Loop with infinite keyword
+count = 0
+loop count < 3 infinite do
+    PRINT(count)
+    count = count + 1
+end
+
+PRINT("---")
+
+// Loop with false condition (should not execute body)
+loop false do
+    PRINT("should not print")
+end
+
+PRINT("done")

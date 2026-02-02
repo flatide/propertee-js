@@ -1,0 +1,20 @@
+// Test: Object with various key types and dynamic access
+obj = {
+    name: "test",
+    "special-key": "special",
+    1: "first"
+}
+
+PRINT(obj.name)
+PRINT(obj."special-key")
+PRINT(obj."1")
+
+// Dynamic key via variable
+k = "name"
+PRINT(obj.$k)
+
+// Dynamic key via expression
+keys = ["name", "special-key"]
+loop key in keys do
+    PRINT(obj.$(key))
+end

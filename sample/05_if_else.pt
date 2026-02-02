@@ -1,0 +1,24 @@
+// 05 - If / Else
+// Syntax: if <condition> then <body> [else <body>] end
+
+score = 85
+
+if score >= 90 then
+    PRINT("Grade: A")
+else
+    if score >= 80 then
+        PRINT("Grade: B")
+    else
+        if score >= 70 then
+            PRINT("Grade: C")
+        else
+            PRINT("Grade: F")
+        end
+    end
+end
+
+// Simple if (no else)
+logged_in = true
+if logged_in then
+    PRINT("Welcome back!")
+end

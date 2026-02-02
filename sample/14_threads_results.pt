@@ -1,0 +1,32 @@
+// 14 - Thread Results
+// Threads can return any value: numbers, strings, objects, arrays.
+
+thread compute(n) do
+    result = n * n + n
+    PRINT("compute(" + TO_STRING(n) + ") = " + TO_STRING(result))
+    return result
+end
+
+thread build_report(id) do
+    report = {
+        id: id,
+        value: id * 100,
+        status: "complete"
+    }
+    PRINT("Built report #" + TO_STRING(id))
+    return report
+end
+
+multi
+    compute(5) -> val1
+    compute(3) -> val2
+    build_report(42) -> report
+end
+
+PRINT("---")
+PRINT("val1:", val1)
+PRINT("val2:", val2)
+PRINT("report.id:", report.id)
+PRINT("report.value:", report.value)
+PRINT("report.status:", report.status)
+PRINT("Sum of computations:", val1 + val2)
