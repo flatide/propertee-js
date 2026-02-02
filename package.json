@@ -1,5 +1,13 @@
 {
   "type": "module",
+  "scripts": {
+    "build": "./build-all.sh",
+    "build:parser": "antlr4 -Dlanguage=JavaScript -visitor -no-listener ProperTee.g4",
+    "build:browser": "node build-browser.js",
+    "setup:antlr4": "node wrap-antlr4.js",
+    "test": "./test/run_tests.sh",
+    "start": "node pt.js"
+  },
   "dependencies": {
     "antlr4": "^4.13.2"
   }

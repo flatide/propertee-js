@@ -1,35 +1,35 @@
-// ANTLR4 생성 파일들을 브라우저용으로 변환하는 스크립트
-// Node.js로 실행: node build-browser.js
+// Convert ANTLR4-generated files and interpreter modules to browser-compatible bundle
+// Run: node build-browser.js
 
-const fs = require('fs');
-const path = require('path');
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { basename } from 'path';
 
 function convertToGlobal(filePath, globalName, dependencies = {}, extraExports = []) {
-    let content = fs.readFileSync(filePath, 'utf-8');
+    let content = readFileSync(filePath, 'utf-8');
 
-    // import 문 제거
+    // Remove import statements
     content = content.replace(/import\s+.*?from\s+['"].*?['"];?\s*/g, '');
 
-    // export default 제거
+    // Remove export default
     content = content.replace(/export\s+default\s+class\s+/g, 'class ');
     content = content.replace(/export\s+default\s+/g, '');
 
-    // named exports 제거: export { Foo, Bar };
+    // Remove named exports: export { Foo, Bar };
     content = content.replace(/export\s*\{[^}]*\}\s*;?\s*/g, '');
 
-    // 의존성 주입 코드 생성
+    // Generate dependency injection code
     const depInjections = Object.entries(dependencies)
         .map(([name, globalRef]) => `    const ${name} = global.${globalRef};`)
         .join('\n');
 
-    // 추가 글로벌 export 코드 생성
+    // Generate extra global export code
     const extraExportLines = extraExports
         .map(name => `    global.${name} = ${name};`)
         .join('\n');
 
-    // 클래스나 함수를 전역 변수로 할당
+    // Wrap as IIFE with global assignment
     const wrapper = `
-// ${path.basename(filePath)} - Browser Compatible Version
+// ${basename(filePath)} - Browser Compatible Version
 (function(global) {
 ${depInjections ? depInjections + '\n' : ''}
 ${content}
@@ -41,14 +41,14 @@ ${extraExportLines ? extraExportLines + '\n' : ''}})(typeof window !== 'undefine
     return wrapper;
 }
 
-// antlr4 런타임 (browser/antlr4-runtime.js 사용)
+// antlr4 runtime (from browser/antlr4-runtime.js)
 let antlr4Content;
 try {
-    antlr4Content = fs.readFileSync('browser/antlr4-runtime.js', 'utf-8');
-    console.log('✓ antlr4-runtime.js loaded');
+    antlr4Content = readFileSync('browser/antlr4-runtime.js', 'utf-8');
+    console.log('antlr4-runtime.js loaded');
 } catch (e) {
-    console.error('❌ browser/antlr4-runtime.js not found.');
-    console.error('   Run "node wrap-antlr4.js" first.');
+    console.error('browser/antlr4-runtime.js not found.');
+    console.error('Run "node wrap-antlr4.js" first.');
     process.exit(1);
 }
 
@@ -81,21 +81,21 @@ const customVisitorContent = convertToGlobal('ProperTeeCustomVisitor.js', 'Prope
     ProperTeeVisitor: 'ProperTeeVisitor'
 });
 
-// browser directory
-if (!fs.existsSync('browser')) {
-    fs.mkdirSync('browser');
+// Ensure browser directory exists
+if (!existsSync('browser')) {
+    mkdirSync('browser');
 }
 
 // Save individual files
-fs.writeFileSync('browser/antlr4-bundle.js', antlr4Content);
-fs.writeFileSync('browser/ProperTeeLexer.browser.js', lexerContent);
-fs.writeFileSync('browser/ProperTeeParser.browser.js', parserContent);
-fs.writeFileSync('browser/ProperTeeVisitor.browser.js', visitorContent);
-fs.writeFileSync('browser/ThreadContext.browser.js', threadContextContent);
-fs.writeFileSync('browser/Scheduler.browser.js', schedulerContent);
-fs.writeFileSync('browser/ProperTeeCustomVisitor.browser.js', customVisitorContent);
+writeFileSync('browser/antlr4-bundle.js', antlr4Content);
+writeFileSync('browser/ProperTeeLexer.browser.js', lexerContent);
+writeFileSync('browser/ProperTeeParser.browser.js', parserContent);
+writeFileSync('browser/ProperTeeVisitor.browser.js', visitorContent);
+writeFileSync('browser/ThreadContext.browser.js', threadContextContent);
+writeFileSync('browser/Scheduler.browser.js', schedulerContent);
+writeFileSync('browser/ProperTeeCustomVisitor.browser.js', customVisitorContent);
 
-// Bundle
+// Bundle with license header
 const licenseHeader = `/*!
  * ProperTee Concurrent - Generator-Based Cooperative Scheduler
  * Copyright (c) 2026 FLATIDE LC.
@@ -113,8 +113,8 @@ const licenseHeader = `/*!
 `;
 
 const bundle = `${licenseHeader}${antlr4Content}\n${lexerContent}\n${parserContent}\n${visitorContent}\n${threadContextContent}\n${schedulerContent}\n${customVisitorContent}`;
-fs.writeFileSync('browser/propertee-bundle.js', bundle);
+writeFileSync('browser/propertee-bundle.js', bundle);
 
-console.log('✅ Browser build complete!');
-console.log('   - browser/propertee-bundle.js (combined bundle)');
-console.log('   - browser/*.browser.js (individual files)');
+console.log('Browser build complete!');
+console.log('  - browser/propertee-bundle.js (combined bundle)');
+console.log('  - browser/*.browser.js (individual files)');

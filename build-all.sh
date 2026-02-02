@@ -1,72 +1,56 @@
 #!/bin/bash
-# ProperTee 전체 빌드 스크립트
+# ProperTee full build script
+# Builds both CLI (parser generation) and browser bundle targets
 
-echo "🔨 ProperTee 빌드 시작..."
+set -e
+
+echo "ProperTee build starting..."
 echo ""
 
-# 0. antlr4로 파서 생성
-echo "📝 1/4: ANTLR4 파서 생성..."
+# Phase 1: Generate ANTLR4 parser (shared by CLI and browser)
+echo "[1/3] Generating ANTLR4 parser..."
 if ! command -v antlr4 &> /dev/null; then
-    echo "   ⚠️  antlr4 명령을 찾을 수 없습니다."
-    echo "   설치 방법: brew install antlr (macOS) 또는 README.md 참조"
+    echo "  ERROR: antlr4 command not found."
+    echo "  Install: brew install antlr (macOS) or see README.md"
     exit 1
 fi
 
 antlr4 -Dlanguage=JavaScript -visitor -no-listener ProperTee.g4
-if [ $? -ne 0 ]; then
-    echo "❌ ANTLR4 파서 생성 실패"
-    exit 1
-fi
-echo "✅ 파서 생성 완료!"
+echo "  Parser generated."
 
-# 1. antlr4 런타임 래핑
+# Phase 2: Build browser bundle
 echo ""
-echo "📦 2/4: ANTLR4 런타임 래핑..."
-if [ ! -d "node_modules/antlr4" ]; then
-    echo "   ⚠️  node_modules/antlr4가 없습니다. npm install 실행..."
-    npm install antlr4@4.13.2
+echo "[2/3] Building browser bundle..."
+
+if [ ! -f "browser/antlr4-runtime.js" ]; then
+    echo "  antlr4-runtime.js not found, running setup..."
+    if [ ! -d "node_modules/antlr4" ]; then
+        npm install antlr4@4.13.2
+    fi
+    node wrap-antlr4.js
 fi
 
-node wrap-antlr4.js
-if [ $? -ne 0 ]; then
-    echo "❌ wrap-antlr4.js 실패"
-    exit 1
-fi
-
-# 2. 브라우저 번들 생성
-echo ""
-echo "🎁 3/4: 브라우저 번들 생성..."
 node build-browser.js
-if [ $? -ne 0 ]; then
-    echo "❌ build-browser.js 실패"
-    exit 1
-fi
+echo "  Browser bundle built."
 
-# 3. dist 폴더에 배포 파일 복사
+# Phase 3: Copy to dist
 echo ""
-echo "📦 4/5: dist 폴더에 배포 파일 복사..."
+echo "[3/3] Copying to dist/..."
 mkdir -p dist
 cp browser/propertee-bundle.js dist/
-# scratch.html의 번들 경로를 dist 폴더용으로 수정
 sed 's|./browser/propertee-bundle.js|./propertee-bundle.js|g' scratch.html > dist/scratch.html
-if [ $? -ne 0 ]; then
-    echo "❌ dist 폴더 복사 실패"
-    exit 1
-fi
-echo "✅ 배포 파일 복사 완료!"
+echo "  dist/ ready."
 
-# 4. 완료
+# Summary
 echo ""
-echo "✅ 5/5: 빌드 완료!"
+echo "Build complete!"
 echo ""
-echo "📁 생성된 파일:"
-echo "   - browser/antlr4-runtime.js ($(wc -c < browser/antlr4-runtime.js | awk '{print int($1/1024)}') KB)"
-echo "   - browser/propertee-bundle.js ($(wc -c < browser/propertee-bundle.js | awk '{print int($1/1024)}') KB)"
-echo "   - dist/scratch.html ($(wc -c < dist/scratch.html | awk '{print int($1/1024)}') KB)"
-echo "   - dist/propertee-bundle.js ($(wc -c < dist/propertee-bundle.js | awk '{print int($1/1024)}') KB)"
+echo "Generated files:"
+echo "  - browser/propertee-bundle.js ($(wc -c < browser/propertee-bundle.js | awk '{print int($1/1024)}') KB)"
+echo "  - dist/scratch.html"
+echo "  - dist/propertee-bundle.js"
 echo ""
-echo "🚀 테스트 방법:"
-echo "   open test.html"
-echo "   open playground.html"
-echo "   open dist/scratch.html"
+echo "Usage:"
+echo "  node pt.js script.pt          # CLI"
+echo "  open dist/scratch.html        # Browser playground"
 echo ""
