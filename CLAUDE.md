@@ -24,9 +24,35 @@ node build-browser.js                                               # generate b
 
 **After any change to `.js` source files** (visitor, scheduler, thread context), run `node build-browser.js` to regenerate the browser bundle.
 
+## CLI Runner
+
+`pt.js` runs `.pt` scripts from the command line. Falls back to an interactive REPL when no file is given.
+
+```bash
+node pt.js script.pt                          # run a script
+node pt.js -p '{"width":100}' script.pt       # with built-in properties
+node pt.js -f props.json script.pt             # properties from file
+node pt.js --max-iterations 5000 script.pt     # custom loop limit
+node pt.js                                     # interactive REPL
+```
+
+REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are auto-detected via `do`/`if`/`multi` vs `end` depth.
+
 ## Testing
 
-There is no test runner. Open `scratch.html` (or `dist/scratch.html`) in a browser to test interactively. The page has demo buttons for: Basic, Interleaved PRINT, SLEEP Interleaving, MONITOR, and Thread Results.
+```bash
+# Run all tests (40 tests with expected output validation)
+./test/run_tests.sh
+
+# Run a single test
+./test/run_tests.sh test/16_thread_basic.pt
+```
+
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32).
+
+**Browser testing:** Open `scratch.html` (or `dist/scratch.html`) for interactive testing with demo buttons.
+
+**Sample scripts:** `sample/01_hello.pt` through `sample/16_comments.pt` cover all language features as beginner-friendly examples.
 
 ## Architecture
 
@@ -68,6 +94,7 @@ Generators communicate with the scheduler via yield values:
 | `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, thread purity enforcement |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks, runs monitor ticks |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags |
+| `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
 | `build-browser.js` | Converts ES modules to browser-compatible IIFEs and creates `browser/propertee-bundle.js` |
 
 ### Thread Purity Model
@@ -128,3 +155,11 @@ loop key, val in collection do ... end
 - `SLEEP()` returns a scheduler command object (not a Promise) — the visitor yields it to the scheduler.
 - 1-based indexing for array access (`.1` is the first element).
 - Strict type checking: no coercion, `and`/`or` require booleans, arithmetic requires numbers.
+- `package.json` has `"type": "module"` — all source files use ES module imports.
+
+## Known Limitations
+
+- **Chained numeric access:** `arr.2.1` is lexed as a single float `2.1`, not two separate accesses. Workaround: assign to a temp variable, then access.
+- **Thread-to-thread direct calls:** When a thread function calls another thread function directly (not via `multi`), the return value is wrapped as `{local, result}` instead of the raw result.
+- **String escapes:** The visitor does not process escape sequences (`\n`, `\t`, `\\`). Backslash characters pass through as-is. The lexer only uses `\"` to allow quotes inside strings.
+- **Semicolons:** The lexer skips `;` as whitespace — semicolons are allowed but ignored.
