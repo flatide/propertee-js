@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ProperTee Scratch</title>
+    <title>ProperTee Concurrent - Scratch</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -44,81 +44,209 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        .demo-btn {
+            padding: 6px 12px;
+            margin: 3px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            background: #fff;
+        }
+        .demo-btn:hover {
+            background: #e8e8e8;
+        }
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
-    <h1>ProperTee Scratch</h1>
-    
-    <h3>Properties (JSON):</h3>
-    <textarea id="properties" rows="5" cols="50">{"user": {"name": "Test", "score": 100}}</textarea>
-    
-    <h3>Script:</h3>
-        <textarea id="script" rows="10" cols="50">/* Multi-Thread Local Variable Return Test */
+    <h1>ProperTee Concurrent - Generator-Based Cooperative Scheduler</h1>
 
-// Thread 함수들 - 각각 로컬 변수를 return
+    <h3>Properties (JSON):</h3>
+    <textarea id="properties" rows="3" cols="50">{"user": {"name": "Test", "score": 100}}</textarea>
+
+    <h3>Demo Scripts:</h3>
+    <div>
+        <button class="demo-btn" onclick="loadDemo('basic')">Basic (No Threads)</button>
+        <button class="demo-btn" onclick="loadDemo('interleave')">Interleaved PRINT</button>
+        <button class="demo-btn" onclick="loadDemo('sleep')">SLEEP Interleaving</button>
+        <button class="demo-btn" onclick="loadDemo('monitor')">MONITOR</button>
+        <button class="demo-btn" onclick="loadDemo('results')">Thread Results</button>
+    </div>
+
+    <h3>Script:</h3>
+    <textarea id="script" rows="20" cols="50">/* Interleaved PRINT Demo */
+
+thread worker(name, count) do
+    i = 0
+    loop i < count infinite do
+        PRINT(name + ": step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return count
+end
+
+multi
+    worker("Alpha", 4) -> r1
+    worker("Beta", 4) -> r2
+    worker("Gamma", 4) -> r3
+end
+
+PRINT("=== All threads done ===")
+PRINT("Alpha result:", r1)
+PRINT("Beta result:", r2)
+PRINT("Gamma result:", r3)
+</textarea>
+
+    <div class="button-group">
+        <button class="btn btn-primary" id="runButton" onclick="run()">Run</button>
+        <button class="btn btn-danger" onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <h3>Output:</h3>
+    <div id="output"></div>
+
+    <!-- ProperTee Concurrent bundle -->
+    <script src="./browser/propertee-bundle.js"></script>
+
+    <script>
+        // Demo scripts
+        const demos = {
+            basic: `/* Basic script - no threads */
+x = 10
+y = 20
+PRINT("x + y =", x + y)
+
+function greet(name) do
+    return "Hello, " + name + "!"
+end
+
+PRINT(greet("World"))
+
+items = [1, 2, 3, 4, 5]
+total = 0
+loop v in items do
+    total = total + v
+end
+PRINT("Sum:", total)`,
+
+            interleave: `/* Interleaved PRINT Demo */
+/* Threads yield after every statement, so PRINTs should interleave */
+
+thread worker(name, count) do
+    i = 0
+    loop i < count infinite do
+        PRINT(name + ": step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return count
+end
+
+multi
+    worker("Alpha", 4) -> r1
+    worker("Beta", 4) -> r2
+    worker("Gamma", 4) -> r3
+end
+
+PRINT("=== All threads done ===")
+PRINT("Alpha result:", r1)
+PRINT("Beta result:", r2)
+PRINT("Gamma result:", r3)`,
+
+            sleep: `/* SLEEP Interleaving Demo */
+/* Sleeping threads don't block others */
+
+thread fast(name) do
+    PRINT(name + ": starting fast work")
+    PRINT(name + ": step 1")
+    PRINT(name + ": step 2")
+    PRINT(name + ": step 3")
+    PRINT(name + ": done!")
+    return "fast-done"
+end
+
+thread sleepy(name, ms) do
+    PRINT(name + ": starting, will sleep " + TO_STRING(ms) + "ms")
+    SLEEP(ms)
+    PRINT(name + ": woke up!")
+    return "slept-" + TO_STRING(ms)
+end
+
+multi
+    sleepy("Sleeper", 100) -> r1
+    fast("Worker") -> r2
+end
+
+PRINT("=== Results ===")
+PRINT("Sleeper:", r1)
+PRINT("Worker:", r2)`,
+
+            monitor: `/* MONITOR Demo */
+/* Monitor runs periodically between scheduler ticks */
+
+thread counter(name, target) do
+    i = 0
+    loop i < target infinite do
+        i = i + 1
+    end
+    PRINT(name + " finished counting to " + TO_STRING(target))
+    return i
+end
+
+multi
+    counter("A", 10) -> rA
+    counter("B", 8) -> rB
+monitor 50
+    PRINT("[Monitor tick]")
+end
+
+PRINT("=== Results ===")
+PRINT("A counted:", rA)
+PRINT("B counted:", rB)`,
+
+            results: `/* Thread Results Demo */
+
 thread calculate(n) do
-    // 로컬 변수
     temp = n * 2
     squared = temp * temp
     result = squared + n
-    
     PRINT("Thread", n, "calculated:", result)
     return result
 end
 
-thread processData(id, multiplier) do
-    // 복잡한 로컬 변수들
-    step1 = id + 10
-    step2 = step1 * multiplier
-    step3 = step2 - 5
-    final = step3 / 2
-    
-    PRINT("Thread", id, "processed:", final)
-    return final
-end
-
 thread buildObject(id) do
-    // 객체 생성
     obj = {
         id: id,
         value: id * 100,
         status: "complete"
     }
-    
     PRINT("Thread", id, "built object")
     return obj
 end
 
-// 병렬 실행
 multi
     calculate(5) -> r1
-    processData(3, 7) -> r2
+    calculate(3) -> r2
     buildObject(99) -> r3
 end
 
-// 결과 검증
 PRINT("=== Results ===")
 PRINT("r1 (calculate 5):", r1)
-PRINT("r2 (processData):", r2)
+PRINT("r2 (calculate 3):", r2)
 PRINT("r3 (buildObject):", r3)
 PRINT("r3.id:", r3.id)
 PRINT("r3.value:", r3.value)
-PRINT("r3.status:", r3.status)
-</textarea>
-    
-    <div class="button-group">
-        <button class="btn btn-primary" id="runButton" onclick="run()">▶ Run</button>
-        <button class="btn btn-danger" onclick="clearOutput()">🗑️ Clear Output</button>
-    </div>
-    
-    <h3>Output:</h3>
-    <div id="output"></div>
-    
-    <!-- ProperTee 번들 로드 -->
-    <script src="./browser/propertee-bundle.js"></script>
-    
-    <script>
-        // 에러 리스너
+PRINT("r3.status:", r3.status)`
+        };
+
+        function loadDemo(name) {
+            document.getElementById('script').value = demos[name];
+        }
+
+        // Error listener
         class ErrorListener extends antlr4.error.ErrorListener {
             constructor() {
                 super();
@@ -128,49 +256,39 @@ PRINT("r3.status:", r3.status)
                 this.errors.push(`Line ${line}:${column} - ${msg}`);
             }
         }
-        
-        // Clear 함수
+
         function clearOutput() {
-            const output = document.getElementById('output');
-            output.innerHTML = '';
+            document.getElementById('output').innerHTML = '';
         }
-        
-        // 실행 함수
+
         async function run() {
             const output = document.getElementById('output');
             const runButton = document.getElementById('runButton');
             const propertiesText = document.getElementById('properties').value;
             const scriptText = document.getElementById('script').value;
-            
-            // Run 시작 시 output 자동 클리어
+
             output.innerHTML = '';
-            
-            // 버튼 비활성화
             runButton.disabled = true;
-            runButton.textContent = '⏳ Running...';
-            
-            const outputLines = [];
-            
+            runButton.textContent = 'Running...';
+
             try {
-                // 1. Properties 파싱
                 const properties = JSON.parse(propertiesText);
-                
-                // 2. Lexer & Parser
+
+                // Parse
                 const chars = new antlr4.InputStream(scriptText);
                 const lexer = new ProperTeeLexer(chars);
                 const lexerErrors = new ErrorListener();
                 lexer.removeErrorListeners();
                 lexer.addErrorListener(lexerErrors);
-                
+
                 const tokens = new antlr4.CommonTokenStream(lexer);
                 const parser = new ProperTeeParser(tokens);
                 const parserErrors = new ErrorListener();
                 parser.removeErrorListeners();
                 parser.addErrorListener(parserErrors);
-                
+
                 const tree = parser.root();
-                
-                // 에러 체크
+
                 if (lexerErrors.errors.length > 0) {
                     const errorDiv = document.createElement('div');
                     errorDiv.style.color = 'red';
@@ -185,13 +303,11 @@ PRINT("r3.status:", r3.status)
                     output.appendChild(errorDiv);
                     return;
                 }
-                
-                // 3. 실시간 출력 스트림 설정
+
+                // IO streams
                 const ioStreams = {
                     stdout: (...args) => {
                         const line = args.join(' ');
-                        outputLines.push(line);
-                        
                         const div = document.createElement('div');
                         div.textContent = line;
                         output.appendChild(div);
@@ -199,8 +315,6 @@ PRINT("r3.status:", r3.status)
                     },
                     stderr: (...args) => {
                         const line = '[ERROR] ' + args.join(' ');
-                        outputLines.push(line);
-                        
                         const div = document.createElement('div');
                         div.style.color = 'red';
                         div.textContent = line;
@@ -208,18 +322,19 @@ PRINT("r3.status:", r3.status)
                         output.scrollTop = output.scrollHeight;
                     }
                 };
-                
-                
+
                 const options = {
                     maxIterations: 1000,
                     iterationLimitBehavior: 'error'
                 };
-                
-                // 5. Visitor 생성 및 실행 (await 추가!)
+
+                // Create visitor and scheduler
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
-                const result = await visitor.visit(tree);
-                
-                // 6. 최종 요약 정보
+                const scheduler = new Scheduler(visitor);
+                const mainGenerator = visitor.visitRoot(tree);
+                const result = await scheduler.run(mainGenerator);
+
+                // Summary
                 const summary = document.createElement('div');
                 summary.style.marginTop = '20px';
                 summary.style.borderTop = '2px solid #ccc';
@@ -229,20 +344,13 @@ PRINT("r3.status:", r3.status)
                 summary.innerHTML = `
                     <strong>--- Return Value ---</strong>
                     <pre style="margin: 5px 0;">${JSON.stringify(result, null, 2)}</pre>
-                    
-                    <strong>--- Properties ---</strong>
-                    <pre style="margin: 5px 0;">${JSON.stringify(properties, null, 2)}</pre>
-                    
+
                     <strong>--- Variables ---</strong>
                     <pre style="margin: 5px 0;">${JSON.stringify(visitor.variables, null, 2)}</pre>
-                    
-                    <strong>--- Shared Variables ---</strong>
-                    <pre style="margin: 5px 0;">${JSON.stringify(visitor.sharedValues, null, 2)}</pre>
                 `;
                 output.appendChild(summary);
-                
+
             } catch (e) {
-                // 런타임 에러 발생 시
                 const errorDiv = document.createElement('div');
                 errorDiv.style.marginTop = '20px';
                 errorDiv.style.borderTop = '2px solid red';
@@ -254,9 +362,8 @@ PRINT("r3.status:", r3.status)
                 `;
                 output.appendChild(errorDiv);
             } finally {
-                // 버튼 다시 활성화
                 runButton.disabled = false;
-                runButton.textContent = '▶ Run';
+                runButton.textContent = 'Run';
             }
         }
     </script>
