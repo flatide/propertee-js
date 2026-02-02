@@ -159,7 +159,6 @@ loop key, val in collection do ... end
 
 ## Known Limitations
 
-- **Chained numeric access:** `arr.2.1` is lexed as a single float `2.1`, not two separate accesses. Workaround: assign to a temp variable, then access.
 - **Thread-to-thread direct calls:** When a thread function calls another thread function directly (not via `multi`), the return value is wrapped as `{local, result}` instead of the raw result.
 - **String escapes:** The visitor does not process escape sequences (`\n`, `\t`, `\\`). Backslash characters pass through as-is. The lexer only uses `\"` to allow quotes inside strings.
 - **Semicolons:** The lexer skips `;` as whitespace — semicolons are allowed but ignored.

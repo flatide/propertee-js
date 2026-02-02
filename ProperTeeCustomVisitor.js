@@ -647,7 +647,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         throw this.createError(`Variable '${name}' is not defined`, ctx);
     }
 
-    *visitNumberAtom(ctx) {
+    *visitIntegerAtom(ctx) {
+        return parseInt(ctx.getText(), 10);
+    }
+
+    *visitDecimalAtom(ctx) {
         return parseFloat(ctx.getText());
     }
 
@@ -691,7 +695,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const str = ctx.STRING().getText();
             return str.substring(1, str.length - 1);
         }
-        if (ctx.NUMBER()) return ctx.NUMBER().getText();
+        if (ctx.INTEGER()) return ctx.INTEGER().getText();
         return null;
     }
 
@@ -753,7 +757,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitArrayAccess(ctx) {
-        const oneBased = parseFloat(ctx.NUMBER().getText());
+        const oneBased = parseInt(ctx.INTEGER().getText(), 10);
         return oneBased - 1;
     }
 
@@ -1072,7 +1076,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const monitorClause = ctx.monitorClause();
         if (monitorClause) {
             monitorSpec = {
-                interval: parseInt(monitorClause.NUMBER().getText()),
+                interval: parseInt(monitorClause.INTEGER().getText()),
                 blockCtx: monitorClause.block()
             };
         }

@@ -49,7 +49,7 @@ parallelStmt
     ;
 
 monitorClause
-    : K_MONITOR NUMBER block
+    : K_MONITOR INTEGER block
     ;
 
 parallelTask
@@ -84,7 +84,7 @@ expression
 
 access
     : ID                                    # StaticAccess      // .width
-    | NUMBER                                # ArrayAccess       // .1 (1-based indexing)
+    | INTEGER                               # ArrayAccess       // .1 (1-based indexing)
     | STRING                                # StringKeyAccess   // ."key"
     | '$' ID                                # VarEvalAccess     // .$key (축약형: .$(key))
     | '$' '(' expression ')'                # EvalAccess        // .$(expr) (완전형)
@@ -93,7 +93,8 @@ access
 atom
     : functionCall           # FuncAtom
     | ID                     # VarReference
-    | NUMBER                 # NumberAtom
+    | INTEGER '.' INTEGER    # DecimalAtom
+    | INTEGER                # IntegerAtom
     | STRING                 # StringAtom
     | (K_TRUE | K_FALSE)     # BooleanAtom
     | K_NULL                 # NullAtom
@@ -117,7 +118,7 @@ objectEntry
 objectKey
     : ID                     // member: value
     | STRING                 // "key-name": value
-    | NUMBER                 // 1: value (1-based indexing for array-like objects)
+    | INTEGER                // 1: value (1-based indexing for array-like objects)
     ;
 
 arrayLiteral
@@ -151,7 +152,7 @@ K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
 
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;          // 일반 식별자 (나중에 정의)
-NUMBER : [0-9]+ ('.' [0-9]+)? ;
+INTEGER : [0-9]+ ;
 STRING : '"' ( '\\' . | ~["\\] )* '"' ;
 
 // 주석과 공백 처리

@@ -39,7 +39,7 @@ PRINT(empty)
 // Nested arrays
 nested = [[1, 2], [3, 4]]
 PRINT(nested.1)
-// Note: nested.2.1 won't work -- "2.1" is lexed as a single float.
-// Use a temp variable to chain access:
+// Chained numeric access works: nested.2.1 is two separate accesses
+PRINT(nested.2.1)
 inner = nested.2
 PRINT(inner.1)
