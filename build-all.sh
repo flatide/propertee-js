@@ -33,13 +33,13 @@ fi
 node build-browser.js
 echo "  Browser bundle built."
 
-# Phase 3: Copy to dist
+# Phase 3: Copy to docs/dist (GitHub Pages)
 echo ""
-echo "[3/3] Copying to dist/..."
-mkdir -p dist
-cp browser/propertee-bundle.js dist/
-sed 's|./browser/propertee-bundle.js|./propertee-bundle.js|g' scratch.html > dist/scratch.html
-echo "  dist/ ready."
+echo "[3/3] Copying to docs/dist/..."
+mkdir -p docs/dist
+cp browser/propertee-bundle.js docs/dist/
+sed 's|./browser/propertee-bundle.js|./propertee-bundle.js|g' scratch.html > docs/dist/scratch.html
+echo "  docs/dist/ ready."
 
 # Summary
 echo ""
@@ -47,10 +47,11 @@ echo "Build complete!"
 echo ""
 echo "Generated files:"
 echo "  - browser/propertee-bundle.js ($(wc -c < browser/propertee-bundle.js | awk '{print int($1/1024)}') KB)"
-echo "  - dist/scratch.html"
-echo "  - dist/propertee-bundle.js"
+echo "  - docs/dist/scratch.html"
+echo "  - docs/dist/propertee-bundle.js"
 echo ""
 echo "Usage:"
 echo "  node pt.js script.pt          # CLI"
-echo "  open dist/scratch.html        # Browser playground"
+echo "  open docs/index.html          # GitHub Pages playground"
+echo "  open docs/dist/scratch.html   # Scratch test page"
 echo ""

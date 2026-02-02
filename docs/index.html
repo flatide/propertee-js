@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProperTee Concurrent - Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+        
+        .github-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        
+        .github-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .playground {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+            height: calc(100vh - 250px);
+            min-height: 600px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel:nth-child(1) {
+            flex: 0 0 20%;
+            min-height: 150px;
+        }
+        
+        .panel:nth-child(2) {
+            flex: 0 0 50%;
+        }
+        
+        .panel:nth-child(3) {
+            flex: 0 0 30%;
+            min-height: 200px;
+        }
+        
+        .input-layout {
+            display: flex;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .properties-area {
+            flex: 0 0 50%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .script-area {
+            flex: 0 0 50%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        
+        .panel-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .header-btn.clear {
+            background: rgba(220, 53, 69, 0.8);
+        }
+        
+        .header-btn.clear:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+        
+        .panel-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        textarea {
+            width: 100%;
+            border: 1px solid #3e4451;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            
+            /* 코드 에디터 스타일 */
+            background-color: #282c34;
+            color: #abb2bf;
+            tab-size: 4;
+            -moz-tab-size: 4;
+            white-space: pre;
+            word-wrap: normal;
+            overflow-wrap: normal;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea::placeholder {
+            color: #5c6370;
+        }
+        
+        textarea::selection {
+            background-color: #3e4451;
+        }
+        
+        #properties {
+            min-height: 120px;
+        }
+        
+        #script {
+            min-height: 300px;
+            flex: 1;
+            /* 라인 가이드 배경 */
+            background-image: 
+                linear-gradient(transparent 0%, transparent calc(1.6em - 1px), #21252b calc(1.6em - 1px), #21252b 1.6em);
+            background-size: 100% 1.6em;
+            background-position: 0 15px;
+        }
+        
+        #output {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #2d3748;
+        }
+        
+        .examples {
+            margin-bottom: 10px;
+        }
+        
+        .example-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .example-btn {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .example-btn:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .reference-box {
+            display: flex;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .reference-box h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .reference-column {
+            flex: 1;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            font-size: 0.9em;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+        
+        .script-layout {
+            display: flex;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .script-editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .script-reference-area {
+            display: none; /* 이제 상단으로 이동 */
+        }
+        
+        .reference-box h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 1em;
+        }
+        
+        .reference-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 5px 0;
+        }
+        
+        .reference-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85em;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .reference-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .reference-item.keyword {
+            background: #e3f2fd;
+            border-color: #90caf9;
+            color: #1976d2;
+        }
+        
+        .reference-item.keyword:hover {
+            background: #bbdefb;
+        }
+        
+        .reference-item.function {
+            background: #f3e5f5;
+            border-color: #ce93d8;
+            color: #7b1fa2;
+        }
+        
+        .reference-item.function:hover {
+            background: #e1bee7;
+        }
+        
+        .script-footer {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-top: 15px;
+            gap: 10px;
+        }
+        
+        .run-btn-small {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .run-btn-small:hover {
+            background: #5568d3;
+        }
+        
+        .run-btn-small:active {
+            background: #4456b8;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+            
+            .github-link {
+                position: static;
+                display: inline-block;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="https://github.com/flatide/ProperTee" class="github-link" target="_blank">⭐ GitHub</a>
+    
+    <div class="container">
+        <header>
+            <h1>ProperTee Concurrent Playground</h1>
+            <p>Generator-based cooperative multithreading DSL</p>
+        </header>
+        
+        <div class="playground">
+            <!-- Reference panel -->
+            <div class="panel">
+                <div class="panel-header">Reference</div>
+                <div class="panel-content">
+                    <div class="reference-box">
+                        <!-- Keywords -->
+                        <div class="reference-column">
+                            <h4>Keywords</h4>
+                            <div class="reference-list">
+                                <span class="reference-item keyword" onclick="insertText('if')">if</span>
+                                <span class="reference-item keyword" onclick="insertText('then')">then</span>
+                                <span class="reference-item keyword" onclick="insertText('else')">else</span>
+                                <span class="reference-item keyword" onclick="insertText('end')">end</span>
+                                <span class="reference-item keyword" onclick="insertText('loop')">loop</span>
+                                <span class="reference-item keyword" onclick="insertText('in')">in</span>
+                                <span class="reference-item keyword" onclick="insertText('do')">do</span>
+                                <span class="reference-item keyword" onclick="insertText('infinite')">infinite</span>
+                                <span class="reference-item keyword" onclick="insertText('break')">break</span>
+                                <span class="reference-item keyword" onclick="insertText('continue')">continue</span>
+                                <span class="reference-item keyword" onclick="insertText('function')">function</span>
+                                <span class="reference-item keyword" onclick="insertText('thread')">thread</span>
+                                <span class="reference-item keyword" onclick="insertText('return')">return</span>
+                                <span class="reference-item keyword" onclick="insertText('shared')">shared</span>
+                                <span class="reference-item keyword" onclick="insertText('uses')">uses</span>
+                                <span class="reference-item keyword" onclick="insertText('multi')">multi</span>
+                                <span class="reference-item keyword" onclick="insertText('monitor')">monitor</span>
+                                <span class="reference-item keyword" onclick="insertText('and')">and</span>
+                                <span class="reference-item keyword" onclick="insertText('or')">or</span>
+                                <span class="reference-item keyword" onclick="insertText('not')">not</span>
+                                <span class="reference-item keyword" onclick="insertText('true')">true</span>
+                                <span class="reference-item keyword" onclick="insertText('false')">false</span>
+                                <span class="reference-item keyword" onclick="insertText('null')">null</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Built-in functions -->
+                        <div class="reference-column">
+                            <h4>Built-in Functions</h4>
+                            <div class="reference-list">
+                                <span class="reference-item function" onclick="insertText('PRINT()')">PRINT()</span>
+                                <span class="reference-item function" onclick="insertText('SUM()')">SUM()</span>
+                                <span class="reference-item function" onclick="insertText('MAX()')">MAX()</span>
+                                <span class="reference-item function" onclick="insertText('MIN()')">MIN()</span>
+                                <span class="reference-item function" onclick="insertText('ABS()')">ABS()</span>
+                                <span class="reference-item function" onclick="insertText('FLOOR()')">FLOOR()</span>
+                                <span class="reference-item function" onclick="insertText('CEIL()')">CEIL()</span>
+                                <span class="reference-item function" onclick="insertText('ROUND()')">ROUND()</span>
+                                <span class="reference-item function" onclick="insertText('LEN()')">LEN()</span>
+                                <span class="reference-item function" onclick="insertText('TO_NUMBER()')">TO_NUMBER()</span>
+                                <span class="reference-item function" onclick="insertText('TO_STRING()')">TO_STRING()</span>
+                                <span class="reference-item function" onclick="insertText('SLEEP()')">SLEEP()</span>
+                                <span class="reference-item function" onclick="insertText('PUSH()')">PUSH()</span>
+                                <span class="reference-item function" onclick="insertText('POP()')">POP()</span>
+                                <span class="reference-item function" onclick="insertText('CONCAT()')">CONCAT()</span>
+                                <span class="reference-item function" onclick="insertText('SLICE()')">SLICE()</span>
+                                <span class="reference-item function" onclick="insertText('CHARS()')">CHARS()</span>
+                                <span class="reference-item function" onclick="insertText('SPLIT()')">SPLIT()</span>
+                                <span class="reference-item function" onclick="insertText('JOIN()')">JOIN()</span>
+                                <span class="reference-item function" onclick="insertText('SUBSTRING()')">SUBSTRING()</span>
+                                <span class="reference-item function" onclick="insertText('UPPERCASE()')">UPPERCASE()</span>
+                                <span class="reference-item function" onclick="insertText('LOWERCASE()')">LOWERCASE()</span>
+                                <span class="reference-item function" onclick="insertText('TRIM()')">TRIM()</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input panel -->
+            <div class="panel">
+                <div class="panel-header">Input</div>
+                <div class="panel-content">
+                    <div class="input-layout">
+                        <!-- Properties -->
+                        <div class="properties-area">
+                            <!-- Example buttons -->
+                            <div class="examples">
+                                <div class="example-buttons">
+                                    <button class="example-btn" onclick="loadExample('basic')">Basic</button>
+                                    <button class="example-btn" onclick="loadExample('property')">Properties</button>
+                                    <button class="example-btn" onclick="loadExample('control')">Control Flow</button>
+                                    <button class="example-btn" onclick="loadExample('dynamic')">Dynamic Access</button>
+                                    <button class="example-btn" onclick="loadExample('parallel')">Parallel</button>
+                                </div>
+                            </div>
+                            
+                            <h4 style="margin: 0;">Properties (JSON)</h4>
+                            <textarea id="properties" placeholder='{"key": "value"}'>{"user": {"name": "Test", "score": 100}}</textarea>
+                            
+                            <div class="button-group">
+                                <button class="run-btn-small" id="runButton" onclick="run()">Run</button>
+                                <button class="header-btn clear" onclick="clearOutput()" style="background: rgba(220, 53, 69, 0.8); border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; transition: all 0.3s;">Clear</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Script -->
+                        <div class="script-area">
+                            <h4 style="margin: 0;">ProperTee Script</h4>
+
+                            <textarea id="script" placeholder="// Enter ProperTee code...">PRINT("Hello, ProperTee!")
+PRINT("User:", user.name)
+PRINT("Score:", user.score)
+
+user.score = user.score + 10
+PRINT("New Score:", user.score)
+
+user.score</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Output -->
+            <div class="panel">
+                <div class="panel-header">Output</div>
+                <div class="panel-content">
+                    <pre id="output">Output will appear here...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ProperTee 번들 로드 -->
+    <script src="dist/propertee-bundle.js"></script>
+    
+    <script>
+        // 에러 리스너
+        class ErrorListener extends antlr4.error.ErrorListener {
+            constructor() {
+                super();
+                this.errors = [];
+            }
+            syntaxError(recognizer, offendingSymbol, line, column, msg, err) {
+                this.errors.push(`Line ${line}:${column} - ${msg}`);
+            }
+        }
+        
+        // 텍스트 삽입 함수 (커서 위치에 키워드/함수 삽입)
+        function insertText(text) {
+            const scriptArea = document.getElementById('script');
+            const start = scriptArea.selectionStart;
+            const end = scriptArea.selectionEnd;
+            const value = scriptArea.value;
+            
+            // 커서 위치에 텍스트 삽입
+            scriptArea.value = value.substring(0, start) + text + value.substring(end);
+            
+            // 함수인 경우 괄호 안에 커서 위치
+            if (text.includes('()')) {
+                scriptArea.selectionStart = scriptArea.selectionEnd = start + text.length - 1;
+            } else {
+                scriptArea.selectionStart = scriptArea.selectionEnd = start + text.length;
+            }
+            
+            // 포커스 유지
+            scriptArea.focus();
+        }
+        
+        // 예제 로드
+        const examples = {
+            basic: {
+                properties: '{"user": {"name": "Test", "score": 100}}',
+                script: `PRINT("Hello, ProperTee!")
+PRINT("User:", user.name)
+PRINT("Score:", user.score)
+
+user.score = user.score + 10
+PRINT("New Score:", user.score)
+
+user.score`
+            },
+            property: {
+                properties: '{"config": {"debug": true, "ports": [8080, 8443], "api-key": "secret123"}}',
+                script: `// Object property access
+PRINT("Debug mode:", config.debug)
+PRINT("API Key:", config."api-key")
+
+// Array access (1-based indexing)
+PRINT("First port:", config.ports.1)
+PRINT("Second port:", config.ports.2)
+
+config.ports`
+            },
+            control: {
+                properties: '{"users": [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]}',
+                script: `// Conditionals
+if users.1.age > 20 then
+    PRINT(users.1.name, "is adult")
+else
+    PRINT(users.1.name, "is minor")
+end
+
+// Loops
+loop user in users do
+    PRINT("Name:", user.name, "Age:", user.age)
+end
+
+users`
+            },
+            dynamic: {
+                properties: '{"data": {"username": "admin", "email": "admin@example.com"}}',
+                script: `// Dynamic property access
+key = "username"
+PRINT("Dynamic access:", data.$key)
+
+// Expression-based access
+field = "email"
+PRINT("Email:", data.$(field))
+
+data`
+            },
+            parallel: {
+                properties: '{}',
+                script: `// Parallel execution with cooperative scheduling
+
+thread worker(name, count) do
+    i = 0
+    loop i < count infinite do
+        PRINT(name + ": step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return count
+end
+
+// Threads interleave at statement boundaries
+multi
+    worker("Alpha", 4) -> r1
+    worker("Beta", 4) -> r2
+monitor 50
+    PRINT("[monitor tick]")
+end
+
+PRINT("=== All threads done ===")
+PRINT("Alpha result:", r1)
+PRINT("Beta result:", r2)`
+            }
+        };
+        
+        function loadExample(name) {
+            const example = examples[name];
+            if (example) {
+                document.getElementById('properties').value = example.properties;
+                document.getElementById('script').value = example.script;
+            }
+        }
+        
+        async function run() {
+            const output = document.getElementById('output');
+            const runButton = document.getElementById('runButton');
+            const propertiesText = document.getElementById('properties').value;
+            const scriptText = document.getElementById('script').value;
+
+            output.textContent = '';
+            runButton.disabled = true;
+            runButton.textContent = 'Running...';
+
+            try {
+                const properties = JSON.parse(propertiesText);
+
+                const chars = new antlr4.InputStream(scriptText);
+                const lexer = new ProperTeeLexer(chars);
+                const lexerErrors = new ErrorListener();
+                lexer.removeErrorListeners();
+                lexer.addErrorListener(lexerErrors);
+
+                const tokens = new antlr4.CommonTokenStream(lexer);
+                const parser = new ProperTeeParser(tokens);
+                const parserErrors = new ErrorListener();
+                parser.removeErrorListeners();
+                parser.addErrorListener(parserErrors);
+
+                const tree = parser.root();
+
+                if (lexerErrors.errors.length > 0) {
+                    output.textContent = 'Lexer Error:\n' + lexerErrors.errors.join('\n');
+                    return;
+                }
+                if (parserErrors.errors.length > 0) {
+                    output.textContent = 'Parser Error:\n' + parserErrors.errors.join('\n');
+                    return;
+                }
+
+                const ioStreams = {
+                    stdout: (...args) => {
+                        output.textContent += args.join(' ') + '\n';
+                        output.scrollTop = output.scrollHeight;
+                    },
+                    stderr: (...args) => {
+                        output.textContent += '[ERROR] ' + args.join(' ') + '\n';
+                        output.scrollTop = output.scrollHeight;
+                    }
+                };
+
+                const options = {
+                    maxIterations: 1000,
+                    iterationLimitBehavior: 'error'
+                };
+
+                const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+                const scheduler = new Scheduler(visitor);
+                const mainGenerator = visitor.visitRoot(tree);
+                const result = await scheduler.run(mainGenerator);
+
+                output.textContent += '\n--- Return Value ---\n' + JSON.stringify(result, null, 2) + '\n\n';
+                output.textContent += '--- Properties ---\n' + JSON.stringify(properties, null, 2) + '\n\n';
+                output.textContent += '--- Variables ---\n' + JSON.stringify(visitor.variables, null, 2);
+
+            } catch (e) {
+                output.textContent += '\n\nRuntime Error:\n' + e.message;
+                console.error(e);
+            } finally {
+                runButton.disabled = false;
+                runButton.textContent = 'Run';
+            }
+        }
+        
+        function clearOutput() {
+            const output = document.getElementById('output');
+            output.textContent = 'Output will appear here...';
+        }
+
+        window.addEventListener('load', () => {
+            initCodeEditor();
+            setTimeout(() => {
+                run();
+            }, 500);
+        });
+        
+        // 코드 에디터 기능 (탭 키, 자동 들여쓰기)
+        function initCodeEditor() {
+            const textareas = document.querySelectorAll('textarea');
+            
+            textareas.forEach(textarea => {
+                textarea.addEventListener('keydown', function(e) {
+                    // Tab 키 처리
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = this.selectionStart;
+                        const end = this.selectionEnd;
+                        const value = this.value;
+                        
+                        if (e.shiftKey) {
+                            // Shift+Tab: 들여쓰기 제거
+                            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                            const line = value.substring(lineStart, end);
+                            if (line.startsWith('    ')) {
+                                this.value = value.substring(0, lineStart) + 
+                                           line.substring(4) + 
+                                           value.substring(end);
+                                this.selectionStart = Math.max(lineStart, start - 4);
+                                this.selectionEnd = end - 4;
+                            }
+                        } else {
+                            // Tab: 4칸 스페이스 삽입
+                            this.value = value.substring(0, start) + '    ' + value.substring(end);
+                            this.selectionStart = this.selectionEnd = start + 4;
+                        }
+                    }
+                    
+                    // Enter 키: 자동 들여쓰기
+                    if (e.key === 'Enter') {
+                        const start = this.selectionStart;
+                        const value = this.value;
+                        const currentLine = value.substring(0, start).split('\n').pop();
+                        const indent = currentLine.match(/^\s*/)[0];
+                        const trimmedLine = currentLine.trim();
+                        
+                        // 들여쓰기가 필요한 키워드 체크
+                        const indentKeywords = ['then', 'do', 'else'];
+                        const shouldIndent = indentKeywords.some(keyword => 
+                            trimmedLine.endsWith(keyword)
+                        );
+                        
+                        if (shouldIndent || indent.length > 0) {
+                            e.preventDefault();
+                            const newIndent = shouldIndent ? indent + '    ' : indent;
+                            const insertText = '\n' + newIndent;
+                            
+                            this.value = value.substring(0, start) + 
+                                       insertText + 
+                                       value.substring(start);
+                            this.selectionStart = this.selectionEnd = start + insertText.length;
+                        }
+                    }
+                    
+                    // 자동으로 'end' 들여쓰기 감소
+                    if (e.key === 'd' && this.value.substring(this.selectionStart - 2, this.selectionStart) === 'en') {
+                        setTimeout(() => {
+                            const start = this.selectionStart;
+                            const value = this.value;
+                            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                            const line = value.substring(lineStart, start);
+                            
+                            if (line.trim() === 'end' && line.startsWith('    ')) {
+                                // 들여쓰기 제거
+                                this.value = value.substring(0, lineStart) + 
+                                           line.substring(4) + 
+                                           value.substring(start);
+                                this.selectionStart = this.selectionEnd = start - 4;
+                            }
+                        }, 0);
+                    }
+                    
+                    // Ctrl/Cmd + / : 주석 토글
+                    if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        const start = this.selectionStart;
+                        const end = this.selectionEnd;
+                        const value = this.value;
+                        
+                        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                        const lineEnd = value.indexOf('\n', end);
+                        const line = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
+                        
+                        if (line.trim().startsWith('//')) {
+                            // 주석 제거
+                            const newLine = line.replace(/^(\s*)\/\/\s?/, '$1');
+                            this.value = value.substring(0, lineStart) + newLine + value.substring(lineEnd === -1 ? value.length : lineEnd);
+                            this.selectionStart = start;
+                            this.selectionEnd = end - (line.length - newLine.length);
+                        } else {
+                            // 주석 추가
+                            const indent = line.match(/^\s*/)[0];
+                            const newLine = indent + '// ' + line.substring(indent.length);
+                            this.value = value.substring(0, lineStart) + newLine + value.substring(lineEnd === -1 ? value.length : lineEnd);
+                            this.selectionStart = start + 3;
+                            this.selectionEnd = end + 3;
+                        }
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -50,7 +50,7 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 
 Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32).
 
-**Browser testing:** Open `scratch.html` (or `dist/scratch.html`) for interactive testing with demo buttons.
+**Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
 **Sample scripts:** `sample/01_hello.pt` through `sample/16_comments.pt` cover all language features as beginner-friendly examples.
 
