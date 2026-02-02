@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# ANTLR generated files (재생성 가능)
+generated/
+
+# 레거시 파일들 (삭제 예정 또는 삭제됨)
+index.html
+antlr4.js
+ProperTeeLexer.js
+ProperTeeParser.js
+ProperTeeVisitor.js
+FIXED.md
+FIXED-COMPLETE.md
+
+# 브라우저 번들 개별 파일 (통합 번들에 포함됨)
+browser/*.browser.js
+browser/antlr4-bundle.js
+
+# 빌드 산출물 (재생성 가능하므로 선택적으로 제외 가능)
+# browser/antlr4-runtime.js
+# browser/propertee-bundle.js
+*.interp
+*.tokens
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+
+# 백업 파일
+*.bak
+*~
