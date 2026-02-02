@@ -1,7 +1,7 @@
 # ProperTee Language Specification
 
-Version: 1.1  
-Last Updated: 2026-01-31
+Version: 1.2 (Concurrent)
+Last Updated: 2026-02-02
 
 ## 1. Type System
 
@@ -480,7 +480,7 @@ end
 
 **2. Threads (thread keyword):**
 ```
-thread name(param1, param2, ...) uses resources do
+thread name(param1, param2, ...) do
     statements
 end
 ```
@@ -492,22 +492,21 @@ end
 - Return value can be explicit (`return expression`) or implicit (last evaluated expression)
 
 **Thread Definition:**
-- Threads are special functions that can run in `multi` blocks
+- Threads are special functions designed for concurrent execution in `multi` blocks
 - Must be declared with `thread` keyword
-- May use `uses` clause to access SHARED resources
-- Can be called both synchronously (outside multi) and asynchronously (inside multi)
-- Designed for safe concurrent execution
+- **Pure with respect to global state**: can read globals (via snapshot) but cannot write them
+- Can only call other thread functions or built-in functions (not regular functions)
+- Return results via `->` syntax in MULTI blocks
 
 **Key Differences:**
 
 | Feature | function | thread |
 |---------|----------|--------|
-| Can be called normally | ✅ | ✅ |
+| Can be called normally | ✅ | ❌ (multi only) |
 | Can be used in multi | ❌ | ✅ |
-| Can use `uses` clause | ❌ | ✅ |
-| Access SHARED variables | ❌* | ✅ (with uses) |
-
-*Functions cannot access SHARED variables at all, even outside multi blocks.
+| Can read globals | ✅ (direct) | ✅ (via snapshot) |
+| Can write globals | ✅ | ❌ (enforced) |
+| Can call functions | ✅ | ❌ (thread/built-in only) |
 
 **Note on Parameters:**
 User-defined functions and threads currently have **fixed parameter count**. Variadic arguments (like `...args`) are not yet supported. Built-in functions like `PRINT`, `PUSH`, and `CONCAT` do support variable arguments. See [Section 18.1](#181-current-limitations) for details and future plans.
@@ -523,7 +522,7 @@ User-defined functions and threads currently have **fixed parameter count**. Var
 2. **Global Access**: Functions can **read** variables from outer (global) scope
 3. **Global Modification**: To modify a global variable, it must exist before function call
 4. **Shadowing**: Local variables with same name as global variables shadow the global ones
-5. **SHARED Access**: Only threads with `uses` clause can access SHARED variables
+5. **Thread Purity**: Thread functions read globals via a snapshot taken at MULTI block entry; they cannot write globals
 
 **Example - Local vs Global:**
 ```javascript
@@ -539,18 +538,21 @@ result = test()      // 30
 PRINT(x)            // 100 (global unchanged)
 ```
 
-**Example - Thread with SHARED:**
+**Example - Thread with Global Snapshot:**
 ```javascript
-shared counter = 0
+counter = 100
 
-thread work() uses counter do
-    counter = counter + 10  // ✅ OK - declared in uses
-    return counter
+thread work() do
+    PRINT(counter)          // ✅ OK - reads from snapshot (100)
+    // counter = 200        // ❌ Runtime Error: Cannot assign to global variable inside thread function
+    local = counter + 10    // ✅ OK - local variable
+    return local
 end
 
-function helper() do
-    counter = counter + 5   // ❌ Error - functions cannot access SHARED
+multi
+    work() -> r1
 end
+PRINT(r1)                   // 110
 ```
 
 **Example - Accessing Global:**
@@ -975,11 +977,11 @@ true + false   // ❌ Runtime Error
 
 ### 8.3 Explicit Conversion
 
-Currently, ProperTee does not provide type conversion functions.
+ProperTee provides type conversion functions for explicit conversion:
+- `TO_NUMBER(string)` - Convert string to number (see Section 9.3)
+- `TO_STRING(value)` - Convert any value to string (see Section 9.3)
 
-If needed in the future, consider adding:
-- `TO_NUMBER(value)` - Convert to number
-- `TO_STRING(value)` - Convert to string
+Not yet implemented:
 - `TO_BOOLEAN(value)` - Convert to boolean
 
 ---
@@ -989,8 +991,8 @@ If needed in the future, consider adding:
 **Note on Variadic Arguments:**
 Built-in functions support variable number of arguments (e.g., `PRINT`, `PUSH`, `CONCAT`). User-defined functions currently have fixed parameters only. See [Section 18.1](#181-current-limitations) for details and planned enhancements.
 
-**Note on Async Functions:**
-`SLEEP` is asynchronous and automatically awaited by the runtime. User functions calling `SLEEP` also become asynchronous implicitly, with no explicit `async` keyword needed. See [Section 18.1](#181-current-limitations) for details.
+**Note on SLEEP:**
+`SLEEP` pauses the current thread by yielding a scheduler command. In the cooperative scheduling model, sleeping threads do not block other threads from making progress. See Section 9.3 for details.
 
 ---
 
@@ -1098,38 +1100,39 @@ str = TO_STRING({x: 10})    // "{\"x\":10}"
 
 #### `SLEEP(milliseconds)`
 - **Returns**: null (after delay completes)
-- Pauses execution for specified milliseconds
-- **Async function**: Automatically awaited in async contexts
+- Pauses the current thread for specified milliseconds
+- **Cooperative scheduling**: Yields a scheduler command; sleeping threads do not block other threads
 - Useful for delays, rate limiting, or simulating I/O operations
 
 **Important Notes:**
-- `SLEEP` is the only async built-in function currently
-- User functions calling `SLEEP` become asynchronous automatically
+- `SLEEP` yields a scheduler command (`{ __schedulerCommand: true, type: 'SLEEP', duration }`)
+- The scheduler transitions the thread to SLEEPING state and continues running other threads
+- When all threads are sleeping, the scheduler uses real `setTimeout` to advance time
 - No explicit `async`/`await` keywords needed in user code
-- The runtime handles Promise resolution transparently
-- See [Section 18.1](#181-current-limitations) for async function details
 
 **Examples:**
 ```javascript
 PRINT("Starting...")
-SLEEP(1000)              // Wait 1 second
+SLEEP(1000)              // Wait 1 second (other threads continue)
 PRINT("After 1 second")
 
-// In multi blocks - each thread sleeps independently
-multi
-    task1() -> r1
-    SLEEP(500)           // This thread sleeps
-    task2() -> r2
+// In multi blocks - sleeping threads don't block others
+thread fast(name) do
+    PRINT(name + ": working")
+    return "done"
 end
 
-// With user functions
-function delayedTask(ms) do
+thread sleepy(name, ms) do
+    PRINT(name + ": sleeping")
     SLEEP(ms)
-    return "Done"
+    PRINT(name + ": awake!")
+    return "slept"
 end
 
-result = delayedTask(2000)  // Waits 2 seconds
-PRINT(result)            // "Done"
+multi
+    sleepy("A", 500) -> r1   // Sleeps, but B continues
+    fast("B") -> r2           // Runs while A sleeps
+end
 ```
 
 **Error cases:**
@@ -1584,135 +1587,51 @@ ProperTee runtime errors throw JavaScript `Error` objects:
 
 ```javascript
 try {
-    const result = visitor.visit(tree);
+    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+    const scheduler = new Scheduler(visitor);
+    const mainGenerator = visitor.visitRoot(tree);
+    const result = await scheduler.run(mainGenerator);
 } catch (e) {
     console.error('Runtime Error:', e.message);
 }
 ```
 
-### 12.4 Return Statement Implementation
+### 12.4 Generator-Based Execution Model
 
-The `return` statement can exit both functions and top-level scripts. Implementation should use an exception mechanism:
+All `visit*` methods in `ProperTeeCustomVisitor` are generator functions (`function*`). This enables cooperative multithreading at the parse tree level.
 
-**ReturnException Class:**
+**Key Concepts:**
+- **Statement visitors** (`visitBlock`, `visitRoot`, loops, function bodies) do `yield` after each statement — this is the scheduling point where the scheduler can switch threads
+- **Expression visitors** (`visitAdditiveExpr`, `visitFunctionCall`, etc.) use only `yield*` delegation — expressions evaluate atomically, never yielding to the scheduler mid-expression
+- The `visit()` override returns the generator object from `ctx.accept(this)`. All callers use `yield*` to consume it
+
+**Yield Protocol:**
+Generators communicate with the scheduler via yield values:
+
+| Yield Value | Meaning |
+|---|---|
+| `undefined` (bare `yield`) | Statement boundary — thread stays READY |
+| `{ __schedulerCommand: true, type: 'SLEEP', duration }` | Thread enters SLEEPING state |
+| `{ __schedulerCommand: true, type: 'SPAWN_THREADS', specs, ... }` | Create child threads for MULTI block; parent enters WAITING |
+
+**Flow Control:**
+`BreakException`, `ContinueException`, and `ReturnException` propagate through generator chains via `yield*` delegation — generators support try/catch natively.
+
+**Entry Point:**
 ```javascript
-class ReturnException extends Error {
-    constructor(value) {
-        super('Return');
-        this.name = 'ReturnException';
-        this.value = value;
-    }
-}
+const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+const scheduler = new Scheduler(visitor);
+const mainGenerator = visitor.visitRoot(tree);
+const result = await scheduler.run(mainGenerator);
 ```
 
-**Return Statement Handler:**
-```javascript
-visitReturnStmt(ctx) {
-    const value = ctx.expression() 
-        ? this.visit(ctx.expression()) 
-        : null;
-    throw new ReturnException(value);
-}
-```
-
-**Function Execution:**
-```javascript
-callUserFunction(funcName, args) {
-    const funcDef = this.userDefinedFunctions[funcName];
-    
-    // Parameter binding and scope management
-    this.scopeStack.push(localScope);
-    
-    try {
-        // Execute function body
-        let lastValue = null;
-        for (let stmt of body.statement()) {
-            lastValue = this.visit(stmt);
-        }
-        return lastValue;  // Implicit return
-    } catch (e) {
-        if (e instanceof ReturnException) {
-            return e.value;  // Explicit return
-        }
-        throw e;  // Re-throw other errors
-    } finally {
-        this.scopeStack.pop();  // Always restore scope
-    }
-}
-```
-
-**Note:** ProperTee does not implement artificial recursion limits. Recursion is limited only by the host language's stack size.
-
-**Function Definition Storage:**
-```javascript
-visitFuncDefStmt(ctx) {
-    const funcName = ctx.funcName.text;
-    const params = this.extractParams(ctx.parameterList());
-    const hasInfinite = ctx.K_INFINITE() !== null;  // Check for infinite keyword
-    
-    this.functions[funcName] = {
-        params: params,
-        body: ctx.block(),
-        infinite: hasInfinite  // Store infinite flag
-    };
-    
-    return null;
-}
-```
-
-**Visitor Constructor:**
-```javascript
-constructor(properties, globalVars, ioStreams, options = {}) {
-    this.properties = properties;
-    this.ioStreams = ioStreams;
-    this.scopeStack = [];
-    this.variables = globalVars || {};
-    this.userDefinedFunctions = {};
-    
-    // Loop tracking
-    this.maxIterations = options.maxIterations || 1000;
-    this.iterationLimitBehavior = options.iterationLimitBehavior || 'warn';
-}
-```
-
-**Top-Level Script Execution:**
-```javascript
-// Entry point
-function executeScript(tree) {
-    try {
-        const visitor = new ProperTeeCustomVisitor(...);
-        
-        let lastValue = null;
-        const statements = tree.statement();
-        
-        for (let stmt of statements) {
-            lastValue = visitor.visit(stmt);
-        }
-        
-        return lastValue;  // Implicit return
-    } catch (e) {
-        if (e instanceof ReturnException) {
-            return e.value;  // Explicit return from script
-        }
-        throw e;  // Runtime error
-    }
-}
-```
-
-**Usage Example:**
-```javascript
-// Script with early return
-const script = `
-    config = loadConfig()
-    if config == null then
-        return "Config not found"
-    end
-    return processConfig(config)
-`;
-
-const result = executeScript(parseScript(script));
-console.log(result);  // "Config not found" or processed result
-```
+**Scheduler:**
+The `Scheduler` class manages thread execution via round-robin scheduling:
+1. Creates a main thread from the root generator
+2. On each tick, calls `generator.next()` on the current READY thread
+3. Processes yield values (SLEEP commands, SPAWN_THREADS commands)
+4. Selects the next READY thread (round-robin)
+5. When all threads complete, returns the main thread's result
 
 ---
 
@@ -2006,199 +1925,112 @@ PRINT("Counter after loop:", counter)  // ✅ Prints: Counter after loop: 1001
 
 ## 15. Concurrency and Threading
 
-ProperTee provides structured concurrency primitives for multi-threaded execution, designed for I/O-bound tasks with emphasis on safety and simplicity over performance.
+ProperTee provides structured concurrency primitives using **generator-based cooperative scheduling**. Every `visit*` method is a generator function, and a central scheduler round-robins between threads at statement boundaries. This gives real interleaved concurrency on a single JavaScript thread.
 
 ### 15.1 Core Concepts
 
 #### Thread Safety Philosophy
-- **Explicit over implicit**: All shared resources must be declared
-- **Safety over performance**: Automatic deadlock prevention through alphabetical lock ordering
+- **Purity over sharing**: Thread functions cannot write global state — no locks needed
+- **Snapshot isolation**: Threads read globals via a snapshot taken at MULTI block entry
+- **Cooperative scheduling**: Threads yield after every statement; scheduler round-robins between them
 - **Simplicity over flexibility**: Fixed thread count, no dynamic parallelism
 - **Clarity over brevity**: No nested function calls in multi blocks
 
+#### Execution Model
+
+```
+Script text → ANTLR4 Parser → Parse Tree
+                                   ↓
+                       ProperTeeCustomVisitor.visitRoot(tree)
+                                   ↓ (returns generator)
+                           Scheduler.run(mainGenerator)
+                                   ↓
+                      Round-robin generator.next() loop
+```
+
+Every `visit*` method is a `function*` generator:
+- **Statement visitors** do `yield` after each statement — scheduling points
+- **Expression visitors** use only `yield*` delegation — expressions are atomic
+- The scheduler calls `generator.next()` on each READY thread in turn
+
 ---
 
-### 15.2 SHARED Declaration
+### 15.2 Thread Functions
 
 **Syntax:**
 ```javascript
-shared var1, var2, ...
-shared var3 = initialValue
+thread name(param1, param2, ...) do
+    statements
+end
 ```
 
-**Rules:**
-- ✅ Only allowed in **global scope** (not inside functions)
-- ✅ Can include optional initialization with `=` operator
-- ✅ Variables without initialization default to `null`
-- ✅ Multiple variables can be declared on separate lines
-- ❌ Cannot declare multiple variables with initialization on same line
-- ❌ Cannot be declared inside functions or blocks
+**Thread Purity Model:**
+Thread functions are **pure** with respect to global state:
+- ✅ **Can read** global variables via a snapshot taken at MULTI block entry
+- ❌ **Cannot write** global variables (enforced at runtime)
+- ✅ **Can only call** other thread functions or built-in functions
+- ❌ **Cannot call** regular (non-thread) functions
+- ✅ **Return results** via `->` syntax in MULTI blocks
+- Results assigned to variables only after ALL threads in the MULTI block complete
 
-**Important Notes:**
-- Initialization expressions are evaluated at declaration time
-- Each `shared` statement declares one or more variables
-- Variables can be initialized with any valid expression (literals, arrays, objects, etc.)
+**No shared mutable state** — no locks, no race conditions on variables.
 
 **Examples:**
 ```javascript
-// ✅ Valid - single declaration with initialization
-shared counter = 0
-shared accounts = []
-shared data = {total: 0, count: 0}
+x = 100
 
-// ✅ Valid - without initialization (defaults to null)
-shared temp
-shared cache
-
-// ✅ Valid - multiple uninitialized variables
-shared temp, cache, buffer
-
-// ✅ Valid - separate declarations
-shared counter = 0
-shared results = []
-
-// ❌ Invalid - multiple initializations on same line
-shared counter = 0, results = []  // Parser Error
-
-// ❌ Invalid - inside function
-function worker() do
-    shared local = 0  // Runtime Error: SHARED only allowed in global scope
-end
-```
-
-**Error cases:**
-- Declaring SHARED inside a function → **Runtime Error**
-- Accessing non-SHARED variable from multiple threads → Race condition (undefined behavior)
-
----
-
-### 15.3 USES Clause
-
-**Syntax:**
-```javascript
-function name(params) uses resource1, resource2 do
-    // function body
-end
-```
-
-**Rules:**
-- ✅ Declares which SHARED resources the function will access
-- ✅ Only resources listed in USES can be accessed
-- ✅ All listed resources must be declared with `shared`
-- ✅ Function acquires **all locks in alphabetical order** before entry
-- ✅ All locks released on function exit (normal or error)
-
-**Lock Acquisition:**
-1. Sort USES resources alphabetically
-2. Acquire locks in sorted order (prevents deadlock)
-3. Execute function body
-4. Release all locks
-
-**Examples:**
-```javascript
-shared counter, data
-
-// ✅ Valid - declares USES
-function increment(n) uses counter do
-    counter = counter + n
-    return counter
+thread worker(name) do
+    PRINT(name + ": x is " + TO_STRING(x))   // ✅ reads snapshot of x
+    // x = 200                                 // ❌ Runtime Error: Cannot assign to global
+    local = x + 50                             // ✅ thread-local variable
+    return local
 end
 
-// ✅ Valid - multiple resources
-function update(value) uses counter, data do
-    counter = counter + 1
-    data.values = data.values + [value]
+multi
+    worker("A") -> r1
+    worker("B") -> r2
 end
-
-// ✅ Valid - no USES (thread-local only)
-function calculate(n) do
-    result = n * 2
-    return result
-end
-
-// ❌ Runtime Error - accessing SHARED without USES
-function bad() do
-    counter = counter + 1  // Runtime Error: 'counter' is SHARED but not in USES clause
-end
-```
-
-**Validation:**
-- USES validation occurs at **function definition time**
-- Runtime Error if USES references non-SHARED variable
-- Runtime Error if function accesses SHARED variable not in USES
-
-**Deadlock Prevention:**
-```javascript
-shared account1, account2
-
-// Both functions acquire locks in same order: account1 → account2
-function transferAtoB() uses account1, account2 do
-    // Locks: account1 first, then account2
-    // ...
-end
-
-function transferBtoA() uses account2, account1 do
-    // Automatically sorted: account1 first, then account2
-    // No deadlock possible!
-end
+PRINT(r1, r2)    // 150 150
 ```
 
 ---
 
-### 15.4 MULTI...END Blocks
+### 15.3 MULTI...END Blocks
 
 **Syntax:**
 ```javascript
 multi
-    functionCall() -> result1
-    functionCall() -> result2
-    functionCall()  // no return value
+    threadFunc(args) -> result1
+    threadFunc(args) -> result2
+    threadFunc(args)              // no return value capture
+monitor INTERVAL                  // optional
+    // monitoring statements
 end
 ```
 
 **Execution Model:**
-1. Enter MULTI block
-2. Spawn thread for each function call
-3. All threads execute in parallel
-4. END waits for all threads to complete (join)
-5. Collect results and assign to variables (using `->`)
-6. Continue to next statement
+1. Enter MULTI block — take snapshot of global variables
+2. Spawn a child thread (generator) for each thread function call
+3. Scheduler round-robins between all child threads at statement boundaries
+4. SLEEP in one thread does not block others
+5. When ALL threads complete, collect results and assign via `->` to variables
+6. Continue to next statement after `end`
 
 **Rules:**
 
 #### ✅ Allowed in MULTI block:
 - **Thread function calls** with result assignment: `threadFunc(args) -> r`
 - Thread function calls without assignment: `threadFunc(args)`
-- Reading variables defined **before** MULTI block
-- Built-in async functions (e.g., `SLEEP`)
+- Reading variables defined **before** MULTI block (passed as arguments)
 
 #### ❌ Prohibited in MULTI block:
-- **Regular functions** (only threads allowed)
-- Result variable usage: `work2(r1) -> r2` where `r1` is a result variable
+- **Regular functions** (only thread functions allowed)
+- Result variable usage inside the block: `work2(r1) -> r2`
 - Control flow statements (`if`, `loop`)
 - Nested function calls: `func(helper()) -> r`
 - Arithmetic or logical operations
 - Variable assignments other than via `->`
 - Nested MULTI blocks
-
-**Thread Declaration:**
-```javascript
-// ✅ Thread - can be called in multi
-thread worker(n) uses counter do
-    counter = counter + n
-    return counter
-end
-
-// ❌ Regular function - cannot be called in multi
-function helper(x) do
-    return x * 2
-end
-
-multi
-    worker(10) -> r1     // ✅ OK
-    helper(20) -> r2     // ❌ Runtime Error: not a thread
-end
-```
 
 **Examples:**
 
@@ -2206,8 +2038,8 @@ end
 ```javascript
 x = 10
 multi
-    task1(x) -> r1       // reads x from before block
-    task2() -> r2         
+    task1(x) -> r1       // reads x (passed as argument, from snapshot)
+    task2() -> r2
     task3()              // return value ignored
 end
 PRINT(r1, r2)            // use results after end
@@ -2219,68 +2051,107 @@ multi
     if condition then    // ❌ Syntax Error: control flow not allowed
         task1() -> r1
     end
-    
-    loop i in items do   // ❌ Syntax Error: loop not allowed
-        task(i)
-    end
-    
+
     task2(helper()) -> r2  // ❌ Syntax Error: nested function call
-    
-    PRINT(r1)            // ❌ Syntax Error: cannot use r1 inside MULTI
-    
+
     task3() -> r3
     task4() -> r3        // ❌ Syntax Error: duplicate variable assignment
 end
 ```
 
-**Result Variable Protection:**
+**Result Variable Scope:**
 ```javascript
-multi
-    work1() -> r1
-    work2(r1) -> r2      // ❌ Runtime Error: r1 is not available yet
-end
-
-// ✅ Correct: use results after end
 multi
     work1() -> r1
     work2() -> r2
 end
-process(r1, r2)          // ✅ OK - after end
+
+// ✅ Results available after end
+PRINT(r1, r2)
+process(r1, r2)
 ```
 
-**Variable Scope:**
-```javascript
-x = 10               // defined before MULTI
+---
 
-multi
-    task1(x) -> r1   // ✅ can read x
-    task2() -> r2    // r2 declared but not yet assigned
-    // PRINT(r2)     // ❌ cannot use r2 here
+### 15.4 Cooperative Scheduling
+
+**How It Works:**
+- Each thread is a generator that yields at statement boundaries
+- The scheduler maintains a list of threads with states: READY, RUNNING, SLEEPING, WAITING, COMPLETED, ERROR
+- On each tick, the scheduler picks the next READY thread (round-robin) and calls `generator.next()`
+- The generator runs until the next `yield` (statement boundary) or completion
+
+**Interleaving Example:**
+```javascript
+thread worker(name, count) do
+    i = 0
+    loop i < count infinite do
+        PRINT(name + ": step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return count
 end
 
-// end performs: r1 = (result of task1), r2 = (result of task2)
-
-PRINT(r1, r2)        // ✅ can use r1, r2 after end
+multi
+    worker("Alpha", 3) -> r1
+    worker("Beta", 3) -> r2
+end
 ```
+
+Output (threads interleave at each statement):
+```
+Alpha: step 1
+Beta: step 1
+Alpha: step 2
+Beta: step 2
+Alpha: step 3
+Beta: step 3
+```
+
+**SLEEP and Scheduling:**
+```javascript
+thread fast(name) do
+    PRINT(name + ": step 1")
+    PRINT(name + ": step 2")
+    PRINT(name + ": done!")
+    return "fast-done"
+end
+
+thread sleepy(name, ms) do
+    PRINT(name + ": sleeping...")
+    SLEEP(ms)                      // Thread enters SLEEPING state
+    PRINT(name + ": woke up!")     // Continues after sleep
+    return "slept"
+end
+
+multi
+    sleepy("S", 100) -> r1    // Sleeps, but fast() keeps running
+    fast("F") -> r2            // Not blocked by sleepy()
+end
+```
+
+When a thread calls SLEEP:
+1. The visitor yields `{ __schedulerCommand: true, type: 'SLEEP', duration }`
+2. The scheduler sets the thread to SLEEPING state with a wake-up time
+3. Other READY threads continue executing
+4. When all threads are sleeping, the scheduler uses real `setTimeout` to advance time
+5. When a thread's sleep time expires, it returns to READY state
 
 ---
 
 ### 15.5 Thread-Local Variables
 
 **Automatic Thread-Local Storage:**
-- Variables created inside a function are automatically thread-local
-- Each thread has its own copy
+- Variables created inside a thread function are automatically thread-local
+- Each thread has its own scope stack
 - No sharing between threads
-- Variables destroyed when thread exits
+- Variables destroyed when thread completes
 
 **Examples:**
 ```javascript
-shared counter
-
-thread worker(input) uses counter do
+thread worker(input) do
     temp = input * 2      // thread-local (independent per thread)
     result = temp + 10    // thread-local
-    counter = counter + result  // shared (synchronized)
     return result
 end
 
@@ -2288,7 +2159,7 @@ multi
     worker(5) -> r1   // r1's thread has temp=10, result=20
     worker(10) -> r2  // r2's thread has temp=20, result=30
 end
-// Each thread's temp and result are independent
+PRINT(r1, r2)          // 20, 30
 ```
 
 ---
@@ -2296,7 +2167,7 @@ end
 ### 15.6 MONITOR Blocks
 
 **Purpose:**
-Monitor blocks allow real-time observation of SHARED variables and global variables during multi-threaded execution without blocking the main tasks.
+Monitor blocks allow real-time observation of variables during multi-threaded execution without blocking the main tasks.
 
 **Syntax:**
 ```javascript
@@ -2304,129 +2175,59 @@ multi
     work1() -> r1
     work2() -> r2
 monitor INTERVAL
-    // monitoring statements
+    // monitoring statements (read-only)
 end
 ```
 
 **Execution Model:**
 1. Monitor block executes periodically at specified interval (milliseconds)
-2. Runs independently without blocking multi tasks
+2. Runs synchronously between scheduler ticks (not as a scheduled thread)
 3. Executes one final time after all tasks complete
-4. Provides dirty read access to SHARED variables (no locks)
+4. **Read-only**: Cannot assign variables
 
 **Rules:**
 
 #### ✅ Allowed in MONITOR block:
-- **Read SHARED variables** (dirty read - no lock)
-- **Read global variables** (snapshot)
+- **Read global variables** (current values)
 - **Print statements** (PRINT, etc.)
 - **Pure computations** (no side effects)
 
 #### ❌ Prohibited in MONITOR block:
 - **Variable assignments** (read-only context)
-- **Access result variables** (r1, r2, etc.)
-- **Access thread-local variables**
+- **Access result variables** (r1, r2, etc. — not yet assigned)
 - **Modify any state**
 
 **Examples:**
 
-**Progress Tracking:**
+**Progress Observation:**
 ```javascript
-shared processed = 0
-shared total = 100
-
-thread process(item) uses processed do
-    doWork(item)
-    processed = processed + 1
-end
-
-multi
-    loop i in 1..100 do
-        process(i)
+thread counter(name, target) do
+    i = 0
+    loop i < target infinite do
+        i = i + 1
     end
-monitor 1000
-    percent = (processed / total) * 100
-    PRINT("Progress:", percent, "%")
-end
-// Output every 1 second
-// Final output guaranteed: "Progress: 100%"
-```
-
-**Error Tracking:**
-```javascript
-shared errors = []
-shared completed = 0
-
-thread task(id) uses errors, completed do
-    if validateTask(id) == false then
-        errors = PUSH(errors, "Task " + id + " failed")
-    end
-    completed = completed + 1
+    PRINT(name + " finished counting to " + TO_STRING(target))
+    return i
 end
 
 multi
-    task(1) -> r1
-    task(2) -> r2
-    task(3) -> r3
-monitor 500
-    PRINT("Completed:", completed, "Errors:", LEN(errors))
-end
-// Monitors progress every 500ms
-// Final status printed after all tasks complete
-```
-
-**Global + SHARED Variables:**
-```javascript
-startTime = NOW()  // Global variable
-shared counter = 0
-
-thread work(n) uses counter do
-    SLEEP(1000)
-    counter = counter + n
+    counter("A", 10) -> rA
+    counter("B", 8) -> rB
+monitor 50
+    PRINT("[Monitor tick]")
 end
 
-multi
-    work(10) -> r1
-    work(20) -> r2
-monitor 500
-    elapsed = NOW() - startTime  // Read global
-    PRINT("Time:", elapsed, "Counter:", counter)
-end
-```
-
-**Read-Only Enforcement:**
-```javascript
-shared counter = 0
-
-multi
-    work() -> r1
-monitor 500
-    // ❌ Error: Cannot assign in monitor
-    counter = counter + 1
-    
-    // ❌ Error: Cannot access result variable
-    PRINT(r1)
-    
-    // ✅ OK: Read-only access
-    temp = counter
-    PRINT("Counter:", temp)
-end
+PRINT("A counted:", rA)
+PRINT("B counted:", rB)
 ```
 
 **Key Characteristics:**
 
-1. **Non-blocking**: Monitor does not acquire locks on SHARED variables
-2. **Dirty Read**: May see inconsistent intermediate states
-3. **Final Execution**: Always runs once more after all tasks complete
-4. **Error Isolation**: Monitor errors don't stop main tasks
-5. **Read-Only**: Cannot modify any variables
-
-**Use Cases:**
-- Real-time progress tracking
-- Performance monitoring
-- Error count tracking
-- Debugging concurrent execution
-- Live status dashboards
+1. **Non-blocking**: Monitor runs between scheduler ticks, does not block threads
+2. **Synchronous**: Monitor generator is exhausted immediately (not round-robined)
+3. **Final Execution**: Always runs once more after all child threads complete
+4. **Read-Only**: Cannot modify any variables (enforced at runtime)
+5. **Error Isolation**: Monitor errors don't stop main tasks
 
 ---
 
@@ -2435,8 +2236,8 @@ end
 **Error Behavior:**
 - Error in one thread **does not stop other threads**
 - Failed thread returns `null`
-- Error logged to `stderr` with line number and thread info
-- END waits for all threads (including failed ones)
+- Error logged to `stderr` with thread info
+- MULTI block waits for all threads (including failed ones) to complete
 
 **Examples:**
 ```javascript
@@ -2453,156 +2254,97 @@ multi
     mayFail(10) -> r3  // ✅ succeeds, r3 = 20
 end
 
-PRINT(r1, r2, r3)  // Output: 10, null, 20
-```
-
-**Error Log Format:**
-```
-Runtime Error at line 3:8: Division by zero
-  in function mayFail
-  in thread 2 of MULTI block at line 7
+PRINT(r1, r2, r3)  // Output: 10 null 20
 ```
 
 ---
 
-### 15.7 Execution Outside MULTI
+### 15.8 Single-Threaded Execution
 
-**Normal function calls (without MULTI):**
-- Execute **synchronously** (not in a thread)
-- Caller waits for completion
-- Return value available immediately
+When no MULTI block is used, the program runs as a single generator. The scheduler has one thread and steps through it. Behavior is identical to a non-concurrent interpreter, just with generator overhead.
 
-**Examples:**
 ```javascript
-function task(n) do
-    return n * 2
+// No threads — runs exactly like traditional interpreter
+x = 10
+y = 20
+PRINT(x + y)    // 30
+
+function add(a, b) do
+    return a + b
 end
 
-// Synchronous execution
-r1 = task(10)     // waits for completion
-PRINT(r1)         // 20
-
-r2 = task(20)     // waits for completion
-PRINT(r2)         // 40
-
-// Multi-threaded execution
-multi
-    task(30) -> r3
-    task(40) -> r4
-end
-PRINT(r3, r4)     // 60, 80
+PRINT(add(3, 4))  // 7
 ```
 
 ---
 
-### 15.8 Complete Threading Example
+### 15.9 Complete Threading Example
 
 ```javascript
-shared accounts, logs
-
-accounts = [
-    {id: 1, balance: 1000},
-    {id: 2, balance: 500},
-    {id: 3, balance: 750}
-]
-logs = []
-
-// Transfer money between accounts (thread)
-thread transfer(fromIdx, toIdx, amount) uses accounts, logs do
-    // Locks acquired: accounts, logs (alphabetical order)
-    
-    fromAccount = accounts.$fromIdx
-    toAccount = accounts.$toIdx
-    
-    if fromAccount.balance < amount then
-        return false
-    end
-    
-    fromAccount.balance = fromAccount.balance - amount
-    toAccount.balance = toAccount.balance + amount
-    
-    logEntry = "Transfer " + amount + " from " + fromIdx + " to " + toIdx
-    logs = PUSH(logs, logEntry)
-    
-    return true
+thread calculate(n) do
+    temp = n * 2
+    squared = temp * temp
+    result = squared + n
+    PRINT("Thread " + TO_STRING(n) + " calculated: " + TO_STRING(result))
+    return result
 end
 
-// Calculate and add interest (thread)
-thread addInterest(accountIdx, rate) uses accounts do
-    // Lock acquired: accounts only
-    
-    account = accounts.$accountIdx
-    interest = account.balance * rate
-    account.balance = account.balance + interest
-    return interest
+thread buildObject(id) do
+    obj = {
+        id: id,
+        value: id * 100,
+        status: "complete"
+    }
+    PRINT("Thread " + TO_STRING(id) + " built object")
+    return obj
 end
 
-// Multi-threaded execution
 multi
-    transfer(1, 2, 100) -> t1      // Transfer $100 from account 1 to 2
-    transfer(2, 3, 50) -> t2       // Transfer $50 from account 2 to 3
-    addInterest(1, 0.05) -> i1     // 5% interest on account 1
-    addInterest(2, 0.05) -> i2     // 5% interest on account 2
-    addInterest(3, 0.05) -> i3     // 5% interest on account 3
+    calculate(5) -> r1
+    calculate(3) -> r2
+    buildObject(99) -> r3
 end
 
-// Results available after end
-PRINT("Transfers successful:", t1, t2)
-PRINT("Interest added:", i1, i2, i3)
-
-// Print logs
-loop log in logs do
-    PRINT(log)
-end
-
-// Print final balances
-loop account in accounts do
-    PRINT("Account", account.id, "balance:", account.balance)
-end
+PRINT("r1 (calculate 5):", r1)
+PRINT("r2 (calculate 3):", r2)
+PRINT("r3 (buildObject):", r3)
+PRINT("r3.id:", r3.id)
+PRINT("r3.value:", r3.value)
+PRINT("r3.status:", r3.status)
 ```
 
 ---
 
-### 15.9 Design Constraints and Rationale
+### 15.10 Design Constraints and Rationale
 
-#### Why no conditional/loop parallelism?
+#### Why pure thread functions?
 
-**Problem with conditionals:**
-```javascript
-// ❌ Not allowed - variable may not be defined
-multi
-    task1() -> r1
-end
-PRINT(r1)  // r1 might not exist!
-```
+**No locks needed:**
+- Thread functions cannot write globals → no shared mutable state
+- No deadlocks, no race conditions
+- Results flow back only via `->` after all threads complete
 
-**Problem with loops:**
-```javascript
-// ❌ Not allowed - variable collision, unpredictable thread count
-multi
-    loop i in items do
-        task(i) -> r  // which r? how many threads?
-    end
-end
-```
+**Trade-off:**
+- Less flexibility than shared-state models
+- But: **guarantees safety** without user effort
 
-**Solution:** Fixed, explicit thread count for clarity and safety.
+#### Why cooperative scheduling?
 
-#### Why no nested function calls?
+**Single JavaScript thread:**
+- Runs on a single JS thread using generators
+- No real parallelism, but real interleaving
+- Threads yield at statement boundaries for fair scheduling
+- Predictable, deterministic interleaving (round-robin)
+
+#### Why no nested function calls in MULTI?
 
 **Problem with nested calls:**
 ```javascript
 // ❌ Not allowed
 multi
-    task(helper()) -> r  // When does helper() run? What locks?
+    task(helper()) -> r  // When does helper() run? In which thread?
 end
 ```
-
-**Issues:**
-1. Execution timing ambiguous (before MULTI? inside thread?)
-2. Lock acquisition unpredictable
-3. Can break alphabetical lock ordering → deadlock risk
-4. Error tracking becomes complex
 
 **Solution:** Force explicit evaluation:
 ```javascript
@@ -2613,44 +2355,20 @@ multi
 end
 ```
 
-#### Why alphabetical lock ordering?
-
-**Prevents deadlock automatically:**
-- All threads acquire locks in same order
-- No circular wait possible
-- User doesn't need to think about lock ordering
-
-**Trade-off:**
-- Less granular control
-- May reduce parallelism in some cases
-- But: **guarantees safety** without user effort
-
-#### Why function-scope locks?
-
-**Simplicity over performance:**
-- Clear lock boundaries (function entry/exit)
-- No need for manual lock/unlock
-- Automatic cleanup on error
-- Prevents forget-to-unlock bugs
-
-**For fine-grained locking:**
-- Create small wrapper functions
-- Each wrapper has minimal lock scope
-
 ---
 
-### 15.10 Threading Error Reference
+### 15.11 Threading Error Reference
 
 | Error | When | Example |
 |-------|------|---------|
-| SHARED in function | SHARED declared inside function | `function f() do shared x end` |
-| USES non-SHARED | USES references undeclared variable | `function f() uses x do` (x not SHARED) |
-| Access without USES | Function accesses SHARED not in USES | `counter = counter + 1` without `uses counter` |
+| Global write in thread | Thread tries to assign global variable | `x = 10` inside thread (where x is global) |
+| Regular function call in thread | Thread calls non-thread function | `helper()` inside thread (helper is `function`, not `thread`) |
+| Regular function in MULTI | Non-thread function used in multi block | `multi helper() -> r end` |
 | Control flow in MULTI | if/loop in MULTI block | `multi if c then task() end end` |
 | Nested call in MULTI | Function call in arguments | `multi f(g()) -> r end` |
 | Variable use in MULTI | Using result variable inside MULTI | `multi f() -> r PRINT(r) end` |
 | Duplicate assignment | Same variable assigned twice | `multi f1() -> r f2() -> r end` |
-| Nested MULTI | MULTI inside MULTI | `multi function f() multi ... end end` |
+| Assignment in monitor | Writing variables in monitor block | `monitor 100 x = 1 end` |
 
 ---
 
@@ -2664,7 +2382,7 @@ The following keywords are reserved and cannot be used as variable names:
 - `function`, `thread`, `return`
 - `and`, `or`, `not`
 - `true`, `false`, `null`
-- `shared`, `uses`, `multi`, `monitor` (for concurrency)
+- `multi`, `monitor`, `thread` (for concurrency)
 
 **Note:** `infinite` is reserved for loop statements only (not for functions).
 
@@ -2742,66 +2460,21 @@ end
 
 ---
 
-#### Async Function Declaration
+#### SLEEP and Timing
 
-**Status:** Not yet implemented (but implicitly supported)
+**Status:** Fully implemented via cooperative scheduling
 
 **Current State:**
-- ✅ Built-in `SLEEP` is async and properly awaited
-- ✅ User functions can call async built-ins (implicitly handled)
-- ❌ No explicit `async` keyword for user functions
-- ❌ No explicit `await` keyword in user code
+- ✅ `SLEEP` yields a scheduler command — sleeping threads don't block others
+- ✅ No `async`/`await` keywords needed in user code
+- ✅ The scheduler handles real-time advancement when all threads are sleeping
 
-**Examples:**
-```javascript
-// ✅ Works now (implicitly async)
-function delayedTask() do
-    SLEEP(1000)      // Automatically awaited by runtime
-    return "Done"
-end
-
-result = delayedTask()  // Blocks until complete
-PRINT(result)           // "Done"
-
-// ❌ Cannot explicitly declare async (future syntax)
-async function fetchData() do
-    data = await FETCH(url)  // await keyword not available
-    return data
-end
-```
-
-**Current Behavior:**
-- All function calls are automatically awaited if they return Promises
-- No explicit async/await syntax needed
-- This is handled internally by the visitor
-- Functions calling `SLEEP` or other async built-ins become async automatically
-
-**Why No Explicit Async?**
-1. **Simplicity**: Users don't need to think about async/await
-2. **Consistency**: All functions behave the same way
-3. **Future-proof**: Can add explicit async later without breaking changes
-
-**Planned Enhancement:**
-```javascript
-// Future: Explicit async declarations
-async function fetchData() do
-    data = await FETCH(url)
-    return data
-end
-
-// Future: Parallel async calls
-async function loadAll() do
-    // Run in sequence
-    data1 = await fetch1()
-    data2 = await fetch2()
-    
-    // Or use MULTI for parallel
-    multi
-        fetch1() -> data1
-        fetch2() -> data2
-    end
-end
-```
+**How It Works:**
+- `SLEEP(ms)` returns `{ __schedulerCommand: true, type: 'SLEEP', duration: ms }`
+- The visitor yields this to the scheduler
+- The scheduler sets the thread to SLEEPING state
+- Other threads continue running
+- When all threads are sleeping, the scheduler uses `setTimeout` to advance real time
 
 ---
 
@@ -2810,7 +2483,7 @@ end
 Features that may be added in future versions:
 
 **Type System:**
-- [ ] Type conversion functions (`TO_NUMBER`, `TO_STRING`, etc.) - Partially implemented
+- [x] Type conversion functions (`TO_NUMBER`, `TO_STRING`) - ✅ Implemented
 - [ ] Optional chaining operator (`?.`)
 - [ ] Safe property check function (`HAS(obj, "property")`)
 
@@ -2822,8 +2495,6 @@ Features that may be added in future versions:
 - [ ] Function overloading
 - [ ] Default parameter values
 - [ ] **Variadic arguments** (`...args`) - See Section 18.1
-- [ ] **Explicit async/await** - See Section 18.1
-
 **Data Structures:**
 - [x] Array manipulation functions (`PUSH`, `POP`, `SLICE`, `CONCAT`) - ✅ Implemented
 - [x] String manipulation functions (`SPLIT`, `JOIN`, `SUBSTRING`, etc.) - ✅ Implemented
@@ -2834,20 +2505,17 @@ Features that may be added in future versions:
 - [ ] Exception handling (`try/catch/finally`)
 
 **Concurrency:**
-- [x] **Basic concurrency features** - ✅ Implemented (v1.1)
-  - [x] `shared` variables
-  - [x] `thread` functions
-  - [x] `multi` blocks
-  - [x] `monitor` blocks
-  - [x] Automatic deadlock prevention
-  
+- [x] **Generator-based cooperative scheduling** - ✅ Implemented (v1.2)
+  - [x] `thread` functions (pure, snapshot-isolated)
+  - [x] `multi` blocks with `->` result assignment
+  - [x] `monitor` blocks for real-time observation
+  - [x] Cooperative round-robin scheduling at statement boundaries
+  - [x] SLEEP without blocking other threads
+
 - **Future concurrency enhancements:**
-  - [ ] `READONLY` access modifier for shared resources
-  - [ ] `SPAWN` keyword for async execution outside MULTI
   - [ ] Thread introspection (THREAD_ID, THREAD_COUNT)
-  - [ ] Fine-grained locking (per-array-element)
   - [ ] Channels for thread communication
-  - [ ] Thread pools and worker management
+  - [ ] Dynamic thread spawning outside MULTI blocks
 
 ---
 
@@ -2857,14 +2525,12 @@ For the complete ANTLR4 grammar, see `ProperTee.g4`.
 
 Key grammar rules:
 - `root`: Top-level entry point
-- `statement`: Assignments, if, loop, function definitions, multi blocks, shared declarations, expressions
-- `sharedDecl`: SHARED resource declarations (global scope only)
+- `statement`: Assignments, if, loop, function definitions, thread definitions, multi blocks, expressions
 - `functionDef`: Regular user-defined functions with parameters
-- `threadDef`: Thread functions with parameters and optional USES clause
-- `usesClause`: Declares which SHARED resources a thread accesses
+- `threadDef`: Thread functions with parameters (pure, for use in MULTI blocks)
 - `parallelStmt`: MULTI...END blocks for concurrent execution
-- `parallelTask`: Function calls within MULTI blocks (with or without assignment)
-- `monitorClause`: MONITOR block for real-time observation
+- `parallelTask`: Thread function calls within MULTI blocks (with optional `->` assignment)
+- `monitorClause`: MONITOR block for real-time observation during MULTI
 - `iterationStmt`: Loop with optional `infinite` keyword
 - `flowControl`: break, continue, return
 - `expression`: Operators, member access, atoms
@@ -2872,38 +2538,60 @@ Key grammar rules:
 
 **Threading Syntax:**
 ```
-shared var1 = init1, var2 = init2       // Shared resource declaration
 function name(params) do ... end        // Regular function
-thread name(params) uses res1, res2 do ... end  // Thread function
+thread name(params) do ... end          // Thread function (pure)
 multi                                   // Multi-threaded execution block
-    func1(args) -> result1
-    func2(args) -> result2
+    threadFunc(args) -> result1
+    threadFunc(args) -> result2
 monitor interval
-    // monitoring statements
+    // monitoring statements (read-only)
 end
 ```
 
 **Function Definition Syntax:**
 ```
-function name(params) do ... end                // Regular functions
-thread name(params) uses res do ... end         // Threads (for multi)
+function name(params) do ... end        // Regular functions
+thread name(params) do ... end          // Threads (for multi blocks)
 ```
 
 ---
 
 ## Appendix B: Version History
 
+### Version 1.2 Concurrent (2026-02-02)
+- **Rewritten**: Interpreter rewritten to use **generator-based cooperative scheduling**
+  - All `visit*` methods converted to `function*` generators
+  - Central scheduler round-robins between threads at statement boundaries
+  - Expressions evaluate atomically (no scheduling mid-expression)
+- **Changed**: Thread purity model
+  - Threads are now **pure** — can read globals via snapshot but cannot write them
+  - Removed `shared` keyword and `uses` clause (no longer needed)
+  - No locks, no shared mutable state, no deadlock risk
+  - Results flow back only via `->` assignment after all threads complete
+- **Changed**: SLEEP implementation
+  - SLEEP now yields a scheduler command instead of returning a Promise
+  - Sleeping threads do not block other threads
+  - Scheduler uses real `setTimeout` only when all threads are sleeping
+- **Changed**: MONITOR blocks
+  - Monitor runs synchronously between scheduler ticks (not as a scheduled thread)
+  - Read-only enforcement preserved
+  - One final monitor run after all child threads complete
+- **Added**: New architecture files
+  - `ThreadContext.js` — Per-thread state: scope stack, status, snapshot
+  - `Scheduler.js` — Round-robin scheduler with yield protocol
+- **Removed**: `shared` and `uses` keywords (no longer in grammar or runtime)
+- **Removed**: Lock-based concurrency model (replaced by snapshot isolation)
+
 ### Version 1.1 (2026-01-31)
 - **Added**: Concurrency and Threading (Section 15)
   - `shared` declaration for shared resources
   - `uses` clause for threads accessing shared resources
-  - `thread` keyword for functions that can run in multi blocks (changed from `thread function`)
-  - `multi...end` blocks with `->` operator for result assignment (changed from `parallel`)
-  - `monitor` blocks for real-time progress tracking (dirty read, read-only)
+  - `thread` keyword for functions that can run in multi blocks
+  - `multi...end` blocks with `->` operator for result assignment
+  - `monitor` blocks for real-time progress tracking
   - Automatic deadlock prevention through alphabetical lock ordering
   - Thread-local variables
   - Error handling in multi contexts
-  - Result variable usage validation in MULTI blocks
 - **Added**: Array manipulation functions (Section 9.4)
   - `PUSH(array, ...values)` - Append values to array
   - `POP(array)` - Remove last element from array
@@ -2913,16 +2601,12 @@ thread name(params) uses res do ... end         // Threads (for multi)
   - `TO_NUMBER(string)` - Convert string to number
   - `TO_STRING(value)` - Convert any value to string
 - **Added**: Async functions (Section 9.3)
-  - `SLEEP(milliseconds)` - Pause execution with async/await support
-- **Added**: New reserved keywords: `shared`, `uses`, `multi`, `thread`, `monitor`
-- **Changed**: Thread declaration from `thread function` to `thread` (more concise)
-- **Changed**: Multi-threading block from `parallel` to `multi` (more concise)
-- **Changed**: Result assignment syntax from `r = func()` to `func() -> r`
+  - `SLEEP(milliseconds)` - Pause execution
+- **Added**: New reserved keywords: `multi`, `thread`, `monitor`
 - **Changed**: Array indexing to 1-based (arrays start at index 1)
 - **Changed**: Loop indices to 1-based
 - **Changed**: SUBSTRING function to 1-based indexing
 - **Added**: Runtime error messages now include line numbers
-- **Fixed**: async/await support for MULTI blocks in browser environment
 
 ### Version 1.0 (2026-01-25)
 - Initial specification
