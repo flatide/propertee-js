@@ -7,11 +7,6 @@ generated/
 # 레거시 파일들 (삭제 예정 또는 삭제됨)
 index.html
 antlr4.js
-ProperTeeLexer.js
-ProperTeeParser.js
-ProperTeeVisitor.js
-FIXED.md
-FIXED-COMPLETE.md
 
 # 브라우저 번들 개별 파일 (통합 번들에 포함됨)
 browser/*.browser.js
