@@ -97,7 +97,7 @@ writeFileSync('browser/ProperTeeCustomVisitor.browser.js', customVisitorContent)
 
 // Bundle with license header
 const licenseHeader = `/*!
- * ProperTee Concurrent - Generator-Based Cooperative Scheduler
+ * ProperTee - Generator-Based Cooperative Scheduler
  * Copyright (c) 2026 FLATIDE LC.
  * Licensed under BSD 3-Clause License
  *
