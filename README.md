@@ -1,10 +1,10 @@
-# ProperTee Concurrent
+# ProperTee for JavaScript
 
-A DSL interpreter with **generator-based cooperative multithreading**. Built with ANTLR4 for parsing and JavaScript generators for scheduling — every interpreter method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
+A JavaScript implementation of the [ProperTee](https://github.com/flatide/ProperTee) language using **generator-based cooperative multithreading**. Built with ANTLR4 for parsing and JavaScript generators for scheduling — every interpreter method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
 
-Forked from [propertee-js](https://github.com/flatide/propertee-js).
+For language specification, syntax reference, and built-in functions, see the [ProperTee Language Home](https://github.com/flatide/ProperTee).
 
-**[Try the Playground](https://flatide.github.io/propertee-js-concurrency/)**
+**[Try the Playground](https://flatide.github.io/propertee-js/)**
 
 ## Quick Start
 
@@ -17,61 +17,6 @@ node pt.js script.pt
 
 # Interactive REPL
 node pt.js
-```
-
-## Language Overview
-
-```
-// Variables and expressions
-x = 10
-name = "Alice"
-items = [1, 2, 3]
-config = {host: "localhost", port: 8080}
-
-// Functions
-function add(a, b) do
-    return a + b
-end
-
-// Conditionals
-if x > 5 then
-    PRINT("big")
-else
-    PRINT("small")
-end
-
-// Loops
-loop item in items do
-    PRINT(item)
-end
-
-loop x > 0 infinite do
-    x = x - 1
-end
-
-// Thread functions (pure with respect to globals)
-thread worker(name) do
-    PRINT(name + " working")
-    SLEEP(100)
-    return 42
-end
-
-// Parallel execution with interleaved scheduling
-multi
-    worker("A") -> resultA
-    worker("B") -> resultB
-monitor 100
-    PRINT("[tick]")
-end
-
-PRINT("Results:", resultA, resultB)
-
-// Access patterns
-obj.prop        // static property
-arr.1           // 1-based array index
-obj."key"       // string key
-obj.$var        // dynamic access via variable
-obj.$(expr)     // dynamic access via expression
 ```
 
 ## How Concurrency Works
@@ -88,19 +33,30 @@ Thread functions are **pure** with respect to global state:
 - Return results via `->` syntax; results assigned only after all threads complete
 - No locks, no shared mutable state
 
-## Built-in Functions
+## External Functions & Result Pattern
 
-| Function | Description |
-|---|---|
-| `PRINT(...)` | Print values to stdout |
-| `SLEEP(ms)` | Suspend thread for ms milliseconds |
-| `SUM(...)`, `MAX(...)`, `MIN(...)` | Aggregate functions |
-| `ABS(n)`, `FLOOR(n)`, `CEIL(n)`, `ROUND(n)` | Math functions |
-| `LEN(v)` | Length of array or string |
-| `TO_NUMBER(v)`, `TO_STRING(v)` | Type conversion |
-| `PUSH(arr, v)`, `POP(arr)`, `CONCAT(a, b)`, `SLICE(arr, start, end)` | Array operations |
-| `CHARS(s)`, `SPLIT(s, sep)`, `JOIN(arr, sep)` | String/array conversion |
-| `SUBSTRING(s, start, end)`, `UPPERCASE(s)`, `LOWERCASE(s)`, `TRIM(s)` | String operations |
+Host applications can register external functions that return result objects:
+
+```javascript
+import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
+
+const interpreter = new ProperTeeCustomVisitor();
+
+interpreter.registerExternal("GET_BALANCE", (user) => {
+    if (userExists(user)) return ProperTeeCustomVisitor.ok(getBalance(user));
+    return ProperTeeCustomVisitor.error("account not found");
+});
+```
+
+```
+// ProperTee script checks the result:
+res = GET_BALANCE("alice")
+if res.ok == true then
+    PRINT("Balance:", res.value)
+else
+    PRINT("Error:", res.value)
+end
+```
 
 ## CLI Usage
 
@@ -132,7 +88,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 40 tests
+# Run all 41 tests
 npm test
 
 # Run a single test
