@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-ProperTee Concurrent is a DSL interpreter using ANTLR4 for parsing and **JavaScript generators for cooperative multithreading**. It was forked from `propertee-js` and rewritten so every `visit*` method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
+ProperTee JS is a JavaScript implementation of the [ProperTee](https://github.com/flatide/ProperTee) language using ANTLR4 for parsing and **JavaScript generators for cooperative multithreading**. Every `visit*` method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
 
 ## Build Commands
 
