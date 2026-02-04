@@ -1,0 +1,38 @@
+// Test: Result pattern for external built-in functions
+// External functions return {ok: true/false, value: ...}
+
+// Success case
+res = GET_BALANCE("alice")
+PRINT(res.ok)
+PRINT(res.value)
+
+// Success with zero balance
+res2 = GET_BALANCE("bob")
+PRINT(res2.ok)
+PRINT(res2.value)
+
+// Error case
+res3 = GET_BALANCE("unknown")
+PRINT(res3.ok)
+PRINT(res3.value)
+
+// Checking result with if
+res4 = GET_BALANCE("alice")
+if res4.ok == true then
+    PRINT("balance is " + TO_STRING(res4.value))
+end
+
+// Error handling with if
+res5 = GET_BALANCE("nobody")
+if res5.ok == false then
+    PRINT("error: " + res5.value)
+end
+
+// Auto-wrapped exception from DIVIDE_SAFE
+res6 = DIVIDE_SAFE(10, 2)
+PRINT(res6.ok)
+PRINT(res6.value)
+
+res7 = DIVIDE_SAFE(10, 0)
+PRINT(res7.ok)
+PRINT(res7.value)

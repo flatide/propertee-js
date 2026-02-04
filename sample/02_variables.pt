@@ -1,5 +1,5 @@
 // 02 - Variables and Types
-// ProperTee has numbers, strings, booleans, null, arrays, and objects.
+// ProperTee has numbers, strings, booleans, arrays, and objects.
 
 // Numbers
 x = 10
@@ -11,9 +11,6 @@ name = "ProperTee"
 // Booleans
 active = true
 done = false
-
-// Null
-nothing = null
 
 // Arrays (use 1-based indexing)
 colors = ["red", "green", "blue"]

@@ -97,7 +97,6 @@ atom
     | INTEGER                # IntegerAtom
     | STRING                 # StringAtom
     | (K_TRUE | K_FALSE)     # BooleanAtom
-    | K_NULL                 # NullAtom
     | objectLiteral          # ObjectAtom
     | arrayLiteral           # ArrayAtom
     | '(' expression ')'     # ParenAtom
@@ -146,7 +145,6 @@ K_AND       : 'and';
 K_OR        : 'or';
 K_TRUE      : 'true';
 K_FALSE     : 'false';
-K_NULL      : 'null';
 K_INFINITE  : 'infinite';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';

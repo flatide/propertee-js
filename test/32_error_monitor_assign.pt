@@ -1,7 +1,7 @@
 // Test: Assignment inside monitor block should error
 thread dummy() do
     SLEEP(50)
-    return null
+    return
 end
 
 multi

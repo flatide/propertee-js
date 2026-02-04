@@ -1,7 +1,7 @@
 // Test: Multi with threads that don't capture results
 thread sideEffect(msg) do
     PRINT(msg)
-    return null
+    return
 end
 
 multi

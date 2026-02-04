@@ -22,7 +22,7 @@ PRINT(CHARS("xyz"))
 // Type conversion
 PRINT(TO_STRING(42))
 PRINT(TO_STRING(true))
-PRINT(TO_STRING(null))
+PRINT(TO_STRING({}))
 PRINT(TO_NUMBER("123"))
 
 // String equality

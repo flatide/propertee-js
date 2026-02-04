@@ -38,7 +38,7 @@ end
 
 PRINT("fib(10) =", fib(10))
 
-// Function without return (returns null)
+// Function without return (returns empty object {})
 function say(msg) do
     PRINT(">> " + msg)
 end

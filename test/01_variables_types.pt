@@ -14,9 +14,6 @@ PRINT(b)
 b2 = false
 PRINT(b2)
 
-n = null
-PRINT(n)
-
 // Reassignment
 x = 99
 PRINT(x)

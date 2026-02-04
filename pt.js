@@ -127,7 +127,8 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
 
     try {
         const result = await scheduler.run(mainGenerator);
-        if (result !== null && result !== undefined) {
+        if (result !== null && result !== undefined &&
+            !(typeof result === 'object' && !Array.isArray(result) && Object.keys(result).length === 0)) {
             console.log('Result:', result);
         }
     } catch (e) {
@@ -179,7 +180,8 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
 
         try {
             const result = await scheduler.run(mainGenerator);
-            if (result !== null && result !== undefined) {
+            if (result !== null && result !== undefined &&
+                !(typeof result === 'object' && !Array.isArray(result) && Object.keys(result).length === 0)) {
                 console.log('=>', result);
             }
         } catch (e) {

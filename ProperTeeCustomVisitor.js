@@ -27,7 +27,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.iterationLimitBehavior = options.iterationLimitBehavior || 'error';
 
         const defaultFunctions = {
-            'PRINT': (...args) => { this.stdout(...args); return null; },
+            'PRINT': (...args) => { this.stdout(...args); return {}; },
             'SUM': (...args) => args.reduce((a, b) => a + b, 0),
             'MAX': (...args) => Math.max(...args),
             'MIN': (...args) => Math.min(...args),
@@ -45,12 +45,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return num;
             },
             'TO_STRING': (value) => {
-                if (value === null) return 'null';
                 if (typeof value === 'boolean') return value ? 'true' : 'false';
                 if (typeof value === 'number') return String(value);
                 if (typeof value === 'string') return value;
                 if (Array.isArray(value)) return JSON.stringify(value);
-                if (typeof value === 'object') return JSON.stringify(value);
+                if (typeof value === 'object' && value !== null) return JSON.stringify(value);
                 return String(value);
             },
             'SLEEP': (milliseconds) => {
@@ -121,6 +120,57 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     // --- Helper methods (non-generators) ---
+
+    // Deep equality for objects and arrays (language-level == comparison)
+    _deepEqual(a, b) {
+        if (a === b) return true;
+        if (a === null || b === null) return false;
+        if (typeof a !== typeof b) return false;
+        if (typeof a !== 'object') return false;
+
+        const aIsArray = Array.isArray(a);
+        const bIsArray = Array.isArray(b);
+        if (aIsArray !== bIsArray) return false;
+
+        if (aIsArray) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (!this._deepEqual(a[i], b[i])) return false;
+            }
+            return true;
+        }
+
+        const aKeys = Object.keys(a);
+        const bKeys = Object.keys(b);
+        if (aKeys.length !== bKeys.length) return false;
+        for (const key of aKeys) {
+            if (!b.hasOwnProperty(key) || !this._deepEqual(a[key], b[key])) return false;
+        }
+        return true;
+    }
+
+    // Register an external built-in function with automatic error wrapping.
+    // The function can return Result.ok(value) or Result.error(msg) explicitly,
+    // or throw an exception which is automatically caught and wrapped as
+    // {ok: false, value: "error message"}.
+    registerExternal(name, func) {
+        this.functions[name] = (...args) => {
+            try {
+                return func(...args);
+            } catch (e) {
+                return { ok: false, value: e.message };
+            }
+        };
+    }
+
+    // Result helper for external functions
+    static ok(value) {
+        return { ok: true, value: value };
+    }
+
+    static error(message) {
+        return { ok: false, value: message };
+    }
 
     getLocation(ctx) {
         if (ctx && ctx.start) {
@@ -555,7 +605,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitReturnStmt(ctx) {
-        const value = ctx.expression() ? yield* this.visit(ctx.expression()) : null;
+        const value = ctx.expression() ? yield* this.visit(ctx.expression()) : {};
         throw new ReturnException(value);
     }
 
@@ -662,10 +712,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitBooleanAtom(ctx) {
         return ctx.getText() === 'true';
-    }
-
-    *visitNullAtom(ctx) {
-        return null;
     }
 
     *visitParenAtom(ctx) {
@@ -835,10 +881,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         switch (op) {
             case '>': return left > right;
             case '<': return left < right;
-            case '==': return left === right;
+            case '==': return this._deepEqual(left, right);
             case '>=': return left >= right;
             case '<=': return left <= right;
-            case '!=': return left !== right;
+            case '!=': return !this._deepEqual(left, right);
             default: return false;
         }
     }
@@ -887,7 +933,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             // SLEEP returns a scheduler command
             if (result && result.__schedulerCommand) {
                 yield result; // Yield the command to the scheduler
-                return null;
+                return {};
             }
 
             return result;
@@ -928,7 +974,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Create local scope with parameters
         const localScope = {};
         for (let i = 0; i < params.length; i++) {
-            localScope[params[i]] = i < args.length ? args[i] : null;
+            localScope[params[i]] = i < args.length ? args[i] : {};
         }
 
         // Push scope
@@ -1042,7 +1088,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 // Create local scope for the thread
                 const localScope = {};
                 for (let j = 0; j < params.length; j++) {
-                    localScope[params[j]] = j < args.length ? args[j] : null;
+                    localScope[params[j]] = j < args.length ? args[j] : {};
                 }
 
                 // Create a generator for this thread's execution

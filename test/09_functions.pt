@@ -32,9 +32,9 @@ end
 PRINT(abs_val(-7))
 PRINT(abs_val(3))
 
-// Function with default null for missing args
+// Function with default empty object for missing args
 function opt(a, b) do
-    if b == null then
+    if b == {} then
         return a
     end
     return a + b

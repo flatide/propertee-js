@@ -41,14 +41,14 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ## Testing
 
 ```bash
-# Run all tests (40 tests with expected output validation)
+# Run all tests (41 tests with expected output validation)
 ./test/run_tests.sh
 
 # Run a single test
 ./test/run_tests.sh test/16_thread_basic.pt
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32).
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`.
 
 **Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
@@ -91,7 +91,7 @@ Generators communicate with the scheduler via yield values:
 | File | Role |
 |---|---|
 | `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Keywords: `thread`, `multi`, `monitor`, `infinite` |
-| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, thread purity enforcement |
+| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, thread purity enforcement, `registerExternal()` for external functions with Result pattern |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks, runs monitor ticks |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags |
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
@@ -149,12 +149,42 @@ loop key, val in collection do ... end
 // Access patterns: obj.prop, arr.1, obj."key", obj.$var, obj.$(expr)
 ```
 
+## External Functions & Result Pattern
+
+Host applications can register external built-in functions that return result objects instead of throwing errors:
+
+```javascript
+// JavaScript host registers an external function:
+visitor.registerExternal('GET_BALANCE', (user) => {
+    if (balances[user] !== undefined) {
+        return ProperTeeCustomVisitor.ok(balances[user]);
+    }
+    return ProperTeeCustomVisitor.error('account not found');
+});
+```
+
+```
+// ProperTee script checks the result:
+res = GET_BALANCE("alice")
+if res.ok == true then
+    PRINT("Balance:", res.value)
+else
+    PRINT("Error:", res.value)
+end
+```
+
+- `ProperTeeCustomVisitor.ok(value)` → `{ok: true, value: ...}`
+- `ProperTeeCustomVisitor.error(message)` → `{ok: false, value: "..."}`
+- `registerExternal()` wraps the function in try-catch — thrown exceptions automatically become `{ok: false, value: "error message"}`
+- Core builtins (PRINT, SUM, LEN, etc.) return values directly and are not wrapped
+
 ## Conventions
 
+- **No null** — the language has no null keyword. Functions without `return` or with bare `return` produce `{}` (empty object). Missing function arguments default to `{}`.
 - The grammar uses Korean comments in some places (historical). New code should use English.
 - `SLEEP()` returns a scheduler command object (not a Promise) — the visitor yields it to the scheduler.
 - 1-based indexing for array access (`.1` is the first element).
-- Strict type checking: no coercion, `and`/`or` require booleans, arithmetic requires numbers.
+- Strict type checking: no coercion, `and`/`or` require booleans, arithmetic requires numbers. Equality (`==`, `!=`) uses deep comparison for objects and arrays.
 - `package.json` has `"type": "module"` — all source files use ES module imports.
 
 ## Known Limitations

@@ -47,6 +47,9 @@ run_test() {
         34_builtin_properties)
             actual=$(node "$PROJECT_DIR/pt.js" -p '{"width":100,"height":200,"name":"test"}' "$pt_file" 2>&1)
             ;;
+        41_result_pattern)
+            actual=$(node "$SCRIPT_DIR/run_test41.js" 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;

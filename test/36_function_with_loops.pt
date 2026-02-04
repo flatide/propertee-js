@@ -16,7 +16,7 @@ function findFirst(arr, target) do
             return v
         end
     end
-    return null
+    return
 end
 
 PRINT(findFirst([10, 20, 30], 20))
