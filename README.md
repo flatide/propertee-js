@@ -97,6 +97,37 @@ npm test
 
 Each `test/*.pt` file has a matching `.expected` file. Sample scripts in `sample/` cover all language features.
 
+## Embedding in a Web Page
+
+```html
+<script src="propertee-bundle.js"></script>
+
+<script>
+const properties = { user: { name: "Test", score: 100 } };
+const scriptText = `
+PRINT("Hello,", user.name)
+user.score = user.score + 10
+PRINT("New score:", user.score)
+`;
+
+const chars = new antlr4.InputStream(scriptText);
+const lexer = new ProperTeeLexer(chars);
+const tokens = new antlr4.CommonTokenStream(lexer);
+const parser = new ProperTeeParser(tokens);
+const tree = parser.root();
+
+const visitor = new ProperTeeCustomVisitor(properties, {}, {
+    stdout: (...args) => console.log(...args),
+    stderr: (...args) => console.error(...args)
+});
+const scheduler = new Scheduler(visitor);
+const mainGenerator = visitor.visitRoot(tree);
+const result = await scheduler.run(mainGenerator);
+</script>
+```
+
+Full example: [scratch.html](https://github.com/flatide/propertee-js/blob/main/docs/dist/scratch.html)
+
 ## Project Structure
 
 | File | Role |
