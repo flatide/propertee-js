@@ -13,17 +13,13 @@ statement
     | expression    # ExprStmt
     ;
 
-// 가능: myVar = 10, prop.width = 20, prop.$width = 30
-
-// 불가능: 10 = 20, (a+b) = 30
-
 assignment
     : lvalue '=' expression
     ;
 
 lvalue
-    : ID                                     # VarLValue       // 예: width = 10
-    | lvalue '.' access                      # PropLValue      // 예: obj.x = 10
+    : ID                                     # VarLValue
+    | lvalue '.' access                      # PropLValue
     ;
 
 block : statement* ;
@@ -83,11 +79,11 @@ expression
 
 
 access
-    : ID                                    # StaticAccess      // .width
-    | INTEGER                               # ArrayAccess       // .1 (1-based indexing)
-    | STRING                                # StringKeyAccess   // ."key"
-    | '$' ID                                # VarEvalAccess     // .$key (축약형: .$(key))
-    | '$' '(' expression ')'                # EvalAccess        // .$(expr) (완전형)
+    : ID                                    # StaticAccess
+    | INTEGER                               # ArrayAccess
+    | STRING                                # StringKeyAccess
+    | '$' ID                                # VarEvalAccess
+    | '$' '(' expression ')'                # EvalAccess
     ;
 
 atom
@@ -115,9 +111,9 @@ objectEntry
     ;
 
 objectKey
-    : ID                     // member: value
-    | STRING                 // "key-name": value
-    | INTEGER                // 1: value (1-based indexing for array-like objects)
+    : ID
+    | STRING
+    | INTEGER
     ;
 
 arrayLiteral
@@ -149,11 +145,10 @@ K_INFINITE  : 'infinite';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
 
-ID : [a-zA-Z_][a-zA-Z0-9_]* ;          // 일반 식별자 (나중에 정의)
+ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 INTEGER : [0-9]+ ;
 STRING : '"' ( '\\' . | ~["\\] )* '"' ;
 
-// 주석과 공백 처리
-COMMENT : '//' ~[\r\n]* -> skip ;           // 한 줄 주석
-BLOCK_COMMENT : '/*' .*? '*/' -> skip ;     // 블럭 주석
+COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 WS : [ \t\r\n;]+ -> skip ;
