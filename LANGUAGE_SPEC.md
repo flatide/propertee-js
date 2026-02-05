@@ -1,6 +1,6 @@
 # ProperTee Language Specification
 
-Version: 1.2 (Concurrent)
+Version: 1.2
 Last Updated: 2026-02-02
 
 ## 1. Type System
@@ -2558,7 +2558,7 @@ thread name(params) do ... end          // Threads (for multi blocks)
 
 ## Appendix B: Version History
 
-### Version 1.2 Concurrent (2026-02-02)
+### Version 1.2 (2026-02-02)
 - **Rewritten**: Interpreter rewritten to use **generator-based cooperative scheduling**
   - All `visit*` methods converted to `function*` generators
   - Central scheduler round-robins between threads at statement boundaries
