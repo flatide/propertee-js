@@ -24,9 +24,9 @@ multi
 end
 
 PRINT("---")
-PRINT("val1:", val1)
-PRINT("val2:", val2)
-PRINT("report.id:", report.id)
-PRINT("report.value:", report.value)
-PRINT("report.status:", report.status)
-PRINT("Sum of computations:", val1 + val2)
+PRINT("val1:", val1.value)
+PRINT("val2:", val2.value)
+PRINT("report.id:", report.value.id)
+PRINT("report.value:", report.value.value)
+PRINT("report.status:", report.value.status)
+PRINT("Sum of computations:", val1.value + val2.value)

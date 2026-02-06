@@ -18,5 +18,5 @@ multi
     runner() -> r2
 end
 
-PRINT("r1=" + r1)
-PRINT("r2=" + r2)
+PRINT("r1=" + r1.value)
+PRINT("r2=" + r2.value)

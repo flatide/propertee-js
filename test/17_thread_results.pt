@@ -27,9 +27,9 @@ multi
     retEmpty() -> nl
 end
 
-PRINT(n)
-PRINT(s)
-PRINT(a)
-PRINT(o.key)
-PRINT(o.num)
-PRINT(nl)
+PRINT(n.value)
+PRINT(s.value)
+PRINT(a.value)
+PRINT(o.value.key)
+PRINT(o.value.num)
+PRINT(nl.value)

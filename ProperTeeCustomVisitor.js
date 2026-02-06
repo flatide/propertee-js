@@ -1215,10 +1215,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (collectedResults && Array.isArray(collectedResults)) {
             for (const entry of collectedResults) {
                 if (entry.varName) {
-                    const threadResult = entry.result;
-                    const finalValue = (threadResult && typeof threadResult === 'object' && 'result' in threadResult)
-                        ? threadResult.result
-                        : threadResult;
+                    const finalValue = entry.result; // Already {ok, value} Result from Scheduler
 
                     if (scopeStack.length > 0) {
                         scopeStack[scopeStack.length - 1][entry.varName] = finalValue;

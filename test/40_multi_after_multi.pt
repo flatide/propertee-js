@@ -7,16 +7,16 @@ multi
     addOne(10) -> a
 end
 
-PRINT(a)
+PRINT(a.value)
 
 multi
-    addOne(a) -> b
+    addOne(a.value) -> b
 end
 
-PRINT(b)
+PRINT(b.value)
 
 multi
-    addOne(b) -> c
+    addOne(b.value) -> c
 end
 
-PRINT(c)
+PRINT(c.value)

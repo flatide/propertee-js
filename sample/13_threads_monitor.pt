@@ -19,5 +19,5 @@ monitor 50
 end
 
 PRINT("---")
-PRINT("A:", rA)
-PRINT("B:", rB)
+PRINT("A:", rA.value)
+PRINT("B:", rB.value)

@@ -13,4 +13,4 @@ monitor 20
     PRINT("tick")
 end
 
-PRINT("r=" + TO_STRING(r))
+PRINT("r=" + TO_STRING(r.value))

@@ -14,4 +14,4 @@ multi
     worker(5) -> r
 end
 
-PRINT(r)
+PRINT(r.value)

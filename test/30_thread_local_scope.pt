@@ -14,4 +14,4 @@ multi
 end
 
 PRINT("global x=" + TO_STRING(x))
-PRINT("result=" + TO_STRING(r))
+PRINT("result=" + TO_STRING(r.value))

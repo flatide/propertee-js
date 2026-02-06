@@ -23,5 +23,5 @@ end
 
 // Speedy finishes while Sleepy is asleep
 PRINT("---")
-PRINT("Sleepy:", r1)
-PRINT("Speedy:", r2)
+PRINT("Sleepy:", r1.value)
+PRINT("Speedy:", r2.value)

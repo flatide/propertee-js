@@ -443,9 +443,24 @@ end
 
 ### Result Variables
 
-- `-> varName` captures the thread's return value into `varName`
+- `-> varName` captures the thread's result as a **Result object**: `{ok: true, value: <return value>}` on success, `{ok: false, value: "<error message>"}` on error
 - Thread calls without `->` discard the result
 - Result variables are **not accessible** inside the multi block — only after `end`
+- Access the return value via `.value` and check success via `.ok`:
+
+```
+multi
+    worker("A") -> res
+end
+
+if res.ok == true then
+    PRINT("Result:", res.value)
+else
+    PRINT("Error:", res.value)
+end
+```
+
+This follows the same Result pattern used by external I/O functions (see [External Functions](#external-functions--result-pattern)).
 
 ### Monitor Clause
 
@@ -467,7 +482,7 @@ end
 
 ### Sequential Multi Blocks
 
-Multiple `multi` blocks can chain results:
+Multiple `multi` blocks can chain results (access `.value` to pass the unwrapped result):
 
 ```
 multi
@@ -475,7 +490,7 @@ multi
 end
 
 multi
-    compute(a) -> b
+    compute(a.value) -> b
 end
 ```
 

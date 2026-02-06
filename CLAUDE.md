@@ -41,14 +41,14 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ## Testing
 
 ```bash
-# Run all tests (45 tests with expected output validation)
+# Run all tests (46 tests with expected output validation)
 ./test/run_tests.sh
 
 # Run a single test
 ./test/run_tests.sh test/16_thread_basic.pt
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`.
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects.
 
 **Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
@@ -104,7 +104,7 @@ Thread functions are pure with respect to global state:
 - **Cannot write** globals — `::x = value` is a runtime error
 - **Can only call** other thread functions or built-in functions
 - **Can create** and modify local variables freely (plain `x` without `::`)
-- **Return results** via `->` syntax in MULTI blocks; results assigned only after ALL threads complete
+- **Return results** via `->` syntax in MULTI blocks as Result objects: `{ok: true, value: <result>}` on success, `{ok: false, value: "<error>"}` on error. Results assigned only after ALL threads complete
 - No locks, no shared mutable state
 
 ### Scope Resolution (in `ProperTeeCustomVisitor`)
@@ -144,13 +144,14 @@ thread worker(name) do
     return 42
 end
 
-// Parallel execution
+// Parallel execution (results are {ok, value} objects)
 multi
     worker("A") -> resultA
     worker("B") -> resultB
 monitor 100
     PRINT("[tick]")
 end
+PRINT(resultA.value)  // access return value
 
 // Loops
 loop condition infinite do ... end

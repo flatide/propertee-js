@@ -11,7 +11,7 @@ multi
     readGlobal() -> result
 end
 
-PRINT("result=" + TO_STRING(result))
+PRINT("result=" + TO_STRING(result.value))
 
 // Globals remain intact after multi
 PRINT("x=" + TO_STRING(x))

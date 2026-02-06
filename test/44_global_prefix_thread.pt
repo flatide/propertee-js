@@ -10,4 +10,4 @@ multi
     readGlobals() -> result
 end
 
-PRINT(result)
+PRINT(result.value)

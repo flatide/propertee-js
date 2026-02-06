@@ -12,10 +12,10 @@ multi
     work(5) -> r5
 end
 
-PRINT(r1)
-PRINT(r2)
-PRINT(r3)
-PRINT(r4)
-PRINT(r5)
-total = r1 + r2 + r3 + r4 + r5
+PRINT(r1.value)
+PRINT(r2.value)
+PRINT(r3.value)
+PRINT(r4.value)
+PRINT(r5.value)
+total = r1.value + r2.value + r3.value + r4.value + r5.value
 PRINT(total)

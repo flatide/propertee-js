@@ -149,9 +149,23 @@ export default class Scheduler {
         const parent = this.threads.get(childThread.parentId);
         if (!parent) return;
 
-        // Store child result
+        // Store child result wrapped as {ok, value} Result
         if (parent._childResults) {
-            parent._childResults.set(childThread.id, childThread.result);
+            if (childThread.state === ThreadState.ERROR) {
+                parent._childResults.set(childThread.id, {
+                    ok: false,
+                    value: childThread.error ? childThread.error.message : 'Unknown thread error'
+                });
+            } else {
+                let rawResult = childThread.result;
+                if (rawResult && typeof rawResult === 'object' && 'result' in rawResult) {
+                    rawResult = rawResult.result;
+                }
+                parent._childResults.set(childThread.id, {
+                    ok: true,
+                    value: rawResult
+                });
+            }
         }
 
         // Check if all children done

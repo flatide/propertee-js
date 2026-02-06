@@ -4517,9 +4517,23 @@ class Scheduler {
         const parent = this.threads.get(childThread.parentId);
         if (!parent) return;
 
-        // Store child result
+        // Store child result wrapped as {ok, value} Result
         if (parent._childResults) {
-            parent._childResults.set(childThread.id, childThread.result);
+            if (childThread.state === ThreadState.ERROR) {
+                parent._childResults.set(childThread.id, {
+                    ok: false,
+                    value: childThread.error ? childThread.error.message : 'Unknown thread error'
+                });
+            } else {
+                let rawResult = childThread.result;
+                if (rawResult && typeof rawResult === 'object' && 'result' in rawResult) {
+                    rawResult = rawResult.result;
+                }
+                parent._childResults.set(childThread.id, {
+                    ok: true,
+                    value: rawResult
+                });
+            }
         }
 
         // Check if all children done
@@ -5767,19 +5781,18 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         try {
-            let result = null;
-
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
-                    result = yield* this.visit(stmtCtx);
+                    yield* this.visit(stmtCtx);
                     yield; // Statement boundary
                 }
             }
 
+            // No explicit return: result is empty object {}
             if (isThread) {
-                return { local: {...localScope}, result: result };
+                return { local: {...localScope}, result: {} };
             }
-            return result;
+            return {};
 
         } catch (e) {
             if (e instanceof ReturnException) {
@@ -5917,10 +5930,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (collectedResults && Array.isArray(collectedResults)) {
             for (const entry of collectedResults) {
                 if (entry.varName) {
-                    const threadResult = entry.result;
-                    const finalValue = (threadResult && typeof threadResult === 'object' && 'result' in threadResult)
-                        ? threadResult.result
-                        : threadResult;
+                    const finalValue = entry.result; // Already {ok, value} Result from Scheduler
 
                     if (scopeStack.length > 0) {
                         scopeStack[scopeStack.length - 1][entry.varName] = finalValue;
@@ -5944,16 +5954,15 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         scopeStack.push(localScope);
 
         try {
-            let result = null;
-
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
-                    result = yield* this.visit(stmtCtx);
+                    yield* this.visit(stmtCtx);
                     yield; // Statement boundary
                 }
             }
 
-            return { local: {...localScope}, result: result };
+            // No explicit return: result is empty object {}
+            return { local: {...localScope}, result: {} };
 
         } catch (e) {
             if (e instanceof ReturnException) {
