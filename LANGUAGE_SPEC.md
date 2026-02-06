@@ -20,6 +20,15 @@ Last Updated: 2026-02-02
 
 Any attempt to access non-existent variables or properties results in a **runtime error**.
 
+### 1.4 Truthiness
+
+Used in `if` conditions and `loop` conditions:
+
+- **Truthy:** `true` only
+- **Falsy:** everything else — including `false`, `0`, `""`, `[]`, `{}`
+
+Note: Conditions must use explicit boolean comparisons (e.g., `if x == true then` or `if x != false then`).
+
 ---
 
 ## 2. Operators
