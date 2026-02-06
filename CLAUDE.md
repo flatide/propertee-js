@@ -90,7 +90,7 @@ Generators communicate with the scheduler via yield values:
 
 | File | Role |
 |---|---|
-| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Keywords: `thread`, `multi`, `monitor`, `infinite` |
+| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Keywords: `shared`, `thread`, `multi`, `monitor`, `infinite` |
 | `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, thread purity enforcement, `registerExternal()` for external functions with Result pattern |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks, runs monitor ticks |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags |
