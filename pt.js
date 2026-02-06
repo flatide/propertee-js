@@ -181,8 +181,6 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
             const result = await scheduler.run(mainGenerator);
             if (result !== null && result !== undefined) {
                 console.log('=>', visitor.functions['TO_STRING'](result));
-            } else {
-                console.log('=>', '{}');
             }
         } catch (e) {
             console.error(`Runtime error: ${e.message}`);
