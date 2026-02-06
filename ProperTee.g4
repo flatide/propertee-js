@@ -19,6 +19,7 @@ assignment
 
 lvalue
     : ID                                     # VarLValue
+    | GLOBAL_PREFIX ID                       # GlobalVarLValue
     | lvalue '.' access                      # PropLValue
     ;
 
@@ -88,6 +89,7 @@ access
 
 atom
     : functionCall           # FuncAtom
+    | GLOBAL_PREFIX ID       # GlobalVarReference
     | ID                     # VarReference
     | INTEGER '.' INTEGER    # DecimalAtom
     | INTEGER                # IntegerAtom
@@ -145,6 +147,7 @@ K_INFINITE  : 'infinite';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
 
+GLOBAL_PREFIX : '::' ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 INTEGER : [0-9]+ ;
 STRING : '"' ( '\\' . | ~["\\] )* '"' ;

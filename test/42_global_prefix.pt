@@ -1,0 +1,55 @@
+// Test: :: global variable prefix
+// At top level, x and ::x both work
+x = 10
+PRINT(x)
+PRINT(::x)
+
+// :: can read globals inside functions
+function getGlobal() do
+    return ::x
+end
+PRINT(getGlobal())
+
+// :: can write globals inside functions
+function setGlobal(val) do
+    ::x = val
+end
+setGlobal(42)
+PRINT(x)
+
+// Plain variable inside function is local-only (no shadowing confusion)
+function localOnly() do
+    x = "local"
+    return x
+end
+PRINT(localOnly())
+PRINT(x)
+
+// :: works with property chains
+obj = {name: "hello", nested: {val: 99}}
+function readProp() do
+    return ::obj.name
+end
+PRINT(readProp())
+
+// :: write to global property chain
+function writeProp() do
+    ::obj.name = "updated"
+end
+writeProp()
+PRINT(obj.name)
+
+// Function parameters shadow nothing - they're local
+function shadow(x) do
+    return x + ::x
+end
+PRINT(shadow(1))
+
+// Nested function calls with ::
+function doubleGlobal() do
+    return ::x * 2
+end
+function tripleGlobal() do
+    return ::x * 3
+end
+PRINT(doubleGlobal() + tripleGlobal())

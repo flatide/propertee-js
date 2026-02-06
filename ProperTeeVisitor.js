@@ -72,6 +72,12 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
+	// Visit a parse tree produced by ProperTeeParser#GlobalVarLValue.
+	visitGlobalVarLValue(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
 	// Visit a parse tree produced by ProperTeeParser#PropLValue.
 	visitPropLValue(ctx) {
 	  return this.visitChildren(ctx);
@@ -254,6 +260,12 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 
 	// Visit a parse tree produced by ProperTeeParser#FuncAtom.
 	visitFuncAtom(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#GlobalVarReference.
+	visitGlobalVarReference(ctx) {
 	  return this.visitChildren(ctx);
 	}
 

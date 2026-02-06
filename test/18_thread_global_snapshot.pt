@@ -2,9 +2,9 @@
 x = 100
 
 thread readGlobal() do
-    // Should see x from snapshot
-    PRINT("thread sees x=" + TO_STRING(x))
-    return x
+    // Should see x from snapshot via :: prefix
+    PRINT("thread sees x=" + TO_STRING(::x))
+    return ::x
 end
 
 multi

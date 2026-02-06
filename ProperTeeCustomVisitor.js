@@ -222,6 +222,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return this.multiResultVars;
     }
 
+    _isInFunctionScope() {
+        return this._getScopeStack().length > 0;
+    }
+
     // Override the base visit() to handle generator dispatch
     visit(ctx) {
         if (!ctx) return null;
@@ -275,6 +279,23 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const scopeStack = this._getScopeStack();
         const variables = this._getVariables();
 
+        // Case 0: global variable assignment (::varName = value)
+        if (lvalueCtx.constructor.name === 'GlobalVarLValueContext') {
+            const varName = lvalueCtx.ID().getText();
+
+            if (this._isInThreadContext()) {
+                throw this.createError(
+                    `Cannot assign to global variable '::${varName}' inside thread function. ` +
+                    `Thread functions can only read global variables (via ::) and write to thread-local variables.`,
+                    ctx
+                );
+            }
+
+            // Write directly to globals (bypasses local scopes)
+            this.variables[varName] = value;
+            return value;
+        }
+
         // Case 1: variable assignment
         if (lvalueCtx.constructor.name === 'VarLValueContext') {
             const varName = lvalueCtx.ID().getText();
@@ -283,7 +304,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (this._isInThreadContext() && scopeStack.length === 0) {
                 throw this.createError(
                     `Cannot assign to global variable '${varName}' inside thread function. ` +
-                    `Thread functions can only read global variables and write to thread-local variables.`,
+                    `Thread functions can only read global variables (via ::) and write to thread-local variables.`,
                     ctx
                 );
             }
@@ -315,6 +336,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const scopeStack = this._getScopeStack();
         const variables = this._getVariables();
 
+        if (lvalueCtx.constructor.name === 'GlobalVarLValueContext') {
+            const varName = lvalueCtx.ID().getText();
+            if (varName in variables) return variables[varName];
+            if (varName in this.properties) return this.properties[varName];
+            throw new Error(`Runtime Error: Global variable '${varName}' is not defined`);
+        }
+
         if (lvalueCtx.constructor.name === 'VarLValueContext') {
             const varName = lvalueCtx.ID().getText();
 
@@ -322,6 +350,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             for (let i = scopeStack.length - 1; i >= 0; i--) {
                 if (varName in scopeStack[i]) return scopeStack[i][varName];
             }
+
+            // Inside a function: plain variables are local-only
+            if (this._isInFunctionScope()) {
+                throw new Error(`Runtime Error: Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`);
+            }
+
             if (varName in variables) return variables[varName];
             if (varName in this.properties) return this.properties[varName];
             throw new Error(`Runtime Error: Variable '${varName}' is not defined`);
@@ -345,9 +379,24 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         for (let i = scopeStack.length - 1; i >= 0; i--) {
             if (varName in scopeStack[i]) return scopeStack[i][varName];
         }
+
+        // Inside a function: plain variables are local-only
+        if (this._isInFunctionScope()) {
+            throw new Error(`Runtime Error: Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`);
+        }
+
         if (varName in variables) return variables[varName];
         if (varName in this.properties) return this.properties[varName];
         throw new Error(`Runtime Error: Variable '${varName}' is not defined`);
+    }
+
+    *visitGlobalVarLValue(ctx) {
+        const varName = ctx.ID().getText();
+        const variables = this._getVariables();
+
+        if (varName in variables) return variables[varName];
+        if (varName in this.properties) return this.properties[varName];
+        throw new Error(`Runtime Error: Global variable '${varName}' is not defined`);
     }
 
     *visitPropLValue(ctx) {
@@ -688,13 +737,34 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return multiResultVars.get(name);
         }
 
-        // 3. Variables (global or snapshot)
+        // Inside a function: plain variables are local-only, no fallthrough to globals
+        if (this._isInFunctionScope()) {
+            throw this.createError(
+                `Variable '${name}' is not defined in local scope. Use ::${name} to access the global variable.`,
+                ctx
+            );
+        }
+
+        // 3. Variables (global or snapshot) — top-level only
         if (name in variables) return variables[name];
 
-        // 4. Built-in properties
+        // 4. Built-in properties — top-level only
         if (name in this.properties) return this.properties[name];
 
         throw this.createError(`Variable '${name}' is not defined`, ctx);
+    }
+
+    *visitGlobalVarReference(ctx) {
+        const name = ctx.ID().getText();
+        const variables = this._getVariables();
+
+        // Global variables
+        if (name in variables) return variables[name];
+
+        // Built-in properties
+        if (name in this.properties) return this.properties[name];
+
+        throw this.createError(`Global variable '${name}' is not defined`, ctx);
     }
 
     *visitIntegerAtom(ctx) {
@@ -797,6 +867,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         for (let i = scopeStack.length - 1; i >= 0; i--) {
             if (varName in scopeStack[i]) return scopeStack[i][varName];
         }
+
+        // Inside a function: $key only checks local scope
+        if (this._isInFunctionScope()) return undefined;
+
         if (varName in variables) return variables[varName];
         if (varName in this.properties) return this.properties[varName];
         return undefined;
@@ -992,19 +1066,18 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         try {
-            let result = null;
-
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
-                    result = yield* this.visit(stmtCtx);
+                    yield* this.visit(stmtCtx);
                     yield; // Statement boundary
                 }
             }
 
+            // No explicit return: result is empty object {}
             if (isThread) {
-                return { local: {...localScope}, result: result };
+                return { local: {...localScope}, result: {} };
             }
-            return result;
+            return {};
 
         } catch (e) {
             if (e instanceof ReturnException) {
@@ -1169,16 +1242,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         scopeStack.push(localScope);
 
         try {
-            let result = null;
-
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
-                    result = yield* this.visit(stmtCtx);
+                    yield* this.visit(stmtCtx);
                     yield; // Statement boundary
                 }
             }
 
-            return { local: {...localScope}, result: result };
+            // No explicit return: result is empty object {}
+            return { local: {...localScope}, result: {} };
 
         } catch (e) {
             if (e instanceof ReturnException) {

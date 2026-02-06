@@ -1,0 +1,1 @@
+Runtime error: Runtime Error at line 6:4: Cannot assign to global variable '::x' inside thread function. Thread functions can only read global variables (via ::) and write to thread-local variables.

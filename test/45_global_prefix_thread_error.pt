@@ -1,0 +1,10 @@
+// Test: :: write in thread is an error (thread purity)
+// Calling a thread function directly still enforces purity
+x = 10
+
+thread badWriter() do
+    ::x = 999
+    return ::x
+end
+
+badWriter()

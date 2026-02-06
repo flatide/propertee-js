@@ -41,7 +41,7 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ## Testing
 
 ```bash
-# Run all tests (41 tests with expected output validation)
+# Run all tests (45 tests with expected output validation)
 ./test/run_tests.sh
 
 # Run a single test
@@ -100,15 +100,22 @@ Generators communicate with the scheduler via yield values:
 ### Thread Purity Model
 
 Thread functions are pure with respect to global state:
-- **Can read** globals via a snapshot taken at MULTI block entry
-- **Cannot write** globals (enforced at runtime)
+- **Can read** globals via `::` (reads from a snapshot taken at MULTI block entry)
+- **Cannot write** globals — `::x = value` is a runtime error
 - **Can only call** other thread functions or built-in functions
+- **Can create** and modify local variables freely (plain `x` without `::`)
 - **Return results** via `->` syntax in MULTI blocks; results assigned only after ALL threads complete
 - No locks, no shared mutable state
 
 ### Scope Resolution (in `ProperTeeCustomVisitor`)
 
-The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeThread` when set by the scheduler, falling back to `this.scopeStack`/`this.variables` for single-threaded execution. Variable lookup order: local scopes (top of stack first) → multi result vars → global variables/snapshot → built-in properties.
+**At top level:** global variables → built-in properties.
+
+**Inside functions (plain `x`):** local scopes (top of stack first) → multi result vars → error with hint to use `::x`.
+
+**Inside functions (`::x`):** global variables/snapshot → built-in properties.
+
+The `::` prefix (`GLOBAL_PREFIX` token) bypasses local scopes and accesses globals directly. At top level, `x` and `::x` are equivalent. The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeThread` when set by the scheduler, falling back to `this.scopeStack`/`this.variables` for single-threaded execution.
 
 ### Flow Control
 
@@ -123,6 +130,10 @@ The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeT
 ```
 // Variables
 x = 10
+
+// Global access inside functions (:: prefix)
+function readX() do return ::x end
+function setX(v) do ::x = v end
 
 // Functions
 function add(a, b) do return a + b end

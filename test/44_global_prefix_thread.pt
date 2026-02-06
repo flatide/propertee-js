@@ -1,0 +1,13 @@
+// Test: :: read in thread function (reads from global snapshot)
+x = 100
+y = "hello"
+
+thread readGlobals() do
+    return TO_STRING(::x) + " " + ::y
+end
+
+multi
+    readGlobals() -> result
+end
+
+PRINT(result)

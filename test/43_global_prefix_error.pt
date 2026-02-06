@@ -1,0 +1,8 @@
+// Test: Error when reading global without :: inside function
+x = 10
+
+function badRead() do
+    return x
+end
+
+badRead()

@@ -47,6 +47,42 @@ items = [1, 2, 3]
 
 Referencing an undefined variable is a runtime error.
 
+### `::` Global Variable Prefix
+
+Inside functions, plain variable names only access **local** variables. To read or write a global variable from within a function, use the `::` prefix:
+
+```
+x = 10
+
+function readGlobal() do
+    return ::x          // reads global x
+end
+
+function writeGlobal() do
+    ::x = 42            // writes global x
+end
+
+function localOnly() do
+    x = "local"         // creates a LOCAL x
+    return x            // returns "local"
+end
+
+readGlobal()             // 10
+writeGlobal()
+PRINT(x)                 // 42
+localOnly()
+PRINT(x)                 // 42 (unchanged by localOnly)
+```
+
+At the **top level** (outside functions), `x` and `::x` are equivalent — both access globals.
+
+**Rules:**
+- Inside functions: plain `x` is local-only. Use `::x` to access globals.
+- In thread functions: `::x` reads from the global snapshot. `::x = value` is a runtime error (thread purity).
+- Built-in properties (host-injected via `-p`): require `::` inside functions.
+- Multi result variables and loop variables: accessible without `::` (they are local).
+- Function/thread names and built-in functions: resolved separately, no `::` needed.
+
 ## Operators
 
 ### Arithmetic
@@ -329,14 +365,15 @@ end
 
 ### Global and Local
 
-Variables assigned at the top level are **global**. Variables assigned inside a function are **local** to that function call.
+Variables assigned at the top level are **global**. Variables assigned inside a function are **local** to that function call. Inside functions, globals are only accessible via the `::` prefix.
 
 ```
 x = "global"
 
 function example() do
-    x = "local"       // creates a LOCAL x, does not modify global
+    x = "local"       // creates a LOCAL x
     PRINT(x)           // "local"
+    PRINT(::x)         // "global" (reads global via ::)
 end
 
 example()
@@ -345,16 +382,25 @@ PRINT(x)               // "global" (unchanged)
 
 ### Lookup Order
 
-When reading a variable:
+**At top level:**
+
+1. Global variables
+2. Built-in properties
+
+**Inside functions (plain `x`):**
 
 1. Local scopes (innermost first — nested function calls)
 2. Multi-block result variables
-3. Global variables (or thread snapshot in multi context)
-4. Built-in properties
+3. Error if not found (with hint to use `::`)
+
+**Inside functions (`::x`):**
+
+1. Global variables (or thread snapshot in multi context)
+2. Built-in properties
 
 ### Scope in Loops
 
-Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if inside a function, global otherwise.
+Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if inside a function, global otherwise. They are always accessible without `::`.
 
 ## Thread Functions
 
@@ -371,10 +417,10 @@ end
 
 Thread functions enforce a purity model:
 
-- **Can read** global variables (via a snapshot taken when the `multi` block starts)
-- **Cannot write** global variables (runtime error if attempted)
+- **Can read** global variables via `::` (reads from a snapshot taken when the `multi` block starts)
+- **Cannot write** global variables — `::x = value` is a runtime error
 - **Can only call** other thread functions or built-in functions (calling a regular function is a runtime error)
-- **Can create** and modify local variables freely
+- **Can create** and modify local variables freely (plain `x` without `::`)
 
 This guarantees no data races — threads never see each other's modifications.
 
@@ -600,7 +646,8 @@ Common error conditions:
 | Missing property | Property 'x' does not exist |
 | Array out of bounds | Array index out of bounds |
 | Loop limit exceeded | Loop exceeded maximum iterations (1000) |
-| Global write in thread | Cannot assign to global variable 'x' inside thread function |
+| Global write in thread | Cannot assign to global variable '::x' inside thread function |
+| Global without `::` in function | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | Regular function in multi | Function 'foo' is not a thread function |
 | Thread calls regular function | Thread functions can only call other thread functions or built-in functions |
