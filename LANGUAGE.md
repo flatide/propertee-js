@@ -1,0 +1,607 @@
+# ProperTee Language Specification
+
+## Overview
+
+ProperTee is a small, safe scripting language designed for embedding in host applications. It features cooperative multithreading with a thread purity model — threads cannot mutate shared state, eliminating data races by design. There are no locks, no shared mutable state, and no null.
+
+## Values and Types
+
+ProperTee has six types:
+
+| Type | Examples | Notes |
+|---|---|---|
+| number (integer) | `0`, `42`, `-7` | Whole numbers |
+| number (decimal) | `3.14`, `0.5` | Floating-point numbers |
+| string | `"hello"`, `"it's \"quoted\""` | Double-quoted, `\"` for embedded quotes |
+| boolean | `true`, `false` | |
+| array | `[1, 2, 3]`, `[]` | Ordered, 1-based indexing, heterogeneous |
+| object | `{name: "Alice", age: 30}`, `{}` | Ordered key-value pairs, string keys |
+
+There is **no null**. The empty object `{}` serves as the "no value" sentinel throughout the language.
+
+### Number Representation
+
+- Integer and decimal are both "number" but stored differently
+- Arithmetic that produces a whole number result displays without a decimal point: `10 / 2` displays as `5`
+- Division always produces a decimal internally: `7 / 2` → `3.5`
+- Whole-number results of other operations display as integers: `1.0 + 2.0` → `3`
+
+### Truthiness
+
+Used in `if` conditions and `loop` conditions:
+
+- **Truthy:** `true` only
+- **Falsy:** everything else — including `false`, `0`, `""`, `[]`, `{}`
+
+Note: Conditions must use explicit boolean comparisons (e.g., `if x == true then` or `if x != false then`).
+
+## Variables
+
+Variables are created by assignment. No declaration keyword is needed.
+
+```
+x = 10
+name = "Alice"
+items = [1, 2, 3]
+```
+
+Referencing an undefined variable is a runtime error.
+
+## Operators
+
+### Arithmetic
+
+| Operator | Operation | Operand Types | Result |
+|---|---|---|---|
+| `+` | addition | number + number | number |
+| `+` | concatenation | string + string | string |
+| `-` | subtraction | number - number | number |
+| `*` | multiplication | number * number | number |
+| `/` | division | number / number | number (always decimal) |
+| `%` | modulo | number % number | number |
+| `-` (unary) | negation | number | number |
+
+Mixed types in `+` (e.g., number + string) are a runtime error. No implicit type coercion.
+
+Division by zero is a runtime error.
+
+### Comparison
+
+| Operator | Operation | Operand Types |
+|---|---|---|
+| `==` | equal | any == any |
+| `!=` | not equal | any != any |
+| `>` | greater than | number > number |
+| `<` | less than | number < number |
+| `>=` | greater or equal | number >= number |
+| `<=` | less or equal | number <= number |
+
+Equality (`==`, `!=`) works across all types. Values are compared by content, not identity — `{} == {}` is `true`. Relational operators (`>`, `<`, `>=`, `<=`) require both operands to be numbers.
+
+### Logical
+
+| Operator | Operation | Operand Types |
+|---|---|---|
+| `and` | logical AND | boolean and boolean |
+| `or` | logical OR | boolean or boolean |
+| `not` | logical NOT | not boolean |
+
+All logical operators **require boolean operands**. Using a number or string with `and`/`or` is a runtime error. Both sides are always evaluated (no short-circuit).
+
+### Precedence (lowest to highest)
+
+1. `or`
+2. `and`
+3. `==` `!=` `>` `<` `>=` `<=`
+4. `+` `-`
+5. `*` `/` `%`
+6. `-` (unary), `not`
+7. `.` (member access)
+
+Parentheses `()` override precedence.
+
+## Strings
+
+Strings are double-quoted. Supported escape sequences:
+
+| Escape | Character |
+|---|---|
+| `\"` | double quote |
+| `\\` | backslash |
+
+```
+msg = "She said \"hello\""
+path = "C:\\Users\\file"
+```
+
+Strings are **not** mutable. String operations return new strings.
+
+### String Indexing
+
+Strings support 1-based character access via the `.` operator:
+
+```
+s = "hello"
+s.1     // "h"
+s.5     // "o"
+```
+
+## Arrays
+
+Arrays are ordered, 1-based, and can contain mixed types.
+
+```
+nums = [10, 20, 30]
+mixed = [1, "two", true, [4, 5]]
+empty = []
+```
+
+### Array Access (1-based)
+
+```
+nums.1      // 10 (first element)
+nums.3      // 30 (third element)
+```
+
+Out-of-bounds access is a runtime error.
+
+### Array Mutation
+
+Direct element assignment mutates the array:
+
+```
+nums.1 = 99     // nums is now [99, 20, 30]
+```
+
+Built-in array functions (`PUSH`, `POP`, `CONCAT`, `SLICE`) return **new** arrays and do not mutate the original.
+
+## Objects
+
+Objects are ordered key-value pairs with string keys.
+
+```
+person = {name: "Alice", age: 30}
+config = {"special-key": true, 1: "one"}
+empty = {}
+```
+
+Object keys can be bare identifiers, quoted strings, or integers (stored as string keys).
+
+### Object Access
+
+| Pattern | Syntax | Use Case |
+|---|---|---|
+| Static | `obj.name` | Known property name |
+| Quoted key | `obj."special-key"` | Keys with special characters |
+| Variable key | `obj.$varName` | Key name stored in a variable |
+| Computed key | `obj.$(expression)` | Key determined by an expression |
+| Numeric key | `obj.1` | Integer key (treated as array index for arrays) |
+
+```
+key = "name"
+person.$key          // "Alice" (same as person.name)
+person.$("na" + "me") // "Alice"
+```
+
+Accessing a property that doesn't exist is a runtime error.
+
+### Object Mutation
+
+Properties can be added or modified by assignment:
+
+```
+person.email = "alice@example.com"    // adds new property
+person.age = 31                       // modifies existing
+```
+
+### Nested Access
+
+Access patterns chain for nested structures:
+
+```
+data = {users: [{name: "Alice"}, {name: "Bob"}]}
+data.users.1.name    // "Alice"
+data.users.2.name    // "Bob"
+```
+
+## Control Flow
+
+### If / Else
+
+```
+if condition then
+    // statements
+end
+
+if condition then
+    // statements
+else
+    // statements
+end
+```
+
+### Loops
+
+**Condition loop** — repeats while condition is truthy:
+
+```
+i = 0
+loop i < 10 do
+    i = i + 1
+end
+```
+
+**Value loop** — iterates over a collection:
+
+```
+loop item in [10, 20, 30] do
+    PRINT(item)
+end
+```
+
+**Key-value loop** — iterates with keys/indices:
+
+```
+// Arrays: key is 1-based index
+loop i, val in ["a", "b", "c"] do
+    PRINT(i, val)    // 1 a, 2 b, 3 c
+end
+
+// Objects: key is property name
+loop k, v in {x: 1, y: 2} do
+    PRINT(k, v)      // x 1, y 2
+end
+```
+
+### Infinite Loops
+
+By default, loops are limited to 1000 iterations (configurable by the host). To allow unlimited iterations, add the `infinite` keyword:
+
+```
+loop condition infinite do
+    // runs until condition is false or break
+end
+
+loop item in collection infinite do
+    // runs through entire collection regardless of size
+end
+```
+
+Exceeding the iteration limit without `infinite` is a runtime error.
+
+### Break and Continue
+
+```
+loop i < 100 do
+    if i == 5 then break end        // exit loop
+    if i % 2 == 0 then continue end // skip to next iteration
+    PRINT(i)
+end
+```
+
+`break` and `continue` affect the innermost enclosing loop only.
+
+## Functions
+
+```
+function add(a, b) do
+    return a + b
+end
+
+result = add(3, 4)    // 7
+```
+
+### Return Values
+
+- `return value` — returns the specified value
+- `return` (bare) — returns `{}`
+- No return statement — returns `{}`
+
+### Arguments
+
+- Missing arguments default to `{}` (empty object)
+- Extra arguments beyond the declared parameters are a runtime error
+
+```
+function greet(name, title) do
+    if title == {} then
+        return "Hello, " + name
+    end
+    return "Hello, " + title + " " + name
+end
+
+greet("Alice", "Dr.")    // "Hello, Dr. Alice"
+greet("Bob")             // "Hello, Bob" (title defaults to {})
+```
+
+### Recursion
+
+Functions can call themselves recursively:
+
+```
+function factorial(n) do
+    if n <= 1 then return 1 end
+    return n * factorial(n - 1)
+end
+```
+
+## Variable Scope
+
+### Global and Local
+
+Variables assigned at the top level are **global**. Variables assigned inside a function are **local** to that function call.
+
+```
+x = "global"
+
+function example() do
+    x = "local"       // creates a LOCAL x, does not modify global
+    PRINT(x)           // "local"
+end
+
+example()
+PRINT(x)               // "global" (unchanged)
+```
+
+### Lookup Order
+
+When reading a variable:
+
+1. Local scopes (innermost first — nested function calls)
+2. Multi-block result variables
+3. Global variables (or thread snapshot in multi context)
+4. Built-in properties
+
+### Scope in Loops
+
+Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if inside a function, global otherwise.
+
+## Thread Functions
+
+Thread functions are declared with `thread` instead of `function`. They can only be called inside `multi` blocks.
+
+```
+thread worker(name) do
+    PRINT(name + " started")
+    return name + " done"
+end
+```
+
+### Thread Purity
+
+Thread functions enforce a purity model:
+
+- **Can read** global variables (via a snapshot taken when the `multi` block starts)
+- **Cannot write** global variables (runtime error if attempted)
+- **Can only call** other thread functions or built-in functions (calling a regular function is a runtime error)
+- **Can create** and modify local variables freely
+
+This guarantees no data races — threads never see each other's modifications.
+
+## Multi Blocks (Parallel Execution)
+
+```
+multi
+    worker("A") -> resultA
+    worker("B") -> resultB
+end
+```
+
+### Semantics
+
+1. All thread functions launch concurrently
+2. A snapshot of global variables is taken at `multi` entry — all threads see this snapshot
+3. Threads execute cooperatively, interleaving at statement boundaries
+4. All threads must complete before execution continues past `end`
+5. Results are assigned to the specified variables (`resultA`, `resultB`) only after **all** threads finish
+
+### Result Variables
+
+- `-> varName` captures the thread's return value into `varName`
+- Thread calls without `->` discard the result
+- Result variables are **not accessible** inside the multi block — only after `end`
+
+### Monitor Clause
+
+An optional `monitor` clause runs code periodically while threads execute:
+
+```
+multi
+    worker("A") -> resultA
+    worker("B") -> resultB
+monitor 100
+    PRINT("[heartbeat]")
+end
+```
+
+- The number after `monitor` is the interval in milliseconds
+- Monitor code is **read-only** — variable assignment inside a monitor is a runtime error
+- Monitor can call built-in functions (e.g., `PRINT`)
+- Monitor runs one final time after all threads complete
+
+### Sequential Multi Blocks
+
+Multiple `multi` blocks can chain results:
+
+```
+multi
+    compute(10) -> a
+end
+
+multi
+    compute(a) -> b
+end
+```
+
+### SLEEP
+
+`SLEEP(milliseconds)` pauses the current thread without blocking others:
+
+```
+thread slow_worker() do
+    SLEEP(500)
+    return "done"
+end
+```
+
+Only meaningful inside thread functions within a `multi` block.
+
+## Built-in Functions
+
+All built-in function names are UPPERCASE.
+
+### Output
+
+| Function | Description |
+|---|---|
+| `PRINT(args...)` | Print values separated by spaces. Returns `{}`. |
+
+### Math
+
+| Function | Description |
+|---|---|
+| `SUM(args...)` | Sum of all numeric arguments |
+| `MAX(args...)` | Maximum of all numeric arguments |
+| `MIN(args...)` | Minimum of all numeric arguments |
+| `ABS(n)` | Absolute value |
+| `FLOOR(n)` | Round down |
+| `CEIL(n)` | Round up |
+| `ROUND(n)` | Round to nearest integer |
+
+### Type Conversion
+
+| Function | Description |
+|---|---|
+| `TO_NUMBER(s)` | Convert string to number. Error if not valid numeric string. |
+| `TO_STRING(v)` | Convert any value to its string representation |
+
+### String Functions
+
+| Function | Description |
+|---|---|
+| `LEN(s)` | Length of string (or array). Returns `0` for other types. |
+| `UPPERCASE(s)` | Convert to uppercase |
+| `LOWERCASE(s)` | Convert to lowercase |
+| `TRIM(s)` | Remove leading/trailing whitespace |
+| `SUBSTRING(s, start, [length])` | Extract substring. `start` is 1-based. |
+| `SPLIT(s, delimiter)` | Split string into array. Preserves trailing empty strings. |
+| `JOIN(arr, [separator])` | Join array elements into string. Default separator is `""`. |
+| `CHARS(s)` | Split string into array of single characters |
+
+### Array Functions
+
+| Function | Description |
+|---|---|
+| `LEN(arr)` | Number of elements |
+| `PUSH(arr, values...)` | Returns new array with values appended. Original unchanged. |
+| `POP(arr)` | Returns new array with last element removed. Original unchanged. |
+| `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
+| `SLICE(arr, start, [end])` | Returns sub-array. `start` is 1-based. `end` is exclusive. |
+
+### Timing
+
+| Function | Description |
+|---|---|
+| `SLEEP(ms)` | Pause current thread for `ms` milliseconds |
+
+## Built-in Properties
+
+The host application can inject read-only properties accessible as global variables:
+
+```bash
+# Command line
+java -jar propertee.jar -p '{"width": 100, "height": 200}' script.pt
+```
+
+```
+// In script
+area = width * height    // 20000
+```
+
+Properties are read-only and sit at the bottom of the variable lookup chain — any local or global variable with the same name takes precedence.
+
+## External Functions and the Result Pattern
+
+Host applications can register custom functions. These use the **Result pattern** for error handling instead of throwing runtime errors:
+
+```
+// Calling an external function
+res = GET_BALANCE("alice")
+
+if res.ok == true then
+    PRINT("Balance:", res.value)
+else
+    PRINT("Error:", res.value)
+end
+```
+
+Result objects have two fields:
+- `ok` — `true` for success, `false` for failure
+- `value` — the result value on success, or an error message string on failure
+
+## Comments
+
+```
+// Single-line comment
+
+/* Multi-line
+   comment */
+```
+
+## Semicolons
+
+Semicolons are optional and treated as whitespace. These are equivalent:
+
+```
+x = 1; y = 2; z = 3
+```
+
+```
+x = 1
+y = 2
+z = 3
+```
+
+## Output Formatting
+
+When values are printed or displayed:
+
+| Type | Format | Example |
+|---|---|---|
+| integer | no decimal | `42` |
+| decimal (whole) | no decimal | `5` (not `5.0`) |
+| decimal (fractional) | with decimal | `3.14` |
+| string | no quotes | `hello` |
+| boolean | lowercase | `true` |
+| empty object | braces | `{}` |
+| array | bracketed | `[ 1, 2, 'hello' ]` |
+| object | braced | `{ "name": 'Alice', "age": 30 }` |
+
+Strings inside arrays and objects are displayed with single quotes. Top-level strings printed via `PRINT` have no quotes.
+
+## Runtime Errors
+
+ProperTee reports errors with line and column information:
+
+```
+Runtime Error at line 5:3: Variable 'x' is not defined
+```
+
+Common error conditions:
+
+| Condition | Error |
+|---|---|
+| Undefined variable | Variable 'x' is not defined |
+| Undefined function | Unknown function 'foo' |
+| Type mismatch in arithmetic | Arithmetic operator '+' requires numeric operands |
+| String + number | Addition requires both operands to be numbers or both to be strings |
+| Non-boolean in `and`/`or` | Logical AND requires boolean operands |
+| Division by zero | Division by zero |
+| Missing property | Property 'x' does not exist |
+| Array out of bounds | Array index out of bounds |
+| Loop limit exceeded | Loop exceeded maximum iterations (1000) |
+| Global write in thread | Cannot assign to global variable 'x' inside thread function |
+| Assignment in monitor | Cannot assign variables in monitor block (read-only) |
+| Regular function in multi | Function 'foo' is not a thread function |
+| Thread calls regular function | Thread functions can only call other thread functions or built-in functions |
+| Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |
