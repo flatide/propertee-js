@@ -126,10 +126,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     const mainGenerator = visitor.visitRoot(tree);
 
     try {
-        const result = await scheduler.run(mainGenerator);
-        if (result !== null && result !== undefined) {
-            console.log('Result:', visitor.functions['TO_STRING'](result));
-        }
+        await scheduler.run(mainGenerator);
     } catch (e) {
         console.error(`Runtime error: ${e.message}`);
         process.exit(1);
@@ -178,10 +175,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         const mainGenerator = visitor.visitRoot(tree);
 
         try {
-            const result = await scheduler.run(mainGenerator);
-            if (result !== null && result !== undefined) {
-                console.log('=>', visitor.functions['TO_STRING'](result));
-            }
+            await scheduler.run(mainGenerator);
         } catch (e) {
             console.error(`Runtime error: ${e.message}`);
         }
