@@ -326,6 +326,8 @@ export default class Scheduler {
                 if (thread.id === 0) {
                     throw error;
                 }
+                // Print child thread errors to stderr
+                this.visitor.stderr('[THREAD ERROR]', error.message);
             }
         }
 

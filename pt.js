@@ -175,7 +175,10 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         const mainGenerator = visitor.visitRoot(tree);
 
         try {
-            await scheduler.run(mainGenerator);
+            const result = await scheduler.run(mainGenerator);
+            if (result != null) {
+                console.log('=>', visitor.functions['TO_STRING'](result));
+            }
         } catch (e) {
             console.error(`Runtime error: ${e.message}`);
         }
