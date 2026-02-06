@@ -368,7 +368,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitIfStatement(ctx) {
         const condition = yield* this.visit(ctx.condition);
 
-        if (condition) {
+        if (condition === true) {
             if (ctx.thenBody) {
                 return yield* this.visitBlock(ctx.thenBody);
             }
@@ -392,7 +392,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         try {
             let condition = yield* this.visit(ctx.expression());
 
-            while (condition) {
+            while (condition === true) {
                 if (++iterations > maxIterations) {
                     if (this.iterationLimitBehavior === 'warn') {
                         this.stderr(`Warning: Loop exceeded maximum iterations (${maxIterations}), stopping loop`);
