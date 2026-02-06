@@ -2,3 +2,4 @@ thread sees x=100
 result=100
 x=100
 x=200
+Result: {}

@@ -1,3 +1,4 @@
 thread x=999
 global x=10
 result=999
+Result: {}
