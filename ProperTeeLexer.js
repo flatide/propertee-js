@@ -128,7 +128,7 @@ export default class ProperTeeLexer extends antlr4.Lexer {
                           null, null, null, null, null, null, null, null, 
                           "K_IF", "K_THEN", "K_ELSE", "K_END", "K_LOOP", 
                           "K_IN", "K_DO", "K_BREAK", "K_CONTINUE", "K_FUNCTION", 
-                          "K_THREAD", "K_RETURN", "K_NOT", "K_AND", "K_OR", 
+                          "K_SPAWN", "K_RETURN", "K_NOT", "K_AND", "K_OR", 
                           "K_TRUE", "K_FALSE", "K_INFINITE", "K_MULTI", 
                           "K_MONITOR", "GLOBAL_PREFIX", "ID", "INTEGER", 
                           "STRING", "COMMENT", "BLOCK_COMMENT", "WS" ];
@@ -137,7 +137,7 @@ export default class ProperTeeLexer extends antlr4.Lexer {
                       "T__13", "T__14", "T__15", "T__16", "T__17", "T__18", 
                       "T__19", "T__20", "T__21", "T__22", "K_IF", "K_THEN", 
                       "K_ELSE", "K_END", "K_LOOP", "K_IN", "K_DO", "K_BREAK", 
-                      "K_CONTINUE", "K_FUNCTION", "K_THREAD", "K_RETURN", 
+                      "K_CONTINUE", "K_FUNCTION", "K_SPAWN", "K_RETURN", 
                       "K_NOT", "K_AND", "K_OR", "K_TRUE", "K_FALSE", "K_INFINITE", 
                       "K_MULTI", "K_MONITOR", "GLOBAL_PREFIX", "ID", "INTEGER", 
                       "STRING", "COMMENT", "BLOCK_COMMENT", "WS" ];
@@ -182,7 +182,7 @@ ProperTeeLexer.K_DO = 30;
 ProperTeeLexer.K_BREAK = 31;
 ProperTeeLexer.K_CONTINUE = 32;
 ProperTeeLexer.K_FUNCTION = 33;
-ProperTeeLexer.K_THREAD = 34;
+ProperTeeLexer.K_SPAWN = 34;
 ProperTeeLexer.K_RETURN = 35;
 ProperTeeLexer.K_NOT = 36;
 ProperTeeLexer.K_AND = 37;

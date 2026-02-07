@@ -1,9 +1,9 @@
 // 11 - Threads (Basic)
-// Thread functions run concurrently inside a "multi" block.
+// Functions run concurrently inside a "multi" block using "thread".
 // They are pure: can read globals (snapshot), cannot write globals.
 
-// Define a thread function with the "thread" keyword
-thread worker(name, steps) do
+// Define functions normally with the "function" keyword
+function worker(name, steps) do
     i = 0
     loop i < steps infinite do
         PRINT(name + " step " + TO_STRING(i + 1))
@@ -12,11 +12,11 @@ thread worker(name, steps) do
     return name + " done"
 end
 
-// Run threads in parallel with "multi ... end"
-// Use "->" to capture each thread's return value
+// Run functions in parallel with "multi ... end"
+// Use "thread funcCall() -> varName" to capture each function's return value
 multi
-    worker("Alpha", 3) -> resultA
-    worker("Beta", 3) -> resultB
+    thread worker("Alpha", 3) -> resultA
+    thread worker("Beta", 3) -> resultB
 end
 
 // Results are available after the multi block

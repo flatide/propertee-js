@@ -2,14 +2,14 @@
 // SLEEP(ms) pauses only the calling thread.
 // Other threads keep running while one sleeps.
 
-thread fast_worker(name) do
+function fast_worker(name) do
     PRINT(name + ": start")
     PRINT(name + ": working...")
     PRINT(name + ": done!")
     return "fast"
 end
 
-thread slow_worker(name, ms) do
+function slow_worker(name, ms) do
     PRINT(name + ": start, sleeping " + TO_STRING(ms) + "ms")
     SLEEP(ms)
     PRINT(name + ": woke up, done!")
@@ -17,8 +17,8 @@ thread slow_worker(name, ms) do
 end
 
 multi
-    slow_worker("Sleepy", 200) -> r1
-    fast_worker("Speedy") -> r2
+    thread slow_worker("Sleepy", 200) -> r1
+    thread fast_worker("Speedy") -> r2
 end
 
 // Speedy finishes while Sleepy is asleep

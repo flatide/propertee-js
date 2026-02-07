@@ -1,10 +1,14 @@
-// Test: :: write in thread is an error (thread purity)
-// Calling a thread function directly still enforces purity
+// Test: :: write in multi block is an error (thread purity)
 x = 10
 
-thread badWriter() do
+function badWriter() do
     ::x = 999
     return ::x
 end
 
-badWriter()
+multi
+    thread badWriter() -> res
+end
+
+PRINT("ok:", res.ok)
+PRINT("error:", res.value)

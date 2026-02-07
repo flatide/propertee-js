@@ -157,13 +157,9 @@ export default class Scheduler {
                     value: childThread.error ? childThread.error.message : 'Unknown thread error'
                 });
             } else {
-                let rawResult = childThread.result;
-                if (rawResult && typeof rawResult === 'object' && 'result' in rawResult) {
-                    rawResult = rawResult.result;
-                }
                 parent._childResults.set(childThread.id, {
                     ok: true,
-                    value: rawResult
+                    value: childThread.result
                 });
             }
         }

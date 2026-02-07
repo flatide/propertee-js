@@ -1,3 +1,3 @@
-[THREAD ERROR] Runtime Error at line 5:4: Cannot assign to global variable '::x' inside thread function. Thread functions can only read global variables (via ::) and write to thread-local variables.
+[THREAD ERROR] Runtime Error at line 5:4: Cannot assign to global variable '::x' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.
 ok: false
-error: Runtime Error at line 5:4: Cannot assign to global variable '::x' inside thread function. Thread functions can only read global variables (via ::) and write to thread-local variables.
+error: Runtime Error at line 5:4: Cannot assign to global variable '::x' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.

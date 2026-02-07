@@ -78,10 +78,10 @@ At the **top level** (outside functions), `x` and `::x` are equivalent — both 
 
 **Rules:**
 - Inside functions: plain `x` is local-only. Use `::x` to access globals.
-- In thread functions: `::x` reads from the global snapshot. `::x = value` is a runtime error (thread purity).
+- In multi block functions: `::x` reads from the global snapshot. `::x = value` is a runtime error (thread purity).
 - Built-in properties (host-injected via `-p`): require `::` inside functions.
 - Multi result variables and loop variables: accessible without `::` (they are local).
-- Function/thread names and built-in functions: resolved separately, no `::` needed.
+- Function names and built-in functions: resolved separately, no `::` needed.
 
 ## Operators
 
@@ -402,55 +402,74 @@ PRINT(x)               // "global" (unchanged)
 
 Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if inside a function, global otherwise. They are always accessible without `::`.
 
-## Thread Functions
+## Multi Blocks (Parallel Execution)
 
-Thread functions are declared with `thread` instead of `function`. They can only be called inside `multi` blocks.
+Any function can be run concurrently inside a `multi` block using the `thread` keyword.
 
 ```
-thread worker(name) do
+function worker(name) do
     PRINT(name + " started")
     return name + " done"
 end
+
+multi
+    thread worker("A") -> resultA
+    thread worker("B") -> resultB
+end
 ```
+
+### thread
+
+`thread` is used inside multi blocks to schedule function calls for concurrent execution:
+
+- `thread funcCall() -> varName` — run function and capture its result
+- `thread funcCall()` — run function, discard result (fire-and-forget)
+- `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
+
+The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently:
+
+```
+multi
+    if needsWorkerA == true then
+        thread workerA() -> rA
+    end
+    thread workerB() -> rB
+    PRINT("setup done")
+end
+```
+
+All collected `thread` calls fire simultaneously when the setup phase ends (at `end` or `monitor`).
 
 ### Thread Purity
 
-Thread functions enforce a purity model:
+Functions running inside multi blocks enforce a purity model:
 
 - **Can read** global variables via `::` (reads from a snapshot taken when the `multi` block starts)
 - **Cannot write** global variables — `::x = value` is a runtime error
-- **Can only call** other thread functions or built-in functions (calling a regular function is a runtime error)
+- **Can call** any other function (user-defined or built-in)
 - **Can create** and modify local variables freely (plain `x` without `::`)
 
 This guarantees no data races — threads never see each other's modifications.
 
-## Multi Blocks (Parallel Execution)
-
-```
-multi
-    worker("A") -> resultA
-    worker("B") -> resultB
-end
-```
-
 ### Semantics
 
-1. All thread functions launch concurrently
+1. The multi block body executes as a setup phase, collecting `thread` calls
 2. A snapshot of global variables is taken at `multi` entry — all threads see this snapshot
-3. Threads execute cooperatively, interleaving at statement boundaries
-4. All threads must complete before execution continues past `end`
-5. Results are assigned to the specified variables (`resultA`, `resultB`) only after **all** threads finish
+3. All spawned functions launch concurrently after setup completes
+4. Threads execute cooperatively, interleaving at statement boundaries
+5. All threads must complete before execution continues past `end`
+6. Results are assigned to the specified variables only after **all** threads finish
 
 ### Result Variables
 
 - `-> varName` captures the thread's result as a **Result object**: `{ok: true, value: <return value>}` on success, `{ok: false, value: "<error message>"}` on error
-- Thread calls without `->` discard the result
+- `thread` calls without `->` discard the result
 - Result variables are **not accessible** inside the multi block — only after `end`
 - Access the return value via `.value` and check success via `.ok`:
 
 ```
 multi
-    worker("A") -> res
+    thread worker("A") -> res
 end
 
 if res.ok == true then
@@ -468,8 +487,8 @@ An optional `monitor` clause runs code periodically while threads execute:
 
 ```
 multi
-    worker("A") -> resultA
-    worker("B") -> resultB
+    thread worker("A") -> resultA
+    thread worker("B") -> resultB
 monitor 100
     PRINT("[heartbeat]")
 end
@@ -486,11 +505,11 @@ Multiple `multi` blocks can chain results (access `.value` to pass the unwrapped
 
 ```
 multi
-    compute(10) -> a
+    thread compute(10) -> a
 end
 
 multi
-    compute(a.value) -> b
+    thread compute(a.value) -> b
 end
 ```
 
@@ -499,13 +518,13 @@ end
 `SLEEP(milliseconds)` pauses the current thread without blocking others:
 
 ```
-thread slow_worker() do
+function slow_worker() do
     SLEEP(500)
     return "done"
 end
 ```
 
-Only meaningful inside thread functions within a `multi` block.
+Only meaningful inside functions running within a `multi` block.
 
 ## Built-in Functions
 
@@ -661,9 +680,8 @@ Common error conditions:
 | Missing property | Property 'x' does not exist |
 | Array out of bounds | Array index out of bounds |
 | Loop limit exceeded | Loop exceeded maximum iterations (1000) |
-| Global write in thread | Cannot assign to global variable '::x' inside thread function |
+| Global write in multi block | Cannot assign to global variable '::x' inside multi block |
 | Global without `::` in function | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
-| Regular function in multi | Function 'foo' is not a thread function |
-| Thread calls regular function | Thread functions can only call other thread functions or built-in functions |
+| thread outside multi | thread can only be used inside multi blocks |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |

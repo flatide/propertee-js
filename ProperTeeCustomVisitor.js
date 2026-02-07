@@ -14,6 +14,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.inThreadContext = false;
         this.currentFunctionContext = null;
 
+        // SPAWN collection (used during multi block setup)
+        this._inMultiSetup = false;
+        this._collectedSpawns = null;
+
         // Active thread context (set by scheduler)
         this.activeThread = null;
 
@@ -285,8 +289,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
             if (this._isInThreadContext()) {
                 throw this.createError(
-                    `Cannot assign to global variable '::${varName}' inside thread function. ` +
-                    `Thread functions can only read global variables (via ::) and write to thread-local variables.`,
+                    `Cannot assign to global variable '::${varName}' inside multi block. ` +
+                    `Functions in multi blocks can only read global variables (via ::) and write to local variables.`,
                     ctx
                 );
             }
@@ -303,8 +307,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             // Thread purity: no global writes
             if (this._isInThreadContext() && scopeStack.length === 0) {
                 throw this.createError(
-                    `Cannot assign to global variable '${varName}' inside thread function. ` +
-                    `Thread functions can only read global variables (via ::) and write to thread-local variables.`,
+                    `Cannot assign to global variable '${varName}' inside multi block. ` +
+                    `Functions in multi blocks can only read global variables (via ::) and write to local variables.`,
                     ctx
                 );
             }
@@ -675,31 +679,53 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         this.userDefinedFunctions[funcName] = {
             params: params,
-            usesResources: [],
-            body: ctx.block(),
-            isThread: false
+            body: ctx.block()
         };
         return null;
     }
 
-    *visitThreadDefStmt(ctx) {
-        return yield* this.visit(ctx.threadDef());
+    // --- SPAWN statements ---
+
+    *visitSpawnExecStmt(ctx) {
+        return yield* this.visit(ctx.spawnStmt());
     }
 
-    *visitThreadDef(ctx) {
-        const funcName = ctx.funcName.text;
-        const params = [];
-        if (ctx.parameterList()) {
-            for (const idToken of ctx.parameterList().ID()) {
-                params.push(idToken.getText());
+    *visitSpawnAssignStmt(ctx) {
+        if (!this._inMultiSetup) {
+            throw this.createError('thread can only be used inside multi blocks', ctx);
+        }
+        const funcCallCtx = ctx.functionCall();
+        const funcName = funcCallCtx.funcName.text;
+        const varName = ctx.ID().getText();
+
+        // Evaluate arguments now (during setup phase)
+        const args = [];
+        if (funcCallCtx.expression()) {
+            for (const exprCtx of funcCallCtx.expression()) {
+                args.push(yield* this.visit(exprCtx));
             }
         }
 
-        this.userDefinedFunctions[funcName] = {
-            params: params,
-            body: ctx.block(),
-            isThread: true
-        };
+        this._collectedSpawns.push({ funcName, args, resultVarName: varName, ctx: funcCallCtx });
+        return null;
+    }
+
+    *visitSpawnCallStmt(ctx) {
+        if (!this._inMultiSetup) {
+            throw this.createError('thread can only be used inside multi blocks', ctx);
+        }
+        const funcCallCtx = ctx.functionCall();
+        const funcName = funcCallCtx.funcName.text;
+
+        // Evaluate arguments now (during setup phase)
+        const args = [];
+        if (funcCallCtx.expression()) {
+            for (const exprCtx of funcCallCtx.expression()) {
+                args.push(yield* this.visit(exprCtx));
+            }
+        }
+
+        this._collectedSpawns.push({ funcName, args, resultVarName: null, ctx: funcCallCtx });
         return null;
     }
 
@@ -836,14 +862,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         if (targetObj === null) {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
-        }
-
-        // Thread result {local, result} access
-        if (typeof targetObj === 'object' &&
-            'local' in targetObj &&
-            'result' in targetObj &&
-            (key === 'local' || key === 'result')) {
-            return targetObj[key];
         }
 
         if (typeof targetObj === 'object' && !(key in targetObj)) {
@@ -1026,16 +1044,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const funcDef = this.userDefinedFunctions[funcName];
         const params = funcDef.params;
         const body = funcDef.body;
-        const isThread = funcDef.isThread || false;
         const scopeStack = this._getScopeStack();
-
-        // Thread purity: threads can only call thread functions or built-ins
-        if (this._isInThreadContext() && !isThread && !this.functions[funcName]) {
-            throw this.createError(
-                `Thread functions can only call other thread functions or built-in functions. Cannot call regular function '${funcName}'.`,
-                callCtx
-            );
-        }
 
         // Argument count validation
         if (args.length > params.length) {
@@ -1054,16 +1063,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Push scope
         scopeStack.push(localScope);
 
-        // Save and set thread context
-        const previousThreadContext = this._isInThreadContext();
         const previousFunctionContext = this.currentFunctionContext;
         this.currentFunctionContext = funcDef;
-
-        if (this.activeThread) {
-            if (isThread) this.activeThread.inThreadContext = true;
-        } else {
-            if (isThread) this.inThreadContext = true;
-        }
 
         try {
             if (body.statement()) {
@@ -1074,28 +1075,16 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             // No explicit return: result is empty object {}
-            if (isThread) {
-                return { local: {...localScope}, result: {} };
-            }
             return {};
 
         } catch (e) {
             if (e instanceof ReturnException) {
-                if (isThread) {
-                    return { local: {...localScope}, result: e.value };
-                }
                 return e.value;
             }
             throw e;
         } finally {
             scopeStack.pop();
             this.currentFunctionContext = previousFunctionContext;
-
-            if (this.activeThread) {
-                this.activeThread.inThreadContext = previousThreadContext;
-            } else {
-                this.inThreadContext = previousThreadContext;
-            }
         }
     }
 
@@ -1106,89 +1095,79 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitParallelStmt(ctx) {
-        const tasks = ctx.parallelTask();
-        const resultVarNames = [];
         const variables = this._getVariables();
         const scopeStack = this._getScopeStack();
 
         // Snapshot globals for threads
         const globalSnapshot = {...variables};
 
-        // Validate tasks and collect result var names
-        for (const taskCtx of tasks) {
-            const isAssign = taskCtx.constructor.name === 'ParallelAssignTaskContext';
-            const funcCallCtx = taskCtx.functionCall();
-            const funcName = funcCallCtx.funcName.text;
+        // Setup phase: execute the block body, collecting SPAWN specs
+        this._inMultiSetup = true;
+        this._collectedSpawns = [];
 
-            // Validate thread function
-            if (this.userDefinedFunctions[funcName]) {
-                const funcDef = this.userDefinedFunctions[funcName];
-                if (!funcDef.isThread) {
-                    throw this.createError(
-                        `Function '${funcName}' is not a thread function. Only thread functions can be used in MULTI blocks.`,
-                        funcCallCtx
-                    );
-                }
-            }
-
-            if (isAssign) {
-                const varName = taskCtx.ID().getText();
-                resultVarNames.push(varName);
-            } else {
-                resultVarNames.push(null);
-            }
+        try {
+            yield* this.visitBlock(ctx.block());
+        } finally {
+            this._inMultiSetup = false;
         }
 
-        // Build thread specs (each spec has a generator for the thread body)
+        // If no spawns were collected, just return (setup-only multi block)
+        if (this._collectedSpawns.length === 0) {
+            this._collectedSpawns = null;
+            return null;
+        }
+
+        // Build thread specs from collected spawns
+        const resultVarNames = [];
         const specs = [];
-        for (let i = 0; i < tasks.length; i++) {
-            const taskCtx = tasks[i];
-            const funcCallCtx = taskCtx.functionCall();
-            const funcName = funcCallCtx.funcName.text;
 
-            // Evaluate args now (before spawning)
-            const args = [];
-            if (funcCallCtx.expression()) {
-                for (const exprCtx of funcCallCtx.expression()) {
-                    args.push(yield* this.visit(exprCtx));
-                }
-            }
+        for (let i = 0; i < this._collectedSpawns.length; i++) {
+            const spawn = this._collectedSpawns[i];
+            resultVarNames.push(spawn.resultVarName);
 
-            if (this.userDefinedFunctions[funcName]) {
-                const funcDef = this.userDefinedFunctions[funcName];
+            if (this.userDefinedFunctions[spawn.funcName]) {
+                const funcDef = this.userDefinedFunctions[spawn.funcName];
                 const params = funcDef.params;
+
+                // Argument count validation
+                if (spawn.args.length > params.length) {
+                    throw this.createError(
+                        `Function '${spawn.funcName}' expects ${params.length} argument(s), but ${spawn.args.length} were provided`,
+                        spawn.ctx
+                    );
+                }
 
                 // Create local scope for the thread
                 const localScope = {};
                 for (let j = 0; j < params.length; j++) {
-                    localScope[params[j]] = j < args.length ? args[j] : {};
+                    localScope[params[j]] = j < spawn.args.length ? spawn.args[j] : {};
                 }
 
                 // Create a generator for this thread's execution
                 const gen = this._createThreadGenerator(funcDef, localScope, globalSnapshot);
 
                 specs.push({
-                    name: `${funcName}-${i}`,
+                    name: `${spawn.funcName}-${i}`,
                     generator: gen,
                     localScope: localScope
                 });
-            } else if (this.functions[funcName]) {
+            } else if (this.functions[spawn.funcName]) {
                 // Built-in function: wrap in a trivial generator
-                const self = this;
-                const builtInFunc = this.functions[funcName];
-                const capturedArgs = args;
+                const builtInFunc = this.functions[spawn.funcName];
+                const capturedArgs = spawn.args;
                 specs.push({
-                    name: `builtin-${funcName}-${i}`,
+                    name: `builtin-${spawn.funcName}-${i}`,
                     generator: (function*() {
-                        const result = builtInFunc(...capturedArgs);
-                        return { local: null, result: result };
+                        return builtInFunc(...capturedArgs);
                     })(),
                     localScope: null
                 });
             } else {
-                throw this.createError(`Unknown function '${funcName}'`, funcCallCtx);
+                throw this.createError(`Unknown function '${spawn.funcName}'`, spawn.ctx);
             }
         }
+
+        this._collectedSpawns = null;
 
         // Monitor spec
         let monitorSpec = null;
@@ -1247,11 +1226,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             // No explicit return: result is empty object {}
-            return { local: {...localScope}, result: {} };
+            return {};
 
         } catch (e) {
             if (e instanceof ReturnException) {
-                return { local: {...localScope}, result: e.value };
+                return e.value;
             }
             throw e;
         } finally {

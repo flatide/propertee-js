@@ -2,7 +2,7 @@
 // A monitor runs periodically while threads are executing.
 // Syntax: monitor <interval_ms> <body>
 
-thread counter(name, target) do
+function counter(name, target) do
     i = 0
     loop i < target infinite do
         i = i + 1
@@ -12,8 +12,8 @@ thread counter(name, target) do
 end
 
 multi
-    counter("A", 20) -> rA
-    counter("B", 15) -> rB
+    thread counter("A", 20) -> rA
+    thread counter("B", 15) -> rB
 monitor 50
     PRINT("[monitor] threads still running...")
 end

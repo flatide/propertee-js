@@ -1,13 +1,13 @@
 // Test: Thread error captured as Result {ok: false, value: "..."}
 x = 10
 
-thread crasher() do
+function crasher() do
     ::x = 999
     return 0
 end
 
 multi
-    crasher() -> res
+    thread crasher() -> res
 end
 
 PRINT("ok:", res.ok)

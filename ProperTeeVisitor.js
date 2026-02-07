@@ -36,14 +36,14 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
-	// Visit a parse tree produced by ProperTeeParser#ThreadDefStmt.
-	visitThreadDefStmt(ctx) {
+	// Visit a parse tree produced by ProperTeeParser#ParallelExecStmt.
+	visitParallelExecStmt(ctx) {
 	  return this.visitChildren(ctx);
 	}
 
 
-	// Visit a parse tree produced by ProperTeeParser#ParallelExecStmt.
-	visitParallelExecStmt(ctx) {
+	// Visit a parse tree produced by ProperTeeParser#SpawnExecStmt.
+	visitSpawnExecStmt(ctx) {
 	  return this.visitChildren(ctx);
 	}
 
@@ -102,12 +102,6 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
-	// Visit a parse tree produced by ProperTeeParser#threadDef.
-	visitThreadDef(ctx) {
-	  return this.visitChildren(ctx);
-	}
-
-
 	// Visit a parse tree produced by ProperTeeParser#parameterList.
 	visitParameterList(ctx) {
 	  return this.visitChildren(ctx);
@@ -126,14 +120,14 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
-	// Visit a parse tree produced by ProperTeeParser#ParallelAssignTask.
-	visitParallelAssignTask(ctx) {
+	// Visit a parse tree produced by ProperTeeParser#SpawnAssignStmt.
+	visitSpawnAssignStmt(ctx) {
 	  return this.visitChildren(ctx);
 	}
 
 
-	// Visit a parse tree produced by ProperTeeParser#ParallelCallTask.
-	visitParallelCallTask(ctx) {
+	// Visit a parse tree produced by ProperTeeParser#SpawnCallStmt.
+	visitSpawnCallStmt(ctx) {
 	  return this.visitChildren(ctx);
 	}
 

@@ -1,11 +1,11 @@
 // Test: Assignment inside monitor block should error
-thread dummy() do
+function dummy() do
     SLEEP(50)
     return
 end
 
 multi
-    dummy() -> r
+    thread dummy() -> r
 monitor 10
     x = 1
 end

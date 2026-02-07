@@ -1,5 +1,5 @@
-// Test: Thread functions with loops
-thread accumulate(n) do
+// Test: Functions with loops in multi blocks
+function accumulate(n) do
     total = 0
     i = 1
     loop i <= n infinite do
@@ -9,7 +9,7 @@ thread accumulate(n) do
     return total
 end
 
-thread buildList(n) do
+function buildList(n) do
     result = []
     i = 0
     loop i < n infinite do
@@ -20,8 +20,8 @@ thread buildList(n) do
 end
 
 multi
-    accumulate(10) -> sum
-    buildList(4) -> list
+    thread accumulate(10) -> sum
+    thread buildList(4) -> list
 end
 
 PRINT(sum.value)

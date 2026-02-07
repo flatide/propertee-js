@@ -1,22 +1,22 @@
 // Test: Sequential multi blocks
-thread addOne(n) do
+function addOne(n) do
     return n + 1
 end
 
 multi
-    addOne(10) -> a
+    thread addOne(10) -> a
 end
 
 PRINT(a.value)
 
 multi
-    addOne(a.value) -> b
+    thread addOne(a.value) -> b
 end
 
 PRINT(b.value)
 
 multi
-    addOne(b.value) -> c
+    thread addOne(b.value) -> c
 end
 
 PRINT(c.value)

@@ -7,8 +7,8 @@ statement
     | ifStatement   # IfStmt
     | iterationStmt # iterStmt
     | functionDef   # FuncDefStmt
-    | threadDef     # ThreadDefStmt
     | parallelStmt  # ParallelExecStmt
+    | spawnStmt     # SpawnExecStmt
     | flowControl   # FlowStmt
     | expression    # ExprStmt
     ;
@@ -33,25 +33,21 @@ functionDef
     : K_FUNCTION funcName=ID '(' parameterList? ')' K_DO block K_END
     ;
 
-threadDef
-    : K_THREAD funcName=ID '(' parameterList? ')' K_DO block K_END
-    ;
-
 parameterList
     : ID (',' ID)*
     ;
 
 parallelStmt
-    : K_MULTI parallelTask+ monitorClause? K_END
+    : K_MULTI block monitorClause? K_END
     ;
 
 monitorClause
     : K_MONITOR INTEGER block
     ;
 
-parallelTask
-    : functionCall '->' ID    # ParallelAssignTask
-    | functionCall            # ParallelCallTask
+spawnStmt
+    : K_SPAWN functionCall '->' ID    # SpawnAssignStmt
+    | K_SPAWN functionCall            # SpawnCallStmt
     ;
 
 iterationStmt
@@ -136,7 +132,7 @@ K_DO        : 'do';
 K_BREAK     : 'break';
 K_CONTINUE  : 'continue';
 K_FUNCTION  : 'function';
-K_THREAD    : 'thread';
+K_SPAWN     : 'thread';
 K_RETURN    : 'return';
 K_NOT       : 'not';
 K_AND       : 'and';

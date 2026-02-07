@@ -1,13 +1,13 @@
 // 14 - Thread Results
-// Threads can return any value: numbers, strings, objects, arrays.
+// Functions in multi blocks can return any value: numbers, strings, objects, arrays.
 
-thread compute(n) do
+function compute(n) do
     result = n * n + n
     PRINT("compute(" + TO_STRING(n) + ") = " + TO_STRING(result))
     return result
 end
 
-thread build_report(id) do
+function build_report(id) do
     report = {
         id: id,
         value: id * 100,
@@ -18,9 +18,9 @@ thread build_report(id) do
 end
 
 multi
-    compute(5) -> val1
-    compute(3) -> val2
-    build_report(42) -> report
+    thread compute(5) -> val1
+    thread compute(3) -> val2
+    thread build_report(42) -> report
 end
 
 PRINT("---")

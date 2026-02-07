@@ -1,30 +1,30 @@
 // Test: Threads returning different types
-thread retNum() do
+function retNum() do
     return 42
 end
 
-thread retStr() do
+function retStr() do
     return "hello"
 end
 
-thread retArr() do
+function retArr() do
     return [1, 2, 3]
 end
 
-thread retObj() do
+function retObj() do
     return { key: "value", num: 99 }
 end
 
-thread retEmpty() do
+function retEmpty() do
     return
 end
 
 multi
-    retNum() -> n
-    retStr() -> s
-    retArr() -> a
-    retObj() -> o
-    retEmpty() -> nl
+    thread retNum() -> n
+    thread retStr() -> s
+    thread retArr() -> a
+    thread retObj() -> o
+    thread retEmpty() -> nl
 end
 
 PRINT(n.value)

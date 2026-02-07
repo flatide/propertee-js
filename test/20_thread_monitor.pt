@@ -1,5 +1,5 @@
 // Test: Monitor block runs during multi execution
-thread counter(n) do
+function counter(n) do
     i = 0
     loop i < n infinite do
         i = i + 1
@@ -8,7 +8,7 @@ thread counter(n) do
 end
 
 multi
-    counter(10) -> r
+    thread counter(10) -> r
 monitor 20
     PRINT("tick")
 end

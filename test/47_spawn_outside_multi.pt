@@ -1,0 +1,6 @@
+// Test: thread outside multi block is a runtime error
+function worker() do
+    return 42
+end
+
+thread worker() -> r
