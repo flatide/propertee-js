@@ -1,6 +1,7 @@
 // 14 - Thread Results
 // Functions in multi blocks can return any value: numbers, strings, objects, arrays.
 // Results collected into a single object via multi result do ... end
+// Each entry is {status, ok, value} — check status/ok for success or error.
 
 function compute(n) do
     res = n * n + n

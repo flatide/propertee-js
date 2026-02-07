@@ -19,7 +19,9 @@ multi result do
     thread worker("Beta", 3) -> resultB
 end
 
-// Results are available after the multi block via result.key.value
+// Results are available after the multi block
+// Each entry is {status: "done", ok: true, value: <return value>}
 PRINT("---")
+PRINT("Alpha status:", result.resultA.status)
 PRINT("Alpha returned:", result.resultA.value)
 PRINT("Beta returned:", result.resultB.value)

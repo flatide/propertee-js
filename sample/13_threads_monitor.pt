@@ -1,6 +1,7 @@
 // 13 - Monitor Blocks
 // A monitor runs periodically while threads are executing.
-// Syntax: monitor <interval_ms> <body>
+// Monitors can read the live result collection to check thread progress.
+// Each result entry has a "status" field: "running", "done", or "error".
 
 function counter(name, target) do
     i = 0
@@ -15,9 +16,9 @@ multi result do
     thread counter("A", 20) -> rA
     thread counter("B", 15) -> rB
 monitor 50
-    PRINT("[monitor] threads still running...")
+    PRINT("[monitor] A:" + result.rA.status + " B:" + result.rB.status)
 end
 
 PRINT("---")
-PRINT("A:", result.rA.value)
-PRINT("B:", result.rB.value)
+PRINT("A:", result.rA.status, result.rA.value)
+PRINT("B:", result.rB.status, result.rB.value)
