@@ -4,7 +4,7 @@ function work(id) do
     return result
 end
 
-multi
+multi result do
     thread work(1) -> r1
     thread work(2) -> r2
     thread work(3) -> r3
@@ -12,10 +12,10 @@ multi
     thread work(5) -> r5
 end
 
-PRINT(r1.value)
-PRINT(r2.value)
-PRINT(r3.value)
-PRINT(r4.value)
-PRINT(r5.value)
-total = r1.value + r2.value + r3.value + r4.value + r5.value
+PRINT(result.r1.value)
+PRINT(result.r2.value)
+PRINT(result.r3.value)
+PRINT(result.r4.value)
+PRINT(result.r5.value)
+total = result.r1.value + result.r2.value + result.r3.value + result.r4.value + result.r5.value
 PRINT(total)

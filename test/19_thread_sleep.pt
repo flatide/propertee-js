@@ -13,10 +13,10 @@ function runner() do
     return "ran"
 end
 
-multi
+multi result do
     thread sleeper() -> r1
     thread runner() -> r2
 end
 
-PRINT("r1=" + r1.value)
-PRINT("r2=" + r2.value)
+PRINT("r1=" + result.r1.value)
+PRINT("r2=" + result.r2.value)

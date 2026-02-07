@@ -19,10 +19,10 @@ function buildList(n) do
     return result
 end
 
-multi
+multi results do
     thread accumulate(10) -> sum
     thread buildList(4) -> list
 end
 
-PRINT(sum.value)
-PRINT(list.value)
+PRINT(results.sum.value)
+PRINT(results.list.value)

@@ -39,7 +39,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             'FLOOR': (n) => Math.floor(n),
             'CEIL': (n) => Math.ceil(n),
             'ROUND': (n) => Math.round(n),
-            'LEN': (arr) => Array.isArray(arr) ? arr.length : (typeof arr === 'string' ? arr.length : 0),
+            'LEN': (a) => {
+                if (Array.isArray(a)) return a.length;
+                if (typeof a === 'string') return a.length;
+                if (typeof a === 'object' && a !== null) return Object.keys(a).length;
+                return 0;
+            },
             'TO_NUMBER': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TO_NUMBER() requires a string argument');
                 const trimmed = str.trim();
@@ -703,7 +708,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
         const funcCallCtx = ctx.functionCall();
         const funcName = funcCallCtx.funcName.text;
-        const varName = ctx.ID().getText();
+        const keyName = ctx.ID().getText();
+
+        // Duplicate key check
+        for (const existing of this._collectedSpawns) {
+            if (existing.resultKey !== null && existing.resultKey === keyName) {
+                throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+            }
+        }
 
         // Evaluate arguments now (during setup phase)
         const args = [];
@@ -713,7 +725,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         }
 
-        this._collectedSpawns.push({ funcName, args, resultVarName: varName, ctx: funcCallCtx });
+        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
         return null;
     }
 
@@ -732,7 +744,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         }
 
-        this._collectedSpawns.push({ funcName, args, resultVarName: null, ctx: funcCallCtx });
+        this._collectedSpawns.push({ funcName, args, resultKey: null, ctx: funcCallCtx });
         return null;
     }
 
@@ -869,6 +881,16 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         if (targetObj === null) {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
+        }
+
+        // Positional access on objects: when key is a number (from ArrayAccess, 0-based)
+        // and target is a plain object (not array), access by position in insertion order
+        if (typeof key === 'number' && typeof targetObj === 'object' && !Array.isArray(targetObj)) {
+            const entries = Object.entries(targetObj);
+            if (key < 0 || key >= entries.length) {
+                throw this.createError(`Positional index ${key + 1} out of bounds (object has ${entries.length} entries)`, ctx);
+            }
+            return entries[key][1];
         }
 
         if (typeof targetObj === 'object' && !(key in targetObj)) {
@@ -1105,6 +1127,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const variables = this._getVariables();
         const scopeStack = this._getScopeStack();
 
+        // Extract optional result collection variable name: multi result do
+        const resultVarName = ctx.resultVar ? ctx.resultVar.text : null;
+
         // Snapshot globals for threads
         const globalSnapshot = {...variables};
 
@@ -1118,19 +1143,26 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             this._inMultiSetup = false;
         }
 
-        // If no spawns were collected, just return (setup-only multi block)
+        // If no spawns were collected, assign empty object if resultVarName set
         if (this._collectedSpawns.length === 0) {
             this._collectedSpawns = null;
+            if (resultVarName !== null) {
+                if (scopeStack.length > 0) {
+                    scopeStack[scopeStack.length - 1][resultVarName] = {};
+                } else {
+                    variables[resultVarName] = {};
+                }
+            }
             return null;
         }
 
         // Build thread specs from collected spawns
-        const resultVarNames = [];
+        const resultKeyNames = [];
         const specs = [];
 
         for (let i = 0; i < this._collectedSpawns.length; i++) {
             const spawn = this._collectedSpawns[i];
-            resultVarNames.push(spawn.resultVarName);
+            resultKeyNames.push(spawn.resultKey);
 
             if (this.userDefinedFunctions[spawn.funcName]) {
                 const funcDef = this.userDefinedFunctions[spawn.funcName];
@@ -1193,20 +1225,42 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             specs: specs,
             monitorSpec: monitorSpec,
             globalSnapshot: globalSnapshot,
-            resultVarNames: resultVarNames
+            resultKeyNames: resultKeyNames,
+            resultVarName: resultVarName
         };
 
-        // When we resume, collectedResults contains the results from child threads
-        // Assign results to variables
-        if (collectedResults && Array.isArray(collectedResults)) {
-            for (const entry of collectedResults) {
-                if (entry.varName) {
-                    const finalValue = entry.result; // Already {ok, value} Result from Scheduler
+        // When we resume, collectedResults contains the payload from child threads
+        if (collectedResults) {
+            const payload = collectedResults;
+            const payloadResultVarName = payload.resultVarName;
+            const results = payload.results;
 
-                    if (scopeStack.length > 0) {
-                        scopeStack[scopeStack.length - 1][entry.varName] = finalValue;
-                    } else {
-                        variables[entry.varName] = finalValue;
+            if (payloadResultVarName !== null) {
+                // Build a collection object: named keys use their key, unnamed get positional string key
+                const collection = {};
+                let pos = 1;
+                for (const entry of results) {
+                    const key = entry.keyName !== null ? entry.keyName : String(pos);
+                    collection[key] = entry.result;
+                    pos++;
+                }
+
+                // Assign collection to resultVarName in appropriate scope
+                if (scopeStack.length > 0) {
+                    scopeStack[scopeStack.length - 1][payloadResultVarName] = collection;
+                } else {
+                    variables[payloadResultVarName] = collection;
+                }
+            } else {
+                // Legacy mode: assign individual variables (for old-style thread func() -> var)
+                for (const entry of results) {
+                    if (entry.keyName) {
+                        const finalValue = entry.result;
+                        if (scopeStack.length > 0) {
+                            scopeStack[scopeStack.length - 1][entry.keyName] = finalValue;
+                        } else {
+                            variables[entry.keyName] = finalValue;
+                        }
                     }
                 }
             }

@@ -106,8 +106,11 @@ export default class Scheduler {
 
     // Handle SPAWN_THREADS command from a MULTI block
     handleSpawnThreads(parentThread, command) {
-        const { specs, monitorSpec, globalSnapshot, resultVarNames } = command;
+        const { specs, monitorSpec, globalSnapshot, resultKeyNames, resultVarName } = command;
         const childIds = [];
+
+        // Store resultCollectionVarName on parent thread
+        parentThread.resultCollectionVarName = resultVarName;
 
         // Create child threads
         for (let i = 0; i < specs.length; i++) {
@@ -119,7 +122,7 @@ export default class Scheduler {
             );
             childThread.parentId = parentThread.id;
             childThread.inThreadContext = true;
-            childThread._resultVarName = resultVarNames[i];  // Track which result var
+            childThread._resultKeyName = resultKeyNames[i];  // Track which result key
             childThread._localScope = spec.localScope;        // The scope ref for local capture
             childIds.push(childThread.id);
         }
@@ -139,7 +142,7 @@ export default class Scheduler {
         parentThread.markWaiting(childIds);
         parentThread._childResults = new Map();  // childId -> result
         parentThread._childIds = childIds;
-        parentThread._resultVarNames = resultVarNames;
+        parentThread._resultKeyNames = resultKeyNames;
     }
 
     // Notify parent when a child thread completes
@@ -171,9 +174,8 @@ export default class Scheduler {
             const results = [];
             for (const cid of parent._childIds) {
                 results.push({
-                    result: parent._childResults.get(cid),
-                    varName: this.threads.get(cid)?._resultVarName || null,
-                    localScope: this.threads.get(cid)?._localScope || null
+                    keyName: this.threads.get(cid)?._resultKeyName || null,
+                    result: parent._childResults.get(cid)
                 });
             }
 
@@ -183,8 +185,11 @@ export default class Scheduler {
             // Remove monitor for this parent
             this.monitors = this.monitors.filter(m => m.parentThreadId !== childThread.parentId);
 
-            // Resume parent with collected results
-            parent._collectedResults = results;
+            // Resume parent with collected results as payload
+            parent._collectedResults = {
+                resultVarName: parent.resultCollectionVarName,
+                results: results
+            };
         }
     }
 

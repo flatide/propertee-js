@@ -1,0 +1,15 @@
+// Test: .INTEGER positional access on objects/maps
+obj = { first: "a", second: "b", third: "c" }
+
+// Positional access (1-based)
+PRINT(obj.1)
+PRINT(obj.2)
+PRINT(obj.3)
+
+// Named access still works
+PRINT(obj.first)
+
+// Nested positional
+nested = { x: { a: 10, b: 20 } }
+PRINT(nested.x.1)
+PRINT(nested.x.2)

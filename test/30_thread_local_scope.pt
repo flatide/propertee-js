@@ -9,9 +9,9 @@ function localWriter() do
     return x
 end
 
-multi
+multi result do
     thread localWriter() -> r
 end
 
 PRINT("global x=" + TO_STRING(x))
-PRINT("result=" + TO_STRING(r.value))
+PRINT("result=" + TO_STRING(result.r.value))

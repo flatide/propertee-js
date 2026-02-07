@@ -7,10 +7,10 @@ function counter(n) do
     return i
 end
 
-multi
+multi result do
     thread counter(10) -> r
 monitor 20
     PRINT("tick")
 end
 
-PRINT("r=" + TO_STRING(r.value))
+PRINT("r=" + TO_STRING(result.r.value))

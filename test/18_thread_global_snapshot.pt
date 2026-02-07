@@ -7,11 +7,11 @@ function readGlobal() do
     return ::x
 end
 
-multi
-    thread readGlobal() -> result
+multi res do
+    thread readGlobal() -> r
 end
 
-PRINT("result=" + TO_STRING(result.value))
+PRINT("result=" + TO_STRING(res.r.value))
 
 // Globals remain intact after multi
 PRINT("x=" + TO_STRING(x))

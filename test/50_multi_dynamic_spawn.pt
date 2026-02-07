@@ -1,0 +1,18 @@
+// Test: Dynamic spawning via loop in multi block
+function square(n) do
+    return n * n
+end
+
+multi result do
+    i = 1
+    loop i <= 3 infinite do
+        thread square(i)
+        i = i + 1
+    end
+end
+
+// Access results by positional index (auto-keyed by 1-based position)
+PRINT("1:", result.1.value)
+PRINT("2:", result.2.value)
+PRINT("3:", result.3.value)
+PRINT("count:", LEN(result))

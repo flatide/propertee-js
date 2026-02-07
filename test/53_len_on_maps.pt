@@ -1,0 +1,9 @@
+// Test: LEN() on objects/maps
+obj = { a: 1, b: 2, c: 3 }
+PRINT(LEN(obj))
+
+empty = {}
+PRINT(LEN(empty))
+
+nested = { x: { y: 1 }, z: [1, 2] }
+PRINT(LEN(nested))

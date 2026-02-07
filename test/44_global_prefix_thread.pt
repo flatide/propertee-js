@@ -6,8 +6,8 @@ function readGlobals() do
     return TO_STRING(::x) + " " + ::y
 end
 
-multi
-    thread readGlobals() -> result
+multi res do
+    thread readGlobals() -> r
 end
 
-PRINT(result.value)
+PRINT(res.r.value)

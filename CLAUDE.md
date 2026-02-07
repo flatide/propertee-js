@@ -36,12 +36,12 @@ node pt.js --max-iterations 5000 script.pt     # custom loop limit
 node pt.js                                     # interactive REPL
 ```
 
-REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are auto-detected via `do`/`if`/`multi` vs `end` depth.
+REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are auto-detected via `do`/`if` vs `end` depth.
 
 ## Testing
 
 ```bash
-# Run all tests (47 tests with expected output validation)
+# Run all tests (53 tests with expected output validation)
 ./test/run_tests.sh
 
 # Run a single test
@@ -90,8 +90,8 @@ Generators communicate with the scheduler via yield values:
 
 | File | Role |
 |---|---|
-| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Keywords: `function`, `thread`, `multi`, `monitor`, `infinite` |
-| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern |
+| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. |
+| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern. Positional map access in property access. |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks, runs monitor ticks |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags |
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
@@ -104,7 +104,7 @@ Functions spawned inside multi blocks are pure with respect to global state:
 - **Cannot write** globals — `::x = value` is a runtime error (enforced via `inThreadContext` flag set by Scheduler)
 - **Can call** any function (user-defined or built-in)
 - **Can create** and modify local variables freely (plain `x` without `::`)
-- **Return results** via `thread func() -> var` syntax as Result objects: `{ok: true, value: <result>}` on success, `{ok: false, value: "<error>"}` on error. Results assigned only after all threads complete
+- **Return results** via `thread func() -> key` syntax as Result objects: `{ok: true, value: <result>}` on success, `{ok: false, value: "<error>"}` on error. All results collected into the `resultVar` map after all threads complete
 - No locks, no shared mutable state
 
 ### Scope Resolution (in `ProperTeeCustomVisitor`)
@@ -144,21 +144,27 @@ function worker(name) do
     return 42
 end
 
-// Parallel execution (results are {ok, value} objects)
-multi
-    thread worker("A") -> resultA
-    thread worker("B") -> resultB
+// Parallel execution — results collected into result object
+multi result do
+    thread worker("A") -> a
+    thread worker("B") -> b
 monitor 100
     PRINT("[tick]")
 end
-PRINT(resultA.value)  // access return value
+PRINT(result.a.value)   // named access
+PRINT(result.1.value)   // positional access
+LEN(result)             // 2
 
-// Conditional spawning in multi blocks
-multi
+// Conditional/dynamic spawning in multi blocks
+multi result do
     if needsA == true then
         thread workerA() -> rA
     end
-    thread workerB() -> rB
+    i = 1
+    loop i <= 3 infinite do
+        thread workerB(i)
+        i = i + 1
+    end
 end
 
 // Loops

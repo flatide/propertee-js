@@ -19,7 +19,7 @@ function retEmpty() do
     return
 end
 
-multi
+multi result do
     thread retNum() -> n
     thread retStr() -> s
     thread retArr() -> a
@@ -27,9 +27,9 @@ multi
     thread retEmpty() -> nl
 end
 
-PRINT(n.value)
-PRINT(s.value)
-PRINT(a.value)
-PRINT(o.value.key)
-PRINT(o.value.num)
-PRINT(nl.value)
+PRINT(result.n.value)
+PRINT(result.s.value)
+PRINT(result.a.value)
+PRINT(result.o.value.key)
+PRINT(result.o.value.num)
+PRINT(result.nl.value)

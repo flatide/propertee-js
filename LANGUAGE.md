@@ -211,7 +211,7 @@ Object keys can be bare identifiers, quoted strings, or integers (stored as stri
 | Quoted key | `obj."special-key"` | Keys with special characters |
 | Variable key | `obj.$varName` | Key name stored in a variable |
 | Computed key | `obj.$(expression)` | Key determined by an expression |
-| Numeric key | `obj.1` | Integer key (treated as array index for arrays) |
+| Numeric key | `obj.1` | Positional access by insertion order (1-based). For arrays, accesses element by index. For objects, accesses Nth entry. |
 
 ```
 key = "name"
@@ -404,7 +404,7 @@ Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if
 
 ## Multi Blocks (Parallel Execution)
 
-Any function can be run concurrently inside a `multi` block using the `thread` keyword.
+Any function can be run concurrently inside a `multi` block using the `thread` keyword. Results are collected into a single object.
 
 ```
 function worker(name) do
@@ -412,24 +412,42 @@ function worker(name) do
     return name + " done"
 end
 
-multi
+multi result do
     thread worker("A") -> resultA
     thread worker("B") -> resultB
 end
+
+PRINT(result.resultA.value)   // "A done"
+PRINT(result.resultB.value)   // "B done"
 ```
+
+### Syntax
+
+```
+multi resultVar do             // resultVar is optional
+    thread funcCall() -> key   // named result entry
+    thread funcCall()          // unnamed (auto-keyed by position)
+monitor intervalMs             // optional monitor clause
+    // monitor body
+end
+```
+
+- `resultVar` — the variable that receives the result collection after all threads complete. Optional; omit for fire-and-forget (`multi do ... end`).
+- `do` — required keyword after the optional result variable.
 
 ### thread
 
 `thread` is used inside multi blocks to schedule function calls for concurrent execution:
 
-- `thread funcCall() -> varName` — run function and capture its result
-- `thread funcCall()` — run function, discard result (fire-and-forget)
+- `thread funcCall() -> key` — run function and store its result in the collection under `key`
+- `thread funcCall()` — run function, discard result (auto-keyed by 1-based spawn position as string)
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
+- Duplicate `-> key` names within the same multi block are a runtime error
 
 The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently:
 
 ```
-multi
+multi result do
     if needsWorkerA == true then
         thread workerA() -> rA
     end
@@ -439,6 +457,48 @@ end
 ```
 
 All collected `thread` calls fire simultaneously when the setup phase ends (at `end` or `monitor`).
+
+### Result Collection
+
+The `resultVar` receives a **map/object** containing all thread results:
+
+- **Named threads** (`-> key`): the key in the collection is the name you provide
+- **Unnamed threads**: the key is the 1-based spawn position as a string (`"1"`, `"2"`, etc.)
+- Each entry is a **Result object**: `{ok: true, value: <return value>}` on success, `{ok: false, value: "<error message>"}` on error
+
+```
+multi result do
+    thread funcA() -> a      // result.a
+    thread funcB()            // result."2" (auto-key by position)
+    thread funcC() -> c       // result.c
+end
+
+result.a.value                // named access
+result.1.value                // positional access (1st entry by insertion order)
+LEN(result)                   // 3
+loop key, val in result do    // iterate all results
+    PRINT(key, val.value)
+end
+```
+
+### Dynamic Spawning
+
+The setup phase supports loops, enabling dynamic thread spawning:
+
+```
+multi result do
+    i = 1
+    loop i <= 5 infinite do
+        thread worker(i)
+        i = i + 1
+    end
+end
+
+// Access by position (all unnamed, auto-keyed "1" through "5")
+loop r in result do
+    PRINT(r.value)
+end
+```
 
 ### Thread Purity
 
@@ -458,35 +518,25 @@ This guarantees no data races — threads never see each other's modifications.
 3. All spawned functions launch concurrently after setup completes
 4. Threads execute cooperatively, interleaving at statement boundaries
 5. All threads must complete before execution continues past `end`
-6. Results are assigned to the specified variables only after **all** threads finish
+6. The result collection is assigned to `resultVar` only after **all** threads finish
 
-### Result Variables
+### Positional Access on Objects
 
-- `-> varName` captures the thread's result as a **Result object**: `{ok: true, value: <return value>}` on success, `{ok: false, value: "<error message>"}` on error
-- `thread` calls without `->` discard the result
-- Result variables are **not accessible** inside the multi block — only after `end`
-- Access the return value via `.value` and check success via `.ok`:
+The `.INTEGER` syntax provides positional access on objects (maps) by insertion order. This is especially useful for iterating over result collections:
 
 ```
-multi
-    thread worker("A") -> res
-end
-
-if res.ok == true then
-    PRINT("Result:", res.value)
-else
-    PRINT("Error:", res.value)
-end
+obj = {a: 1, b: 2, c: 3}
+obj.1    // 1 (first entry by insertion order)
+obj.2    // 2
+obj.3    // 3
 ```
-
-This follows the same Result pattern used by external I/O functions (see [External Functions](#external-functions--result-pattern)).
 
 ### Monitor Clause
 
 An optional `monitor` clause runs code periodically while threads execute:
 
 ```
-multi
+multi result do
     thread worker("A") -> resultA
     thread worker("B") -> resultB
 monitor 100
@@ -501,15 +551,15 @@ end
 
 ### Sequential Multi Blocks
 
-Multiple `multi` blocks can chain results (access `.value` to pass the unwrapped result):
+Multiple `multi` blocks can chain results:
 
 ```
-multi
+multi r1 do
     thread compute(10) -> a
 end
 
-multi
-    thread compute(a.value) -> b
+multi r2 do
+    thread compute(r1.a.value) -> b
 end
 ```
 
@@ -559,7 +609,7 @@ All built-in function names are UPPERCASE.
 
 | Function | Description |
 |---|---|
-| `LEN(s)` | Length of string (or array). Returns `0` for other types. |
+| `LEN(s)` | Length of string, array, or object (number of entries). Returns `0` for other types. |
 | `UPPERCASE(s)` | Convert to uppercase |
 | `LOWERCASE(s)` | Convert to lowercase |
 | `TRIM(s)` | Remove leading/trailing whitespace |
@@ -572,7 +622,7 @@ All built-in function names are UPPERCASE.
 
 | Function | Description |
 |---|---|
-| `LEN(arr)` | Number of elements |
+| `LEN(arr)` | Number of elements (also works on objects — returns number of keys) |
 | `PUSH(arr, values...)` | Returns new array with values appended. Original unchanged. |
 | `POP(arr)` | Returns new array with last element removed. Original unchanged. |
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
@@ -583,6 +633,7 @@ All built-in function names are UPPERCASE.
 | Function | Description |
 |---|---|
 | `HAS_KEY(obj, key)` | Returns `true` if `obj` contains `key`, `false` otherwise. Both arguments required: `obj` must be an object, `key` must be a string. |
+| `LEN(obj)` | Number of entries in the object |
 
 ### Timing
 
@@ -690,4 +741,6 @@ Common error conditions:
 | Global without `::` in function | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | thread outside multi | thread can only be used inside multi blocks |
+| Duplicate result key | Duplicate result key 'x' in multi block |
+| Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |

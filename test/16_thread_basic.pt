@@ -5,10 +5,10 @@ function worker(id) do
     return id
 end
 
-multi
+multi result do
     thread worker(1) -> r1
     thread worker(2) -> r2
 end
 
-PRINT("r1=" + TO_STRING(r1.value))
-PRINT("r2=" + TO_STRING(r2.value))
+PRINT("r1=" + TO_STRING(result.r1.value))
+PRINT("r2=" + TO_STRING(result.r2.value))

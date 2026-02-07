@@ -6,9 +6,9 @@ function crasher() do
     return 0
 end
 
-multi
+multi result do
     thread crasher() -> res
 end
 
-PRINT("ok:", res.ok)
-PRINT("error:", res.value)
+PRINT("ok:", result.res.ok)
+PRINT("error:", result.res.value)

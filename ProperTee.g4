@@ -38,7 +38,7 @@ parameterList
     ;
 
 parallelStmt
-    : K_MULTI block monitorClause? K_END
+    : K_MULTI resultVar=ID? K_DO block monitorClause? K_END
     ;
 
 monitorClause

@@ -6,8 +6,8 @@ function worker(n) do
     return doubled
 end
 
-multi
+multi result do
     thread worker(5) -> r
 end
 
-PRINT(r.value)
+PRINT(result.r.value)

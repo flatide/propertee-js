@@ -4,7 +4,7 @@ function sideEffect(msg) do
     return
 end
 
-multi
+multi do
     thread sideEffect("one")
     thread sideEffect("two")
 end

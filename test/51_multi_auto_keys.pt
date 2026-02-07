@@ -1,0 +1,27 @@
+// Test: Mixed named and unnamed threads, auto-key behavior
+function identity(x) do
+    return x
+end
+
+multi result do
+    thread identity(10) -> named
+    thread identity(20)
+    thread identity(30) -> also_named
+    thread identity(40)
+end
+
+// Named access
+PRINT("named:", result.named.value)
+PRINT("also_named:", result.also_named.value)
+
+// Unnamed threads get auto-key by position
+PRINT("pos2:", result."2".value)
+PRINT("pos4:", result."4".value)
+
+// LEN
+PRINT("len:", LEN(result))
+
+// Iterate all
+loop key, val in result do
+    PRINT(key + ":" + TO_STRING(val.value))
+end

@@ -3,20 +3,20 @@ function addOne(n) do
     return n + 1
 end
 
-multi
+multi r1 do
     thread addOne(10) -> a
 end
 
-PRINT(a.value)
+PRINT(r1.a.value)
 
-multi
-    thread addOne(a.value) -> b
+multi r2 do
+    thread addOne(r1.a.value) -> b
 end
 
-PRINT(b.value)
+PRINT(r2.b.value)
 
-multi
-    thread addOne(b.value) -> c
+multi r3 do
+    thread addOne(r2.b.value) -> c
 end
 
-PRINT(c.value)
+PRINT(r3.c.value)

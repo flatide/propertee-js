@@ -158,7 +158,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         const tokens = line.trim().split(/\s+/);
         let delta = 0;
         for (const tok of tokens) {
-            if (['do', 'if', 'multi'].includes(tok)) delta++;
+            if (['do', 'if'].includes(tok)) delta++;
             if (tok === 'end') delta--;
         }
         return delta;

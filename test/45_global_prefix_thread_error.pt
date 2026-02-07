@@ -6,9 +6,9 @@ function badWriter() do
     return ::x
 end
 
-multi
+multi result do
     thread badWriter() -> res
 end
 
-PRINT("ok:", res.ok)
-PRINT("error:", res.value)
+PRINT("ok:", result.res.ok)
+PRINT("error:", result.res.value)

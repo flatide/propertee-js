@@ -4,8 +4,8 @@ function dummy() do
     return
 end
 
-multi
-    thread dummy() -> r
+multi do
+    thread dummy()
 monitor 10
     x = 1
 end
