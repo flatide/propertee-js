@@ -16,12 +16,12 @@ function slow_worker(name, ms) do
     return "slow"
 end
 
-multi
+multi result do
     thread slow_worker("Sleepy", 200) -> r1
     thread fast_worker("Speedy") -> r2
 end
 
 // Speedy finishes while Sleepy is asleep
 PRINT("---")
-PRINT("Sleepy:", r1.value)
-PRINT("Speedy:", r2.value)
+PRINT("Sleepy:", result.r1.value)
+PRINT("Speedy:", result.r2.value)

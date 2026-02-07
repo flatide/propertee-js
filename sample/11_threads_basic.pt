@@ -12,14 +12,14 @@ function worker(name, steps) do
     return name + " done"
 end
 
-// Run functions in parallel with "multi ... end"
-// Use "thread funcCall() -> varName" to capture each function's return value
-multi
+// Run functions in parallel with "multi result do ... end"
+// Use "thread funcCall() -> key" to name each result in the collection
+multi result do
     thread worker("Alpha", 3) -> resultA
     thread worker("Beta", 3) -> resultB
 end
 
-// Results are available after the multi block
+// Results are available after the multi block via result.key.value
 PRINT("---")
-PRINT("Alpha returned:", resultA.value)
-PRINT("Beta returned:", resultB.value)
+PRINT("Alpha returned:", result.resultA.value)
+PRINT("Beta returned:", result.resultB.value)

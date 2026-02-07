@@ -11,7 +11,7 @@ function counter(name, target) do
     return i
 end
 
-multi
+multi result do
     thread counter("A", 20) -> rA
     thread counter("B", 15) -> rB
 monitor 50
@@ -19,5 +19,5 @@ monitor 50
 end
 
 PRINT("---")
-PRINT("A:", rA.value)
-PRINT("B:", rB.value)
+PRINT("A:", result.rA.value)
+PRINT("B:", result.rB.value)

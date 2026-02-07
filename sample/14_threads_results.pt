@@ -1,10 +1,11 @@
 // 14 - Thread Results
 // Functions in multi blocks can return any value: numbers, strings, objects, arrays.
+// Results collected into a single object via multi result do ... end
 
 function compute(n) do
-    result = n * n + n
-    PRINT("compute(" + TO_STRING(n) + ") = " + TO_STRING(result))
-    return result
+    res = n * n + n
+    PRINT("compute(" + TO_STRING(n) + ") = " + TO_STRING(res))
+    return res
 end
 
 function build_report(id) do
@@ -17,16 +18,16 @@ function build_report(id) do
     return report
 end
 
-multi
+multi result do
     thread compute(5) -> val1
     thread compute(3) -> val2
     thread build_report(42) -> report
 end
 
 PRINT("---")
-PRINT("val1:", val1.value)
-PRINT("val2:", val2.value)
-PRINT("report.id:", report.value.id)
-PRINT("report.value:", report.value.value)
-PRINT("report.status:", report.value.status)
-PRINT("Sum of computations:", val1.value + val2.value)
+PRINT("val1:", result.val1.value)
+PRINT("val2:", result.val2.value)
+PRINT("report.id:", result.report.value.id)
+PRINT("report.value:", result.report.value.value)
+PRINT("report.status:", result.report.value.status)
+PRINT("Sum of computations:", result.val1.value + result.val2.value)
