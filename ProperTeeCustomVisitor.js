@@ -181,11 +181,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     // Result helper for external functions
     static ok(value) {
-        return { ok: true, value: value };
+        return { status: "done", ok: true, value: value };
     }
 
     static error(message) {
-        return { ok: false, value: message };
+        return { status: "error", ok: false, value: message };
     }
 
     getLocation(ctx) {
@@ -1233,35 +1233,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (collectedResults) {
             const payload = collectedResults;
             const payloadResultVarName = payload.resultVarName;
-            const results = payload.results;
+            const collection = payload.collection;
 
-            if (payloadResultVarName !== null) {
-                // Build a collection object: named keys use their key, unnamed get positional string key
-                const collection = {};
-                let pos = 1;
-                for (const entry of results) {
-                    const key = entry.keyName !== null ? entry.keyName : String(pos);
-                    collection[key] = entry.result;
-                    pos++;
-                }
-
-                // Assign collection to resultVarName in appropriate scope
+            if (payloadResultVarName !== null && collection !== undefined) {
+                // Assign the pre-built collection to resultVarName in appropriate scope
                 if (scopeStack.length > 0) {
                     scopeStack[scopeStack.length - 1][payloadResultVarName] = collection;
                 } else {
                     variables[payloadResultVarName] = collection;
-                }
-            } else {
-                // Legacy mode: assign individual variables (for old-style thread func() -> var)
-                for (const entry of results) {
-                    if (entry.keyName) {
-                        const finalValue = entry.result;
-                        if (scopeStack.length > 0) {
-                            scopeStack[scopeStack.length - 1][entry.keyName] = finalValue;
-                        } else {
-                            variables[entry.keyName] = finalValue;
-                        }
-                    }
                 }
             }
         }

@@ -1,0 +1,22 @@
+// Test: Monitor can read thread result status during execution
+
+function fast() do
+    return "done!"
+end
+
+function slow() do
+    SLEEP(300)
+    return "finished"
+end
+
+multi result do
+    thread fast() -> a
+    thread slow() -> b
+monitor 100
+    PRINT(result.b.status)
+end
+
+PRINT(result.a.status)
+PRINT(result.a.value)
+PRINT(result.b.status)
+PRINT(result.b.value)

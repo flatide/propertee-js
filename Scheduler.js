@@ -140,9 +140,21 @@ export default class Scheduler {
 
         // Parent waits for all children
         parentThread.markWaiting(childIds);
-        parentThread._childResults = new Map();  // childId -> result
         parentThread._childIds = childIds;
         parentThread._resultKeyNames = resultKeyNames;
+
+        // Pre-build the live result collection with running entries
+        if (resultVarName !== null) {
+            const collection = {};
+            let pos = 1;
+            for (let i = 0; i < childIds.length; i++) {
+                const keyName = resultKeyNames[i];
+                const key = keyName !== null && keyName !== undefined ? keyName : String(pos);
+                collection[key] = { status: "running", ok: false, value: {} };
+                pos++;
+            }
+            parentThread._resultCollection = collection;
+        }
     }
 
     // Notify parent when a child thread completes
@@ -152,33 +164,35 @@ export default class Scheduler {
         const parent = this.threads.get(childThread.parentId);
         if (!parent) return;
 
-        // Store child result wrapped as {ok, value} Result
-        if (parent._childResults) {
-            if (childThread.state === ThreadState.ERROR) {
-                parent._childResults.set(childThread.id, {
-                    ok: false,
-                    value: childThread.error ? childThread.error.message : 'Unknown thread error'
-                });
-            } else {
-                parent._childResults.set(childThread.id, {
-                    ok: true,
-                    value: childThread.result
-                });
+        // Update the live result collection in-place
+        if (parent._resultCollection) {
+            const idx = parent._childIds.indexOf(childThread.id);
+            if (idx >= 0) {
+                const keyName = parent._resultKeyNames[idx];
+                let pos = 1;
+                for (let i = 0; i < idx; i++) {
+                    pos++;
+                }
+                const key = keyName !== null && keyName !== undefined ? keyName : String(pos);
+                if (childThread.state === ThreadState.ERROR) {
+                    parent._resultCollection[key] = {
+                        status: "error",
+                        ok: false,
+                        value: childThread.error ? childThread.error.message : 'Unknown thread error'
+                    };
+                } else {
+                    parent._resultCollection[key] = {
+                        status: "done",
+                        ok: true,
+                        value: childThread.result
+                    };
+                }
             }
         }
 
         // Check if all children done
         const allDone = parent.childCompleted(childThread.id);
         if (allDone) {
-            // Collect results in order and send back to parent generator
-            const results = [];
-            for (const cid of parent._childIds) {
-                results.push({
-                    keyName: this.threads.get(cid)?._resultKeyName || null,
-                    result: parent._childResults.get(cid)
-                });
-            }
-
             // Run final monitor tick
             this.runFinalMonitor(childThread.parentId);
 
@@ -188,7 +202,7 @@ export default class Scheduler {
             // Resume parent with collected results as payload
             parent._collectedResults = {
                 resultVarName: parent.resultCollectionVarName,
-                results: results
+                collection: parent._resultCollection
             };
         }
     }
@@ -216,8 +230,14 @@ export default class Scheduler {
         // Save and set monitor context on visitor
         const prevMonitor = this.visitor.activeThread?.inMonitorContext;
 
+        // Create a monitor scope with the result collection injected
+        const monitorScope = {...(parentThread.globalSnapshot || this.visitor.variables)};
+        if (parentThread.resultCollectionVarName && parentThread._resultCollection) {
+            monitorScope[parentThread.resultCollectionVarName] = parentThread._resultCollection;
+        }
+
         // Create a temporary thread context for monitor execution
-        const monitorThread = new ThreadContext(-1, 'monitor', null, parentThread.globalSnapshot || this.visitor.variables);
+        const monitorThread = new ThreadContext(-1, 'monitor', null, monitorScope);
         monitorThread.inMonitorContext = true;
 
         // Set the active thread to the monitor thread

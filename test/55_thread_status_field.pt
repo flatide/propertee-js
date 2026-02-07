@@ -1,0 +1,22 @@
+// Test: Thread result status field
+// Results have {status, ok, value} format
+
+function worker() do
+    return 42
+end
+
+function failing() do
+    ::badvar = 1
+    return 0
+end
+
+multi result do
+    thread worker() -> good
+    thread failing() -> bad
+end
+
+PRINT(result.good.status)
+PRINT(result.good.ok)
+PRINT(result.good.value)
+PRINT(result.bad.status)
+PRINT(result.bad.ok)

@@ -464,7 +464,15 @@ The `resultVar` receives a **map/object** containing all thread results:
 
 - **Named threads** (`-> key`): the key in the collection is the name you provide
 - **Unnamed threads**: the key is the 1-based spawn position as a string (`"1"`, `"2"`, etc.)
-- Each entry is a **Result object**: `{ok: true, value: <return value>}` on success, `{ok: false, value: "<error message>"}` on error
+- Each entry is a **Result object** with three fields:
+
+| status | ok | value |
+|---|---|---|
+| `"running"` | `false` | `{}` |
+| `"done"` | `true` | return value |
+| `"error"` | `false` | error message string |
+
+The collection is pre-built at spawn time with `"running"` entries. As threads complete, entries are updated in-place. After the multi block ends, all entries will be `"done"` or `"error"`.
 
 ```
 multi result do
@@ -473,11 +481,12 @@ multi result do
     thread funcC() -> c       // result.c
 end
 
+result.a.status               // "done"
 result.a.value                // named access
 result.1.value                // positional access (1st entry by insertion order)
 LEN(result)                   // 3
 loop key, val in result do    // iterate all results
-    PRINT(key, val.value)
+    PRINT(key, val.status, val.value)
 end
 ```
 
@@ -516,9 +525,12 @@ This guarantees no data races — threads never see each other's modifications.
 1. The multi block body executes as a setup phase, collecting `thread` calls
 2. A snapshot of global variables is taken at `multi` entry — all threads see this snapshot
 3. All spawned functions launch concurrently after setup completes
-4. Threads execute cooperatively, interleaving at statement boundaries
-5. All threads must complete before execution continues past `end`
-6. The result collection is assigned to `resultVar` only after **all** threads finish
+4. The result collection is pre-built with `"running"` entries at spawn time
+5. Threads execute cooperatively, interleaving at statement boundaries
+6. As each thread completes, its result entry is updated in-place to `"done"` or `"error"`
+7. The monitor clause can read the live result collection during execution
+8. All threads must complete before execution continues past `end`
+9. The result collection is assigned to `resultVar` after **all** threads finish
 
 ### Positional Access on Objects
 
@@ -547,7 +559,16 @@ end
 - The number after `monitor` is the interval in milliseconds
 - Monitor code is **read-only** — variable assignment inside a monitor is a runtime error
 - Monitor can call built-in functions (e.g., `PRINT`)
+- Monitor can read the result collection variable to check thread status (e.g., `result.key.status`)
 - Monitor runs one final time after all threads complete
+
+```
+multi result do
+    thread slowWorker() -> r
+monitor 100
+    PRINT("status:", result.r.status)   // "running" or "done"
+end
+```
 
 ### Sequential Multi Blocks
 
@@ -672,7 +693,8 @@ else
 end
 ```
 
-Result objects have two fields:
+Result objects have three fields:
+- `status` — `"done"` for success, `"error"` for failure (also `"running"` for in-progress thread results)
 - `ok` — `true` for success, `false` for failure
 - `value` — the result value on success, or an error message string on failure
 
