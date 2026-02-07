@@ -92,8 +92,8 @@ Generators communicate with the scheduler via yield values:
 |---|---|
 | `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. |
 | `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern. Positional map access in property access. |
-| `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks, runs monitor ticks |
-| `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags |
+| `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks. Pre-builds result collection with `{status: "running"}` at spawn time, updates entries in-place as threads complete, injects result collection into monitor scope for live status reads |
+| `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags. `_resultCollection` holds the live result map updated in-place by scheduler |
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
 | `build-browser.js` | Converts ES modules to browser-compatible IIFEs and creates `browser/propertee-bundle.js` |
 
@@ -145,11 +145,12 @@ function worker(name) do
 end
 
 // Parallel execution — results collected into result object
+// Each entry is {status: "done"/"error"/"running", ok: true/false, value: ...}
 multi result do
     thread worker("A") -> a
     thread worker("B") -> b
 monitor 100
-    PRINT("[tick]")
+    PRINT(result.a.status)   // "running" or "done" — monitor reads live status
 end
 PRINT(result.a.value)   // named access
 PRINT(result.1.value)   // positional access
