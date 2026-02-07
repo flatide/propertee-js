@@ -1,0 +1,43 @@
+// Test HAS_KEY built-in function
+
+// Basic object key check
+obj = {name: "Alice", age: 30, active: true}
+
+PRINT(HAS_KEY(obj, "name"))
+PRINT(HAS_KEY(obj, "age"))
+PRINT(HAS_KEY(obj, "active"))
+PRINT(HAS_KEY(obj, "missing"))
+PRINT(HAS_KEY(obj, "NAME"))
+
+// Empty object
+empty = {}
+PRINT(HAS_KEY(empty, "anything"))
+
+// Nested object - only checks top-level keys
+nested = {outer: {inner: 42}}
+PRINT(HAS_KEY(nested, "outer"))
+PRINT(HAS_KEY(nested, "inner"))
+
+// Dynamic key check
+key = "name"
+PRINT(HAS_KEY(obj, key))
+
+// Use in condition
+if HAS_KEY(obj, "name") == true then
+    PRINT("has name")
+end
+
+if HAS_KEY(obj, "missing") == false then
+    PRINT("no missing")
+end
+
+// Error: non-object first argument
+function testNonObject() do
+    return HAS_KEY([1, 2, 3], "key")
+end
+
+result = ""
+function tryIt() do
+    testNonObject()
+end
+// Can't try-catch, so just test the positive cases above

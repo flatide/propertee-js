@@ -578,6 +578,12 @@ All built-in function names are UPPERCASE.
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
 | `SLICE(arr, start, [end])` | Returns sub-array. `start` is 1-based. `end` is exclusive. |
 
+### Object Functions
+
+| Function | Description |
+|---|---|
+| `HAS_KEY(obj, key)` | Returns `true` if `obj` contains `key`, `false` otherwise. Both arguments required: `obj` must be an object, `key` must be a string. |
+
 ### Timing
 
 | Function | Description |

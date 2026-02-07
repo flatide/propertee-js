@@ -117,6 +117,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             'TRIM': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TRIM() requires a string argument');
                 return str.trim();
+            },
+            'HAS_KEY': (obj, key) => {
+                if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+                    throw new Error('Runtime Error: HAS_KEY() first argument must be an object');
+                if (typeof key !== 'string')
+                    throw new Error('Runtime Error: HAS_KEY() second argument must be a string');
+                return obj.hasOwnProperty(key);
             }
         };
 
