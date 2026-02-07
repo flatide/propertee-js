@@ -97,14 +97,14 @@ Generators communicate with the scheduler via yield values:
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
 | `build-browser.js` | Converts ES modules to browser-compatible IIFEs and creates `browser/propertee-bundle.js` |
 
-### Thread Purity Model
+### Multi Block Purity Model
 
-Functions running inside multi blocks are pure with respect to global state:
-- **Can read** globals via `::` (reads from a snapshot taken at MULTI block entry)
+Functions spawned inside multi blocks are pure with respect to global state:
+- **Can read** globals via `::` (reads from a snapshot taken at `multi` block entry)
 - **Cannot write** globals — `::x = value` is a runtime error (enforced via `inThreadContext` flag set by Scheduler)
 - **Can call** any function (user-defined or built-in)
 - **Can create** and modify local variables freely (plain `x` without `::`)
-- **Return results** via `thread func() -> var` syntax in MULTI blocks as Result objects: `{ok: true, value: <result>}` on success, `{ok: false, value: "<error>"}` on error. Results assigned only after ALL threads complete
+- **Return results** via `thread func() -> var` syntax as Result objects: `{ok: true, value: <result>}` on success, `{ok: false, value: "<error>"}` on error. Results assigned only after all threads complete
 - No locks, no shared mutable state
 
 ### Scope Resolution (in `ProperTeeCustomVisitor`)
