@@ -30,8 +30,43 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.maxIterations = options.maxIterations || 1000;
         this.iterationLimitBehavior = options.iterationLimitBehavior || 'error';
 
+        // Format a value for display inside collections (strings get single quotes)
+        const formatJsonValue = (value) => {
+            if (value === null || value === undefined) return 'null';
+            if (typeof value === 'string') return "'" + value + "'";
+            if (typeof value === 'boolean') return String(value);
+            if (typeof value === 'number') {
+                if (Number.isInteger(value)) return String(value);
+                return String(value);
+            }
+            if (Array.isArray(value)) return formatDisplayValue(value);
+            if (typeof value === 'object') return formatDisplayValue(value);
+            return String(value);
+        };
+
+        // Format a value for PRINT output (matching Java TypeChecker.formatValue)
+        const formatDisplayValue = (value) => {
+            if (value === null || value === undefined) return 'null';
+            if (typeof value === 'boolean') return String(value);
+            if (typeof value === 'number') {
+                if (Number.isInteger(value)) return String(value);
+                return String(value);
+            }
+            if (typeof value === 'string') return value;
+            if (Array.isArray(value)) {
+                if (value.length === 0) return '[]';
+                return '[ ' + value.map(v => formatJsonValue(v)).join(', ') + ' ]';
+            }
+            if (typeof value === 'object') {
+                const keys = Object.keys(value);
+                if (keys.length === 0) return '{}';
+                return '{ ' + keys.map(k => '"' + k + '": ' + formatJsonValue(value[k])).join(', ') + ' }';
+            }
+            return String(value);
+        };
+
         const defaultFunctions = {
-            'PRINT': (...args) => { this.stdout(...args); return {}; },
+            'PRINT': (...args) => { this.stdout(...args.map(a => formatDisplayValue(a))); return {}; },
             'SUM': (...args) => args.reduce((a, b) => a + b, 0),
             'MAX': (...args) => Math.max(...args),
             'MIN': (...args) => Math.min(...args),
