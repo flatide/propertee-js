@@ -5,7 +5,7 @@ function fast() do
 end
 
 function slow() do
-    SLEEP(300)
+    SLEEP(250)
     return "finished"
 end
 
