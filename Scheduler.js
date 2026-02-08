@@ -149,9 +149,12 @@ export default class Scheduler {
             let pos = 1;
             for (let i = 0; i < childIds.length; i++) {
                 const keyName = resultKeyNames[i];
-                const key = keyName !== null && keyName !== undefined ? keyName : String(pos);
-                collection[key] = { status: "running", ok: false, value: {} };
-                pos++;
+                if (keyName !== null && keyName !== undefined) {
+                    collection[keyName] = { status: "running", ok: false, value: {} };
+                } else {
+                    collection[String(pos)] = { status: "running", ok: false, value: {} };
+                    pos++;
+                }
             }
             parentThread._resultCollection = collection;
         }
@@ -169,11 +172,19 @@ export default class Scheduler {
             const idx = parent._childIds.indexOf(childThread.id);
             if (idx >= 0) {
                 const keyName = parent._resultKeyNames[idx];
-                let pos = 1;
-                for (let i = 0; i < idx; i++) {
-                    pos++;
+                let key;
+                if (keyName !== null && keyName !== undefined) {
+                    key = keyName;
+                } else {
+                    // Count unnamed threads before this one to get position
+                    let pos = 1;
+                    for (let i = 0; i < idx; i++) {
+                        if (parent._resultKeyNames[i] === null || parent._resultKeyNames[i] === undefined) {
+                            pos++;
+                        }
+                    }
+                    key = String(pos);
                 }
-                const key = keyName !== null && keyName !== undefined ? keyName : String(pos);
                 if (childThread.state === ThreadState.ERROR) {
                     parent._resultCollection[key] = {
                         status: "error",

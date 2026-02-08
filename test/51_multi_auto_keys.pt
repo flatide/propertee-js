@@ -14,9 +14,9 @@ end
 PRINT("named:", result.named.value)
 PRINT("also_named:", result.also_named.value)
 
-// Unnamed threads get auto-key by position
+// Unnamed threads get auto-key by position (counting only unnamed)
+PRINT("pos1:", result."1".value)
 PRINT("pos2:", result."2".value)
-PRINT("pos4:", result."4".value)
 
 // LEN
 PRINT("len:", LEN(result))
