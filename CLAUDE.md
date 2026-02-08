@@ -295,7 +295,7 @@ end
 - **No null** — the language has no null keyword. Functions without `return` or with bare `return` produce `{}` (empty object). Missing function arguments default to `{}`.
 - The grammar uses Korean comments in some places (historical). New code should use English.
 - `SLEEP()` returns a scheduler command object (not a Promise) — the visitor yields it to the scheduler.
-- 1-based indexing for array access (`.1` is the first element).
+- 1-based indexing for array/string/map positional access (`.1` is the first element). `*visitArrayAccess` returns the 1-based integer; consumers (`*visitMemberAccessExpr`, assignment) convert to 0-based for arrays, strings, and map positional access. For object key assignment (`a.1 = x`), the integer becomes the property key directly (`"1"`).
 - Strict type checking: `and`/`or` require booleans, arithmetic requires numbers. Exception: `+` with at least one string coerces the other operand via `TO_STRING()` (concatenation). Equality (`==`, `!=`) uses deep comparison for objects and arrays.
 - `package.json` has `"type": "module"` — all source files use ES module imports.
 
