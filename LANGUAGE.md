@@ -440,7 +440,7 @@ end
 `thread` is used inside multi blocks to schedule function calls for concurrent execution:
 
 - `thread funcCall() -> key` — run function and store its result in the collection under `key`
-- `thread funcCall()` — run function, discard result (auto-keyed by 1-based spawn position as string)
+- `thread funcCall()` — run function, discard result (auto-keyed by 1-based position among unnamed threads)
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
 - Duplicate `-> key` names within the same multi block are a runtime error
 
@@ -463,7 +463,7 @@ All collected `thread` calls fire simultaneously when the setup phase ends (at `
 The `resultVar` receives a **map/object** containing all thread results:
 
 - **Named threads** (`-> key`): the key in the collection is the name you provide
-- **Unnamed threads**: the key is the 1-based spawn position as a string (`"1"`, `"2"`, etc.)
+- **Unnamed threads**: the key is the 1-based position among unnamed threads as a string (`"1"`, `"2"`, etc.) — named threads do not consume positional slots
 - Each entry is a **Result object** with three fields:
 
 | status | ok | value |
@@ -477,7 +477,7 @@ The collection is pre-built at spawn time with `"running"` entries. As threads c
 ```
 multi result do
     thread funcA() -> a      // result.a
-    thread funcB()            // result."2" (auto-key by position)
+    thread funcB()            // result."1" (auto-key: 1st unnamed thread)
     thread funcC() -> c       // result.c
 end
 
