@@ -52,6 +52,8 @@ spawnStmt
 spawnKey
     : ID                                                 # SpawnIdKey
     | STRING                                             # SpawnStringKey
+    | INTEGER                                            # SpawnIntKey
+    | (K_TRUE | K_FALSE)                                 # SpawnBoolKey
     | '$' varKey=ID                                      # SpawnVarKey
     | '$' '(' expression ')'                             # SpawnExprKey
     ;

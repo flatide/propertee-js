@@ -703,20 +703,17 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     _resolveAndValidateDynamicKey(keyValue, ctx) {
-        if (typeof keyValue !== 'string') {
-            const typeName = keyValue === null ? 'null' : typeof keyValue;
-            throw this.createError(`Dynamic thread key must be a string, got ${typeName}`, ctx);
-        }
-        if (keyValue.length === 0) {
+        const key = this.functions['TO_STRING'](keyValue);
+        if (key.length === 0) {
             throw this.createError('Dynamic thread key must not be empty', ctx);
         }
         // Duplicate key check
         for (const existing of this._collectedSpawns) {
-            if (existing.resultKey !== null && existing.resultKey === keyValue) {
-                throw this.createError(`Duplicate result key '${keyValue}' in multi block`, ctx);
+            if (existing.resultKey !== null && existing.resultKey === key) {
+                throw this.createError(`Duplicate result key '${key}' in multi block`, ctx);
             }
         }
-        return keyValue;
+        return key;
     }
 
     _processStringEscapes(raw) {
@@ -763,6 +760,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             } else if (ctorName === 'SpawnStringKeyContext') {
                 const raw = keyCtx.STRING().getText();
                 keyName = this._processStringEscapes(raw.substring(1, raw.length - 1));
+                // Duplicate check for static keys
+                for (const existing of this._collectedSpawns) {
+                    if (existing.resultKey !== null && existing.resultKey === keyName) {
+                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+                    }
+                }
+            } else if (ctorName === 'SpawnIntKeyContext') {
+                keyName = keyCtx.INTEGER().getText();
+                // Duplicate check for static keys
+                for (const existing of this._collectedSpawns) {
+                    if (existing.resultKey !== null && existing.resultKey === keyName) {
+                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+                    }
+                }
+            } else if (ctorName === 'SpawnBoolKeyContext') {
+                keyName = keyCtx.getText();
                 // Duplicate check for static keys
                 for (const existing of this._collectedSpawns) {
                     if (existing.resultKey !== null && existing.resultKey === keyName) {

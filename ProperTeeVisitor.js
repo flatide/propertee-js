@@ -138,6 +138,18 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
+	// Visit a parse tree produced by ProperTeeParser#SpawnIntKey.
+	visitSpawnIntKey(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#SpawnBoolKey.
+	visitSpawnBoolKey(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
 	// Visit a parse tree produced by ProperTeeParser#SpawnVarKey.
 	visitSpawnVarKey(ctx) {
 	  return this.visitChildren(ctx);

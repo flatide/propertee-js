@@ -441,9 +441,11 @@ end
 `thread` is used inside multi blocks to schedule function calls for concurrent execution:
 
 - `thread key: funcCall()` — run function and store its result in the collection under `key`
-- `thread "key": funcCall()` — same as above, but key is a string literal (allows special characters)
-- `thread $var: funcCall()` — use the string value of `var` as the key (dynamic key)
-- `thread $(expr): funcCall()` — evaluate `expr` and use the string result as the key (dynamic key)
+- `thread "key": funcCall()` — string literal key (allows special characters)
+- `thread 42: funcCall()` — integer literal key (coerced to string `"42"`)
+- `thread true: funcCall()` — boolean literal key (coerced to string `"true"`)
+- `thread $var: funcCall()` — use the value of `var` as the key (auto-coerced to string via `TO_STRING()`)
+- `thread $(expr): funcCall()` — evaluate `expr` and use the result as the key (auto-coerced to string via `TO_STRING()`)
 - `thread : funcCall()` — run function, auto-keyed as `"#1"`, `"#2"`, etc. by position among unnamed threads
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
 - Duplicate key names within the same multi block are a runtime error (including dynamic keys)
@@ -530,7 +532,7 @@ PRINT(result.delta.value)
 ```
 
 **Validation rules** for dynamic keys:
-- Must be a **string** — non-string values (numbers, booleans, objects) are a runtime error
+- Values are **auto-coerced to string** via `TO_STRING()` — numbers, booleans, objects, arrays all become their string representation
 - Must be **non-empty** — empty string is a runtime error
 - Must be **unique** within the multi block — duplicate keys (including duplicates between static and dynamic keys) are a runtime error
 

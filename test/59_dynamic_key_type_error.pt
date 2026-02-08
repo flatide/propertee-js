@@ -1,9 +1,17 @@
-// Test: Dynamic thread key with non-string value is a runtime error
-function dummy() do
-    return 1
+// Test: Dynamic thread key auto-coerces non-string values to string
+function dummy(x) do
+    return x * 10
 end
 
 key = 42
 multi result do
-    thread $key: dummy()
+    thread $key: dummy(1)
+    thread $(true): dummy(2)
+    thread 99: dummy(3)
+    thread false: dummy(4)
 end
+
+PRINT(result."42".value)
+PRINT(result."true".value)
+PRINT(result."99".value)
+PRINT(result."false".value)
