@@ -442,7 +442,7 @@ end
 - `thread funcCall() -> key` — run function and store its result in the collection under `key`
 - `thread funcCall() -> $var` — use the string value of `var` as the key (dynamic key)
 - `thread funcCall() -> $(expr)` — evaluate `expr` and use the string result as the key (dynamic key)
-- `thread funcCall()` — run function, discard result (auto-keyed by 1-based position among unnamed threads)
+- `thread funcCall()` — run function, discard result (auto-keyed as `"#1"`, `"#2"`, etc. by position among unnamed threads)
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
 - Duplicate `-> key` names within the same multi block are a runtime error (including dynamic keys)
 
@@ -465,7 +465,7 @@ All collected `thread` calls fire simultaneously when the setup phase ends (at `
 The `resultVar` receives a **map/object** containing all thread results:
 
 - **Named threads** (`-> key`): the key in the collection is the name you provide
-- **Unnamed threads**: the key is the 1-based position among unnamed threads as a string (`"1"`, `"2"`, etc.) — named threads do not consume positional slots
+- **Unnamed threads**: the key is `"#"` followed by the 1-based position among unnamed threads (`"#1"`, `"#2"`, etc.) — named threads do not consume positional slots
 - Each entry is a **Result object** with three fields:
 
 | status | ok | value |
@@ -479,7 +479,7 @@ The collection is pre-built at spawn time with `"running"` entries. As threads c
 ```
 multi result do
     thread funcA() -> a      // result.a
-    thread funcB()            // result."1" (auto-key: 1st unnamed thread)
+    thread funcB()            // result."#1" (auto-key: 1st unnamed thread)
     thread funcC() -> c       // result.c
 end
 
@@ -505,7 +505,7 @@ multi result do
     end
 end
 
-// Access by position (all unnamed, auto-keyed "1" through "5")
+// Access by position (all unnamed, auto-keyed "#1" through "#5")
 loop r in result do
     PRINT(r.value)
 end
@@ -530,7 +530,6 @@ PRINT(result.delta.value)
 **Validation rules** for dynamic keys:
 - Must be a **string** — non-string values (numbers, booleans, objects) are a runtime error
 - Must be **non-empty** — empty string is a runtime error
-- Must **not start with a digit** — keys like `"1abc"` conflict with auto-numbered unnamed keys and are a runtime error
 - Must be **unique** within the multi block — duplicate keys (including duplicates between static and dynamic keys) are a runtime error
 
 ### Thread Purity
@@ -789,7 +788,6 @@ Common error conditions:
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
 | Dynamic key not string | Dynamic thread key must be a string, got number |
-| Dynamic key starts with digit | Dynamic thread key must not start with a digit: '1abc' |
 | Dynamic key empty | Dynamic thread key must not be empty |
 | Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |

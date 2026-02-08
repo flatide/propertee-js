@@ -1,9 +1,10 @@
-// Test: Dynamic thread key starting with digit is a runtime error
+// Test: Dynamic thread key with # prefix works (no naming restrictions)
 function dummy() do
     return 1
 end
 
-key = "1bad"
+key = "#custom"
 multi result do
     thread dummy() -> $key
 end
+PRINT(result."#custom".value)

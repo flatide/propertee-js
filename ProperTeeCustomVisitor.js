@@ -756,9 +756,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (keyValue.length === 0) {
             throw this.createError('Dynamic thread key must not be empty', ctx);
         }
-        if (keyValue.charAt(0) >= '0' && keyValue.charAt(0) <= '9') {
-            throw this.createError(`Dynamic thread key must not start with a digit: '${keyValue}'`, ctx);
-        }
         // Duplicate key check
         for (const existing of this._collectedSpawns) {
             if (existing.resultKey !== null && existing.resultKey === keyValue) {

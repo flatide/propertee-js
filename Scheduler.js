@@ -152,7 +152,7 @@ export default class Scheduler {
                 if (keyName !== null && keyName !== undefined) {
                     collection[keyName] = { status: "running", ok: false, value: {} };
                 } else {
-                    collection[String(pos)] = { status: "running", ok: false, value: {} };
+                    collection["#" + pos] = { status: "running", ok: false, value: {} };
                     pos++;
                 }
             }
@@ -183,7 +183,7 @@ export default class Scheduler {
                             pos++;
                         }
                     }
-                    key = String(pos);
+                    key = "#" + pos;
                 }
                 if (childThread.state === ThreadState.ERROR) {
                     parent._resultCollection[key] = {
