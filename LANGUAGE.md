@@ -212,7 +212,7 @@ Object keys can be bare identifiers, quoted strings, or integers (stored as stri
 | Quoted key | `obj."special-key"` | Keys with special characters |
 | Variable key | `obj.$varName` | Key name stored in a variable |
 | Computed key | `obj.$(expression)` | Key determined by an expression |
-| Numeric key | `obj.1` | Positional access by insertion order (1-based). For arrays, accesses element by index. For objects, accesses Nth entry. |
+| Numeric key | `obj.1` | 1-based index. For arrays, accesses element by index. For objects: **read** accesses Nth entry by insertion order; **write** sets string key `"1"`. |
 
 ```
 key = "name"
@@ -230,6 +230,16 @@ Properties can be added or modified by assignment:
 person.email = "alice@example.com"    // adds new property
 person.age = 31                       // modifies existing
 ```
+
+Integer keys become string keys on assignment:
+
+```
+obj = {}
+obj.1 = "first"      // obj is {"1": "first"}
+obj.2 = "second"     // obj is {"1": "first", "2": "second"}
+```
+
+Note: `.INTEGER` on read is **positional** (by insertion order), but on write it sets the **string key**. For example, `obj.1` reads the first entry, while `obj.1 = val` sets key `"1"`.
 
 ### Nested Access
 
