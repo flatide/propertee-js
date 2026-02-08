@@ -1,0 +1,9 @@
+// Test: Dynamic thread key with non-string value is a runtime error
+function dummy() do
+    return 1
+end
+
+key = 42
+multi result do
+    thread dummy() -> $key
+end

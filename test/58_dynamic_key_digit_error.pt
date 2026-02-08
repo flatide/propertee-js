@@ -1,0 +1,9 @@
+// Test: Dynamic thread key starting with digit is a runtime error
+function dummy() do
+    return 1
+end
+
+key = "1bad"
+multi result do
+    thread dummy() -> $key
+end

@@ -440,9 +440,11 @@ end
 `thread` is used inside multi blocks to schedule function calls for concurrent execution:
 
 - `thread funcCall() -> key` — run function and store its result in the collection under `key`
+- `thread funcCall() -> $var` — use the string value of `var` as the key (dynamic key)
+- `thread funcCall() -> $(expr)` — evaluate `expr` and use the string result as the key (dynamic key)
 - `thread funcCall()` — run function, discard result (auto-keyed by 1-based position among unnamed threads)
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
-- Duplicate `-> key` names within the same multi block are a runtime error
+- Duplicate `-> key` names within the same multi block are a runtime error (including dynamic keys)
 
 The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently:
 
@@ -508,6 +510,28 @@ loop r in result do
     PRINT(r.value)
 end
 ```
+
+### Dynamic Thread Keys
+
+Thread keys can be computed at runtime using `$var` or `$(expr)` syntax (matching property access patterns):
+
+```
+names = ["alpha", "beta", "gamma"]
+multi result do
+    loop name in names do
+        thread worker(name) -> $name        // key from variable
+    end
+    thread worker("x") -> $("delta")        // key from expression
+end
+PRINT(result.alpha.value)
+PRINT(result.delta.value)
+```
+
+**Validation rules** for dynamic keys:
+- Must be a **string** — non-string values (numbers, booleans, objects) are a runtime error
+- Must be **non-empty** — empty string is a runtime error
+- Must **not start with a digit** — keys like `"1abc"` conflict with auto-numbered unnamed keys and are a runtime error
+- Must be **unique** within the multi block — duplicate keys (including duplicates between static and dynamic keys) are a runtime error
 
 ### Thread Purity
 
@@ -764,5 +788,8 @@ Common error conditions:
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
+| Dynamic key not string | Dynamic thread key must be a string, got number |
+| Dynamic key starts with digit | Dynamic thread key must not start with a digit: '1abc' |
+| Dynamic key empty | Dynamic thread key must not be empty |
 | Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |

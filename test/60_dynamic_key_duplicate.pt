@@ -1,0 +1,10 @@
+// Test: Duplicate key via dynamic + static is a runtime error
+function dummy() do
+    return 1
+end
+
+key = "dup"
+multi result do
+    thread dummy() -> dup
+    thread dummy() -> $key
+end

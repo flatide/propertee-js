@@ -748,6 +748,99 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return null;
     }
 
+    _resolveAndValidateDynamicKey(keyValue, ctx) {
+        if (typeof keyValue !== 'string') {
+            const typeName = keyValue === null ? 'null' : typeof keyValue;
+            throw this.createError(`Dynamic thread key must be a string, got ${typeName}`, ctx);
+        }
+        if (keyValue.length === 0) {
+            throw this.createError('Dynamic thread key must not be empty', ctx);
+        }
+        if (keyValue.charAt(0) >= '0' && keyValue.charAt(0) <= '9') {
+            throw this.createError(`Dynamic thread key must not start with a digit: '${keyValue}'`, ctx);
+        }
+        // Duplicate key check
+        for (const existing of this._collectedSpawns) {
+            if (existing.resultKey !== null && existing.resultKey === keyValue) {
+                throw this.createError(`Duplicate result key '${keyValue}' in multi block`, ctx);
+            }
+        }
+        return keyValue;
+    }
+
+    *visitSpawnVarKeyStmt(ctx) {
+        if (!this._inMultiSetup) {
+            throw this.createError('thread can only be used inside multi blocks', ctx);
+        }
+        const funcCallCtx = ctx.functionCall();
+        const funcName = funcCallCtx.funcName.text;
+
+        // Resolve the variable for the key
+        const varName = ctx.varKey.text;
+        const scopeStack = this._getScopeStack();
+        const variables = this._getVariables();
+
+        let keyValue = undefined;
+        // 1. Local scopes
+        for (let i = scopeStack.length - 1; i >= 0; i--) {
+            if (varName in scopeStack[i]) {
+                keyValue = scopeStack[i][varName];
+                break;
+            }
+        }
+        if (keyValue === undefined) {
+            if (this._isInFunctionScope()) {
+                throw this.createError(
+                    `Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`,
+                    ctx
+                );
+            }
+            if (varName in variables) {
+                keyValue = variables[varName];
+            } else if (varName in this.properties) {
+                keyValue = this.properties[varName];
+            } else {
+                throw this.createError(`Variable '${varName}' is not defined`, ctx);
+            }
+        }
+
+        const keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+
+        // Evaluate arguments now (during setup phase)
+        const args = [];
+        if (funcCallCtx.expression()) {
+            for (const exprCtx of funcCallCtx.expression()) {
+                args.push(yield* this.visit(exprCtx));
+            }
+        }
+
+        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
+        return null;
+    }
+
+    *visitSpawnExprKeyStmt(ctx) {
+        if (!this._inMultiSetup) {
+            throw this.createError('thread can only be used inside multi blocks', ctx);
+        }
+        const funcCallCtx = ctx.functionCall();
+        const funcName = funcCallCtx.funcName.text;
+
+        // Evaluate the expression for the key
+        const keyValue = yield* this.visit(ctx.expression());
+        const keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+
+        // Evaluate arguments now (during setup phase)
+        const args = [];
+        if (funcCallCtx.expression()) {
+            for (const exprCtx of funcCallCtx.expression()) {
+                args.push(yield* this.visit(exprCtx));
+            }
+        }
+
+        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
+        return null;
+    }
+
     *visitExprStmt(ctx) {
         return yield* this.visit(ctx.expression());
     }

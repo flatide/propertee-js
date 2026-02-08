@@ -46,8 +46,10 @@ monitorClause
     ;
 
 spawnStmt
-    : K_SPAWN functionCall '->' ID    # SpawnAssignStmt
-    | K_SPAWN functionCall            # SpawnCallStmt
+    : K_SPAWN functionCall '->' ID                      # SpawnAssignStmt
+    | K_SPAWN functionCall '->' '$' varKey=ID            # SpawnVarKeyStmt
+    | K_SPAWN functionCall '->' '$' '(' expression ')'   # SpawnExprKeyStmt
+    | K_SPAWN functionCall                               # SpawnCallStmt
     ;
 
 iterationStmt

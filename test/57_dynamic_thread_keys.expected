@@ -1,0 +1,8 @@
+var key: A done
+expr key: B done
+x: x done
+y: y done
+z: z done
+len: 3
+static: S done
+dynamic: D done
