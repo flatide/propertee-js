@@ -46,16 +46,7 @@ monitorClause
     ;
 
 spawnStmt
-    : K_SPAWN spawnKey? ':' functionCall                 # SpawnKeyStmt
-    ;
-
-spawnKey
-    : ID                                                 # SpawnIdKey
-    | STRING                                             # SpawnStringKey
-    | INTEGER                                            # SpawnIntKey
-    | (K_TRUE | K_FALSE)                                 # SpawnBoolKey
-    | '$' varKey=ID                                      # SpawnVarKey
-    | '$' '(' expression ')'                             # SpawnExprKey
+    : K_SPAWN access? ':' functionCall                   # SpawnKeyStmt
     ;
 
 iterationStmt

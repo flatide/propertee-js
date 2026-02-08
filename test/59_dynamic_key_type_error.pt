@@ -1,4 +1,4 @@
-// Test: Dynamic thread key auto-coerces non-string values to string
+// Test: Thread spawn key types — auto-coerce to string
 function dummy(x) do
     return x * 10
 end
@@ -8,10 +8,10 @@ multi result do
     thread $key: dummy(1)
     thread $(true): dummy(2)
     thread 99: dummy(3)
-    thread false: dummy(4)
+    thread "named": dummy(4)
 end
 
 PRINT(result."42".value)
 PRINT(result."true".value)
 PRINT(result."99".value)
-PRINT(result."false".value)
+PRINT(result.named.value)

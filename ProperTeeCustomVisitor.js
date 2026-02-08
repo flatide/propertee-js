@@ -744,46 +744,20 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const funcCallCtx = ctx.functionCall();
         const funcName = funcCallCtx.funcName.text;
 
-        // Resolve key
+        // Resolve key using access rule (same as property access)
         let keyName = null;
-        const keyCtx = ctx.spawnKey();
-        if (keyCtx) {
-            const ctorName = keyCtx.constructor.name;
-            if (ctorName === 'SpawnIdKeyContext') {
-                keyName = keyCtx.ID().getText();
-                // Duplicate check for static keys
-                for (const existing of this._collectedSpawns) {
-                    if (existing.resultKey !== null && existing.resultKey === keyName) {
-                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
-                    }
-                }
-            } else if (ctorName === 'SpawnStringKeyContext') {
-                const raw = keyCtx.STRING().getText();
+        const accessCtx = ctx.access();
+        if (accessCtx) {
+            const ctorName = accessCtx.constructor.name;
+            if (ctorName === 'StaticAccessContext') {
+                keyName = accessCtx.ID().getText();
+            } else if (ctorName === 'StringKeyAccessContext') {
+                const raw = accessCtx.STRING().getText();
                 keyName = this._processStringEscapes(raw.substring(1, raw.length - 1));
-                // Duplicate check for static keys
-                for (const existing of this._collectedSpawns) {
-                    if (existing.resultKey !== null && existing.resultKey === keyName) {
-                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
-                    }
-                }
-            } else if (ctorName === 'SpawnIntKeyContext') {
-                keyName = keyCtx.INTEGER().getText();
-                // Duplicate check for static keys
-                for (const existing of this._collectedSpawns) {
-                    if (existing.resultKey !== null && existing.resultKey === keyName) {
-                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
-                    }
-                }
-            } else if (ctorName === 'SpawnBoolKeyContext') {
-                keyName = keyCtx.getText();
-                // Duplicate check for static keys
-                for (const existing of this._collectedSpawns) {
-                    if (existing.resultKey !== null && existing.resultKey === keyName) {
-                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
-                    }
-                }
-            } else if (ctorName === 'SpawnVarKeyContext') {
-                const varName = keyCtx.varKey.text;
+            } else if (ctorName === 'ArrayAccessContext') {
+                keyName = accessCtx.INTEGER().getText();
+            } else if (ctorName === 'VarEvalAccessContext') {
+                const varName = accessCtx.ID().getText();
                 const scopeStack = this._getScopeStack();
                 const variables = this._getVariables();
 
@@ -810,9 +784,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     }
                 }
                 keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
-            } else if (ctorName === 'SpawnExprKeyContext') {
-                const keyValue = yield* this.visit(keyCtx.expression());
+            } else if (ctorName === 'EvalAccessContext') {
+                const keyValue = yield* this.visit(accessCtx.expression());
                 keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+            }
+            // Duplicate key check
+            for (const existing of this._collectedSpawns) {
+                if (existing.resultKey !== null && existing.resultKey === keyName) {
+                    throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+                }
             }
         }
 
