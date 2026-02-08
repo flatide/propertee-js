@@ -91,7 +91,7 @@ Generators communicate with the scheduler via yield values:
 | File | Role |
 |---|---|
 | `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Dynamic thread keys via `$var` and `$(expr)`. |
-| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern. Positional map access in property access. |
+| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern. Positional map access in property access. `_resolveAndValidateDynamicKey()` validates dynamic keys (must be string, non-empty, no duplicates). |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks. Pre-builds result collection with `{status: "running"}` at spawn time (unnamed threads auto-keyed as `"#1"`, `"#2"`, etc. among unnamed only), updates entries in-place as threads complete, injects result collection into monitor scope for live status reads |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags. `_resultCollection` holds the live result map updated in-place by scheduler |
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
@@ -116,6 +116,82 @@ Functions spawned inside multi blocks are pure with respect to global state:
 **Inside functions (`::x`):** global variables/snapshot → built-in properties.
 
 The `::` prefix (`GLOBAL_PREFIX` token) bypasses local scopes and accesses globals directly. At top level, `x` and `::x` are equivalent. The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeThread` when set by the scheduler, falling back to `this.scopeStack`/`this.variables` for single-threaded execution.
+
+### Scheduler (`Scheduler.js`)
+
+The scheduler drives all execution — even single-threaded scripts run through it. The `run()` method is `async` to support sleep timing via `setTimeout` promises.
+
+**Instance state**: `threads` (Map<id, ThreadContext>), `monitors` (Array of monitor objects), `nextThreadId` (counter), `currentThreadId` (for round-robin).
+
+**Monitor state** (plain object in `monitors` array): `interval` (ms), `blockCtx`, `lastRun` (timestamp), `parentThreadId`, `childIds`.
+
+**Main loop** (`async run()`):
+1. Creates thread 0 (main) with the root generator
+2. Loop: `wakeThreads()` → `runMonitors()` → `selectNextThread()` → `generator.next(sendValue)` → `processYield()`
+3. When no READY threads exist: sleep-polls (capped at 50ms via setTimeout) if SLEEPING threads remain, busy-waits (1ms setTimeout) if WAITING threads remain, otherwise exits
+4. Thread 0 errors propagate as exceptions; child thread errors go to stderr as `[THREAD ERROR]`
+
+**Thread selection** (`selectNextThread()`): Round-robin by sorted thread ID, starting after `currentThreadId`. Only picks READY threads.
+
+**Yield handling** (`processYield()`):
+- `undefined` → mark thread READY (bare `yield` = statement boundary)
+- `{ __schedulerCommand: true, type: 'SLEEP' }` → mark thread SLEEPING with wake time
+- `{ __schedulerCommand: true, type: 'SPAWN_THREADS' }` → call `handleSpawnThreads()` (creates child threads, parent goes WAITING)
+
+**Thread spawning** (`handleSpawnThreads()`):
+1. Creates child ThreadContexts from specs, each with `inThreadContext = true`
+2. Sets up monitor if present (stores interval, block ctx, child IDs, `lastRun` initialized to current time)
+3. Marks parent WAITING with child ID set
+4. Pre-builds `_resultCollection` on parent with `{status: "running", ok: false, value: {}}` entries (named keys use provided name, unnamed auto-keyed as `"#1"`, `"#2"`, etc. among unnamed)
+
+**Child completion** (`notifyChildCompleted()`):
+1. Updates parent's `_resultCollection` in-place — `{status: "done", ok: true, value}` or `{status: "error", ok: false, value}`
+2. Removes child from parent's `waitingForChildren` set
+3. When all children done: runs final monitor tick, removes monitor, sends `{resultVarName, collection}` payload to parent via `_collectedResults`
+4. Parent wakes to READY; scheduler sends payload via `generator.next(payload)`
+
+**Monitor execution** (`runMonitors()` + `executeMonitorSync()`): Each scheduler iteration checks all monitors — fires when `(now - lastRun >= interval)`, updates `lastRun`. `executeMonitorSync()` creates a temporary ThreadContext (id -1, name "monitor") with `inMonitorContext = true`. Copies global snapshot and injects the live `_resultCollection` under `resultCollectionVarName`. Runs the monitor block synchronously by exhausting the generator via `gen.next()` loop. Monitor errors go to stderr as `[MONITOR ERROR]`, not thrown. `runFinalMonitor()` runs one last tick when all children complete, then removes the monitor.
+
+**Interpreter integration**: `visitor.activeThread` is set to the current thread before each step. The visitor's `_getScopeStack()`, `_getVariables()`, `_isInFunctionScope()` etc. all check `activeThread` to route scope access through the thread's local state.
+
+### ThreadContext (`ThreadContext.js`)
+
+Per-thread state container. Constructor takes `(id, name, generator, globalSnapshot = null)`.
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `id` | `number` | (ctor) | Unique thread ID (0 = main, -1 = monitor) |
+| `name` | `string` | (ctor) | Debug name (e.g. `"worker-0"`, `"main"`, `"monitor"`) |
+| `generator` | `Generator` | (ctor) | The generator driving this thread's execution |
+| `state` | `ThreadState` | `READY` | `READY → RUNNING → READY → ... → COMPLETED/ERROR` |
+| `scopeStack` | `Array` | `[]` | Thread-private local variable scopes |
+| `globalSnapshot` | `Object\|null` | `null` | Read-only globals for thread purity (main thread uses live `variables`) |
+| `sleepUntil` | `number\|null` | `null` | Absolute wake time (ms) when SLEEPING |
+| `inThreadContext` | `boolean` | `false` | True for child threads — blocks `::x = val` writes |
+| `inMonitorContext` | `boolean` | `false` | True for monitor execution — blocks all assignments |
+| `inMultiContext` | `boolean` | `false` | True during multi setup — blocks result var access |
+| `currentFunctionContext` | `object\|null` | `null` | Current function execution context |
+| `multiResultVars` | `Map` | `new Map()` | Result variables from completed multi blocks (accessible in later code) |
+| `result` | `any` | `null` | Final return value when COMPLETED |
+| `error` | `Error\|null` | `null` | Exception when ERROR |
+| `parentId` | `number\|null` | `null` | Parent thread ID (null for main) |
+| `waitingForChildren` | `Set\|null` | `null` | Child IDs still running (null when not WAITING) |
+
+Additional fields set dynamically by Scheduler during multi blocks:
+
+| Field | Purpose |
+|---|---|
+| `_resultCollection` | Live result object updated in-place as children complete |
+| `_childIds` | Ordered child thread IDs for this multi block |
+| `_resultKeyNames` | Parallel list of key names (null = unnamed) |
+| `resultCollectionVarName` | The `resultVar` name from `multi resultVar do` |
+| `_collectedResults` | Payload sent to parent generator when all children done |
+| `_resultKeyName` | This child's key in parent's collection |
+| `_localScope` | Function parameters for spawned thread |
+
+Methods: `markRunning()`, `markReady()`, `markSleeping(until)`, `markWaiting(childIds)`, `markCompleted(result)`, `markError(error)`, `shouldWake(now)`, `childCompleted(childId)` → returns true when all children done. Scope methods: `pushScope()`, `popScope()`, `getCurrentScope()`, `getVariable(name)`, `setVariable(name, value)`, `isInLocalScope()`.
+
+**ThreadState**: `READY`, `RUNNING`, `SLEEPING`, `WAITING`, `COMPLETED`, `ERROR`.
 
 ### Flow Control
 
