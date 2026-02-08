@@ -6,8 +6,8 @@ function worker(id) do
 end
 
 multi result do
-    thread worker(1) -> r1
-    thread worker(2) -> r2
+    thread r1: worker(1)
+    thread r2: worker(2)
 end
 
 PRINT("r1=" + TO_STRING(result.r1.value))

@@ -5,11 +5,11 @@ function work(id) do
 end
 
 multi result do
-    thread work(1) -> r1
-    thread work(2) -> r2
-    thread work(3) -> r3
-    thread work(4) -> r4
-    thread work(5) -> r5
+    thread r1: work(1)
+    thread r2: work(2)
+    thread r3: work(3)
+    thread r4: work(4)
+    thread r5: work(5)
 end
 
 PRINT(result.r1.value)

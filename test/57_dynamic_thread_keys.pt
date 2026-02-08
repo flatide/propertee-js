@@ -6,14 +6,14 @@ end
 // Test 1: $var key
 key1 = "alpha"
 multi r1 do
-    thread worker("A") -> $key1
+    thread $key1: worker("A")
 end
 PRINT("var key:", r1.alpha.value)
 
 // Test 2: $(expr) key
 prefix = "beta"
 multi r2 do
-    thread worker("B") -> $(prefix + "_key")
+    thread $(prefix + "_key"): worker("B")
 end
 PRINT("expr key:", r2.beta_key.value)
 
@@ -21,7 +21,7 @@ PRINT("expr key:", r2.beta_key.value)
 names = ["x", "y", "z"]
 multi r3 do
     loop name in names do
-        thread worker(name) -> $name
+        thread $name: worker(name)
     end
 end
 PRINT("x:", r3.x.value)
@@ -32,8 +32,8 @@ PRINT("len:", LEN(r3))
 // Test 4: Mixed static + dynamic
 dynKey = "dyn"
 multi r4 do
-    thread worker("S") -> stat
-    thread worker("D") -> $dynKey
+    thread stat: worker("S")
+    thread $dynKey: worker("D")
 end
 PRINT("static:", r4.stat.value)
 PRINT("dynamic:", r4.dyn.value)

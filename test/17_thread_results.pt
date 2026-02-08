@@ -20,11 +20,11 @@ function retEmpty() do
 end
 
 multi result do
-    thread retNum() -> n
-    thread retStr() -> s
-    thread retArr() -> a
-    thread retObj() -> o
-    thread retEmpty() -> nl
+    thread n: retNum()
+    thread s: retStr()
+    thread a: retArr()
+    thread o: retObj()
+    thread nl: retEmpty()
 end
 
 PRINT(result.n.value)

@@ -5,8 +5,8 @@ function sideEffect(msg) do
 end
 
 multi do
-    thread sideEffect("one")
-    thread sideEffect("two")
+    thread : sideEffect("one")
+    thread : sideEffect("two")
 end
 
 PRINT("done")

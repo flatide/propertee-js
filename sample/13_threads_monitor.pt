@@ -13,8 +13,8 @@ function counter(name, target) do
 end
 
 multi result do
-    thread counter("A", 20) -> rA
-    thread counter("B", 15) -> rB
+    thread rA: counter("A", 20)
+    thread rB: counter("B", 15)
 monitor 50
     PRINT("[monitor] A:" + result.rA.status + " B:" + result.rB.status)
 end

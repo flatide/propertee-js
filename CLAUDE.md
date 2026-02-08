@@ -48,7 +48,7 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ./test/run_tests.sh test/16_thread_basic.pt
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var` and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Tests 59-60 verify dynamic key error cases: non-string key type, and duplicate dynamic key.
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var` and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Tests 59-60 verify dynamic key error cases: non-string key type, and duplicate dynamic key. Test 61 (`duplicate_auto_key`) verifies that an explicit key colliding with an auto-generated `#N` key is a runtime error.
 
 **Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
@@ -90,8 +90,8 @@ Generators communicate with the scheduler via yield values:
 
 | File | Role |
 |---|---|
-| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Dynamic thread keys via `$var` and `$(expr)`. |
-| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management, `thread` spawn collection during multi setup, `registerExternal()` for external functions with Result pattern. Positional map access in property access. `_resolveAndValidateDynamicKey()` validates dynamic keys (must be string, non-empty, no duplicates). |
+| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn syntax: `thread key: func()`, `thread "key": func()`, `thread $var: func()`, `thread $(expr): func()`, `thread : func()`. `spawnStmt` rule with `spawnKey` sub-rule. |
+| `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management. Single `*visitSpawnKeyStmt` handles all spawn key types (ID, STRING, $var, $(expr), unnamed). `registerExternal()` for external functions with Result pattern. Positional map access in property access. `_resolveAndValidateDynamicKey()` validates dynamic keys (must be string, non-empty, no duplicates). |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks. Pre-builds result collection with `{status: "running"}` at spawn time (unnamed threads auto-keyed as `"#1"`, `"#2"`, etc. among unnamed only), updates entries in-place as threads complete, injects result collection into monitor scope for live status reads |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags. `_resultCollection` holds the live result map updated in-place by scheduler |
 | `pt.js` | CLI runner: file execution and interactive REPL. Creates a visitor+scheduler per run; REPL reuses the visitor across lines for persistent state |
@@ -104,7 +104,7 @@ Functions spawned inside multi blocks are pure with respect to global state:
 - **Cannot write** globals — `::x = value` is a runtime error (enforced via `inThreadContext` flag set by Scheduler)
 - **Can call** any function (user-defined or built-in)
 - **Can create** and modify local variables freely (plain `x` without `::`)
-- **Return results** via `thread func() -> key` syntax as Result objects: `{status: "done", ok: true, value: <result>}` on success, `{status: "error", ok: false, value: "<error>"}` on error. Results are pre-built with `{status: "running", ok: false, value: {}}` at spawn time and updated in-place as threads complete. The monitor clause can read `resultVar.key.status` during execution. The collection is assigned to `resultVar` after all threads finish.
+- **Return results** via `thread key: func()` syntax as Result objects: `{status: "done", ok: true, value: <result>}` on success, `{status: "error", ok: false, value: "<error>"}` on error. Results are pre-built with `{status: "running", ok: false, value: {}}` at spawn time and updated in-place as threads complete. The monitor clause can read `resultVar.key.status` during execution. The collection is assigned to `resultVar` after all threads finish.
 - No locks, no shared mutable state
 
 ### Scope Resolution (in `ProperTeeCustomVisitor`)
@@ -223,8 +223,8 @@ end
 // Parallel execution — results collected into result object
 // Each entry is {status: "done"/"error"/"running", ok: true/false, value: ...}
 multi result do
-    thread worker("A") -> a
-    thread worker("B") -> b
+    thread a: worker("A")
+    thread b: worker("B")
 monitor 100
     PRINT(result.a.status)   // "running" or "done" — monitor reads live status
 end
@@ -232,14 +232,23 @@ PRINT(result.a.value)   // named access
 PRINT(result.1.value)   // positional access
 LEN(result)             // 2
 
+// Dynamic thread keys — $var and $(expr) syntax
+names = ["alpha", "beta"]
+multi result do
+    loop name in names do
+        thread $name: worker(name)             // key from variable
+    end
+    thread $("gamma"): worker("C")             // key from expression
+end
+
 // Conditional/dynamic spawning in multi blocks
 multi result do
     if needsA == true then
-        thread workerA() -> rA
+        thread rA: workerA()
     end
     i = 1
     loop i <= 3 infinite do
-        thread workerB(i)
+        thread : workerB(i)
         i = i + 1
     end
 end
@@ -287,7 +296,7 @@ end
 - The grammar uses Korean comments in some places (historical). New code should use English.
 - `SLEEP()` returns a scheduler command object (not a Promise) — the visitor yields it to the scheduler.
 - 1-based indexing for array access (`.1` is the first element).
-- Strict type checking: no coercion, `and`/`or` require booleans, arithmetic requires numbers. Equality (`==`, `!=`) uses deep comparison for objects and arrays.
+- Strict type checking: `and`/`or` require booleans, arithmetic requires numbers. Exception: `+` with at least one string coerces the other operand via `TO_STRING()` (concatenation). Equality (`==`, `!=`) uses deep comparison for objects and arrays.
 - `package.json` has `"type": "module"` — all source files use ES module imports.
 
 ## Known Limitations

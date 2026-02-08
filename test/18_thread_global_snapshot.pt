@@ -8,7 +8,7 @@ function readGlobal() do
 end
 
 multi res do
-    thread readGlobal() -> r
+    thread r: readGlobal()
 end
 
 PRINT("result=" + TO_STRING(res.r.value))

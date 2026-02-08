@@ -702,52 +702,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return yield* this.visit(ctx.spawnStmt());
     }
 
-    *visitSpawnAssignStmt(ctx) {
-        if (!this._inMultiSetup) {
-            throw this.createError('thread can only be used inside multi blocks', ctx);
-        }
-        const funcCallCtx = ctx.functionCall();
-        const funcName = funcCallCtx.funcName.text;
-        const keyName = ctx.ID().getText();
-
-        // Duplicate key check
-        for (const existing of this._collectedSpawns) {
-            if (existing.resultKey !== null && existing.resultKey === keyName) {
-                throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
-            }
-        }
-
-        // Evaluate arguments now (during setup phase)
-        const args = [];
-        if (funcCallCtx.expression()) {
-            for (const exprCtx of funcCallCtx.expression()) {
-                args.push(yield* this.visit(exprCtx));
-            }
-        }
-
-        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
-        return null;
-    }
-
-    *visitSpawnCallStmt(ctx) {
-        if (!this._inMultiSetup) {
-            throw this.createError('thread can only be used inside multi blocks', ctx);
-        }
-        const funcCallCtx = ctx.functionCall();
-        const funcName = funcCallCtx.funcName.text;
-
-        // Evaluate arguments now (during setup phase)
-        const args = [];
-        if (funcCallCtx.expression()) {
-            for (const exprCtx of funcCallCtx.expression()) {
-                args.push(yield* this.visit(exprCtx));
-            }
-        }
-
-        this._collectedSpawns.push({ funcName, args, resultKey: null, ctx: funcCallCtx });
-        return null;
-    }
-
     _resolveAndValidateDynamicKey(keyValue, ctx) {
         if (typeof keyValue !== 'string') {
             const typeName = keyValue === null ? 'null' : typeof keyValue;
@@ -765,66 +719,89 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return keyValue;
     }
 
-    *visitSpawnVarKeyStmt(ctx) {
-        if (!this._inMultiSetup) {
-            throw this.createError('thread can only be used inside multi blocks', ctx);
-        }
-        const funcCallCtx = ctx.functionCall();
-        const funcName = funcCallCtx.funcName.text;
-
-        // Resolve the variable for the key
-        const varName = ctx.varKey.text;
-        const scopeStack = this._getScopeStack();
-        const variables = this._getVariables();
-
-        let keyValue = undefined;
-        // 1. Local scopes
-        for (let i = scopeStack.length - 1; i >= 0; i--) {
-            if (varName in scopeStack[i]) {
-                keyValue = scopeStack[i][varName];
-                break;
-            }
-        }
-        if (keyValue === undefined) {
-            if (this._isInFunctionScope()) {
-                throw this.createError(
-                    `Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`,
-                    ctx
-                );
-            }
-            if (varName in variables) {
-                keyValue = variables[varName];
-            } else if (varName in this.properties) {
-                keyValue = this.properties[varName];
+    _processStringEscapes(raw) {
+        let result = '';
+        for (let i = 0; i < raw.length; i++) {
+            if (raw[i] === '\\' && i + 1 < raw.length) {
+                const next = raw[i + 1];
+                switch (next) {
+                    case 'n': result += '\n'; break;
+                    case 't': result += '\t'; break;
+                    case 'r': result += '\r'; break;
+                    case '\\': result += '\\'; break;
+                    case '"': result += '"'; break;
+                    default: result += '\\' + next; break;
+                }
+                i++;
             } else {
-                throw this.createError(`Variable '${varName}' is not defined`, ctx);
+                result += raw[i];
             }
         }
-
-        const keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
-
-        // Evaluate arguments now (during setup phase)
-        const args = [];
-        if (funcCallCtx.expression()) {
-            for (const exprCtx of funcCallCtx.expression()) {
-                args.push(yield* this.visit(exprCtx));
-            }
-        }
-
-        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
-        return null;
+        return result;
     }
 
-    *visitSpawnExprKeyStmt(ctx) {
+    *visitSpawnKeyStmt(ctx) {
         if (!this._inMultiSetup) {
             throw this.createError('thread can only be used inside multi blocks', ctx);
         }
         const funcCallCtx = ctx.functionCall();
         const funcName = funcCallCtx.funcName.text;
 
-        // Evaluate the expression for the key
-        const keyValue = yield* this.visit(ctx.expression());
-        const keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+        // Resolve key
+        let keyName = null;
+        const keyCtx = ctx.spawnKey();
+        if (keyCtx) {
+            const ctorName = keyCtx.constructor.name;
+            if (ctorName === 'SpawnIdKeyContext') {
+                keyName = keyCtx.ID().getText();
+                // Duplicate check for static keys
+                for (const existing of this._collectedSpawns) {
+                    if (existing.resultKey !== null && existing.resultKey === keyName) {
+                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+                    }
+                }
+            } else if (ctorName === 'SpawnStringKeyContext') {
+                const raw = keyCtx.STRING().getText();
+                keyName = this._processStringEscapes(raw.substring(1, raw.length - 1));
+                // Duplicate check for static keys
+                for (const existing of this._collectedSpawns) {
+                    if (existing.resultKey !== null && existing.resultKey === keyName) {
+                        throw this.createError(`Duplicate result key '${keyName}' in multi block`, ctx);
+                    }
+                }
+            } else if (ctorName === 'SpawnVarKeyContext') {
+                const varName = keyCtx.varKey.text;
+                const scopeStack = this._getScopeStack();
+                const variables = this._getVariables();
+
+                let keyValue = undefined;
+                for (let i = scopeStack.length - 1; i >= 0; i--) {
+                    if (varName in scopeStack[i]) {
+                        keyValue = scopeStack[i][varName];
+                        break;
+                    }
+                }
+                if (keyValue === undefined) {
+                    if (this._isInFunctionScope()) {
+                        throw this.createError(
+                            `Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`,
+                            ctx
+                        );
+                    }
+                    if (varName in variables) {
+                        keyValue = variables[varName];
+                    } else if (varName in this.properties) {
+                        keyValue = this.properties[varName];
+                    } else {
+                        throw this.createError(`Variable '${varName}' is not defined`, ctx);
+                    }
+                }
+                keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+            } else if (ctorName === 'SpawnExprKeyContext') {
+                const keyValue = yield* this.visit(keyCtx.expression());
+                keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
+            }
+        }
 
         // Evaluate arguments now (during setup phase)
         const args = [];
@@ -1067,8 +1044,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         if (op === '+') {
             if (typeof left === 'number' && typeof right === 'number') return left + right;
-            if (typeof left === 'string' && typeof right === 'string') return left + right;
-            throw this.createError(`Addition requires both operands to be numbers or both to be strings. Got ${typeof left} + ${typeof right}`, ctx);
+            if (typeof left === 'string' || typeof right === 'string') {
+                return this.functions['TO_STRING'](left) + this.functions['TO_STRING'](right);
+            }
+            throw this.createError(`Addition requires numeric or string operands. Got ${typeof left} + ${typeof right}`, ctx);
         }
         if (op === '-') {
             if (typeof left !== 'number' || typeof right !== 'number') {
@@ -1244,6 +1223,28 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
             }
             return null;
+        }
+
+        // Resolve auto-keys for unnamed threads and check for collisions
+        const allKeys = new Set();
+        let autoPos = 1;
+        for (let i = 0; i < this._collectedSpawns.length; i++) {
+            const spawn = this._collectedSpawns[i];
+            if (spawn.resultKey !== null && spawn.resultKey !== undefined) {
+                allKeys.add(spawn.resultKey);
+            }
+        }
+        for (let i = 0; i < this._collectedSpawns.length; i++) {
+            const spawn = this._collectedSpawns[i];
+            if (spawn.resultKey === null || spawn.resultKey === undefined) {
+                const autoKey = "#" + autoPos;
+                if (allKeys.has(autoKey)) {
+                    throw this.createError(`Auto-generated key '${autoKey}' conflicts with an explicit key in multi block`, spawn.ctx);
+                }
+                allKeys.add(autoKey);
+                spawn.resultKey = autoKey;
+                autoPos++;
+            }
         }
 
         // Build thread specs from collected spawns

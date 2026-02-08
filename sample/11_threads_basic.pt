@@ -13,10 +13,10 @@ function worker(name, steps) do
 end
 
 // Run functions in parallel with "multi result do ... end"
-// Use "thread funcCall() -> key" to name each result in the collection
+// Use "thread key: funcCall()" to name each result in the collection
 multi result do
-    thread worker("Alpha", 3) -> resultA
-    thread worker("Beta", 3) -> resultB
+    thread resultA: worker("Alpha", 3)
+    thread resultB: worker("Beta", 3)
 end
 
 // Results are available after the multi block

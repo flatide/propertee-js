@@ -3,4 +3,4 @@ function worker() do
     return 42
 end
 
-thread worker() -> r
+thread r: worker()

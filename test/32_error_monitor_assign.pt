@@ -5,7 +5,7 @@ function dummy() do
 end
 
 multi do
-    thread dummy()
+    thread : dummy()
 monitor 10
     x = 1
 end

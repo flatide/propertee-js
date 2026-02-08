@@ -144,17 +144,12 @@ export default class Scheduler {
         parentThread._resultKeyNames = resultKeyNames;
 
         // Pre-build the live result collection with running entries
+        // All keys are pre-resolved by the visitor (no nulls)
         if (resultVarName !== null) {
             const collection = {};
-            let pos = 1;
             for (let i = 0; i < childIds.length; i++) {
                 const keyName = resultKeyNames[i];
-                if (keyName !== null && keyName !== undefined) {
-                    collection[keyName] = { status: "running", ok: false, value: {} };
-                } else {
-                    collection["#" + pos] = { status: "running", ok: false, value: {} };
-                    pos++;
-                }
+                collection[keyName] = { status: "running", ok: false, value: {} };
             }
             parentThread._resultCollection = collection;
         }
@@ -168,23 +163,11 @@ export default class Scheduler {
         if (!parent) return;
 
         // Update the live result collection in-place
+        // All keys are pre-resolved by the visitor (no nulls)
         if (parent._resultCollection) {
             const idx = parent._childIds.indexOf(childThread.id);
             if (idx >= 0) {
-                const keyName = parent._resultKeyNames[idx];
-                let key;
-                if (keyName !== null && keyName !== undefined) {
-                    key = keyName;
-                } else {
-                    // Count unnamed threads before this one to get position
-                    let pos = 1;
-                    for (let i = 0; i < idx; i++) {
-                        if (parent._resultKeyNames[i] === null || parent._resultKeyNames[i] === undefined) {
-                            pos++;
-                        }
-                    }
-                    key = "#" + pos;
-                }
+                const key = parent._resultKeyNames[idx];
                 if (childThread.state === ThreadState.ERROR) {
                     parent._resultCollection[key] = {
                         status: "error",

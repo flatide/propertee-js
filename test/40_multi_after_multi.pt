@@ -4,19 +4,19 @@ function addOne(n) do
 end
 
 multi r1 do
-    thread addOne(10) -> a
+    thread a: addOne(10)
 end
 
 PRINT(r1.a.value)
 
 multi r2 do
-    thread addOne(r1.a.value) -> b
+    thread b: addOne(r1.a.value)
 end
 
 PRINT(r2.b.value)
 
 multi r3 do
-    thread addOne(r2.b.value) -> c
+    thread c: addOne(r2.b.value)
 end
 
 PRINT(r3.c.value)

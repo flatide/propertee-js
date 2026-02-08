@@ -4,10 +4,10 @@ function identity(x) do
 end
 
 multi result do
-    thread identity(10) -> named
-    thread identity(20)
-    thread identity(30) -> also_named
-    thread identity(40)
+    thread named: identity(10)
+    thread : identity(20)
+    thread also_named: identity(30)
+    thread : identity(40)
 end
 
 // Named access

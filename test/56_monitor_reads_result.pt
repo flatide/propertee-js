@@ -10,8 +10,8 @@ function slow() do
 end
 
 multi result do
-    thread fast() -> a
-    thread slow() -> b
+    thread a: fast()
+    thread b: slow()
 monitor 100
     PRINT(result.b.status)
 end

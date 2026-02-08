@@ -4,6 +4,6 @@ function dummy() do
 end
 
 multi result do
-    thread dummy() -> dup
-    thread dummy() -> dup
+    thread dup: dummy()
+    thread dup: dummy()
 end

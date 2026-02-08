@@ -7,7 +7,7 @@ function badWriter() do
 end
 
 multi result do
-    thread badWriter() -> res
+    thread res: badWriter()
 end
 
 PRINT("ok:", result.res.ok)

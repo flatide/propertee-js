@@ -1,0 +1,9 @@
+// Test: explicit key that matches auto-generated key causes error
+function worker() do
+    return 1
+end
+
+multi result do
+    thread $("#1"): worker()
+    thread : worker()
+end

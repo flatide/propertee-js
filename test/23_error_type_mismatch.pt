@@ -1,4 +1,4 @@
-// Test: Type error - adding string + number should error
-x = "hello"
-y = 5
+// Test: Type error - adding boolean + boolean should error
+x = true
+y = false
 PRINT(x + y)

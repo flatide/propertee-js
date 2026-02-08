@@ -8,8 +8,8 @@ function triple(n) do
 end
 
 multi result do
-    thread double(5) -> d
-    thread triple(5) -> t
+    thread d: double(5)
+    thread t: triple(5)
 end
 
 // Named access

@@ -5,5 +5,5 @@ end
 
 key = 42
 multi result do
-    thread dummy() -> $key
+    thread $key: dummy()
 end

@@ -20,8 +20,8 @@ function buildList(n) do
 end
 
 multi results do
-    thread accumulate(10) -> sum
-    thread buildList(4) -> list
+    thread sum: accumulate(10)
+    thread list: buildList(4)
 end
 
 PRINT(results.sum.value)

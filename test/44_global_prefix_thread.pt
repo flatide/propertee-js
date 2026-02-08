@@ -7,7 +7,7 @@ function readGlobals() do
 end
 
 multi res do
-    thread readGlobals() -> r
+    thread r: readGlobals()
 end
 
 PRINT(res.r.value)

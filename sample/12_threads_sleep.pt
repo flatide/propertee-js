@@ -17,8 +17,8 @@ function slow_worker(name, ms) do
 end
 
 multi result do
-    thread slow_worker("Sleepy", 200) -> r1
-    thread fast_worker("Speedy") -> r2
+    thread r1: slow_worker("Sleepy", 200)
+    thread r2: fast_worker("Speedy")
 end
 
 // Speedy finishes while Sleepy is asleep

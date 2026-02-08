@@ -14,8 +14,8 @@ function runner() do
 end
 
 multi result do
-    thread sleeper() -> r1
-    thread runner() -> r2
+    thread r1: sleeper()
+    thread r2: runner()
 end
 
 PRINT("r1=" + result.r1.value)

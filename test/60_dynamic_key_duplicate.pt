@@ -5,6 +5,6 @@ end
 
 key = "dup"
 multi result do
-    thread dummy() -> dup
-    thread dummy() -> $key
+    thread dup: dummy()
+    thread $key: dummy()
 end

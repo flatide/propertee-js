@@ -8,7 +8,7 @@ function counter(n) do
 end
 
 multi result do
-    thread counter(10) -> r
+    thread r: counter(10)
 monitor 20
     PRINT("tick")
 end

@@ -7,7 +7,7 @@ function worker(n) do
 end
 
 multi result do
-    thread worker(5) -> r
+    thread r: worker(5)
 end
 
 PRINT(result.r.value)

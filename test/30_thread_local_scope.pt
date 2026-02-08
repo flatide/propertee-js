@@ -10,7 +10,7 @@ function localWriter() do
 end
 
 multi result do
-    thread localWriter() -> r
+    thread r: localWriter()
 end
 
 PRINT("global x=" + TO_STRING(x))

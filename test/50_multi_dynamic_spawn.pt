@@ -6,7 +6,7 @@ end
 multi result do
     i = 1
     loop i <= 3 infinite do
-        thread square(i)
+        thread : square(i)
         i = i + 1
     end
 end

@@ -11,8 +11,8 @@ function failing() do
 end
 
 multi result do
-    thread worker() -> good
-    thread failing() -> bad
+    thread good: worker()
+    thread bad: failing()
 end
 
 PRINT(result.good.status)

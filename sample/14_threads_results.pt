@@ -20,9 +20,9 @@ function build_report(id) do
 end
 
 multi result do
-    thread compute(5) -> val1
-    thread compute(3) -> val2
-    thread build_report(42) -> report
+    thread val1: compute(5)
+    thread val2: compute(3)
+    thread report: build_report(42)
 end
 
 PRINT("---")
