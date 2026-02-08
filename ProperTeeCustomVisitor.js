@@ -341,7 +341,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (typeof targetObj !== 'object' || targetObj === null) {
                 throw this.createError(`Cannot set property '${key}' on non-object`, ctx);
             }
-            targetObj[key] = value;
+            if (typeof key === 'number' && Array.isArray(targetObj)) {
+                const idx = key - 1; // 1-based to 0-based
+                if (idx < 0 || idx >= targetObj.length) {
+                    throw this.createError('Array index out of bounds', ctx);
+                }
+                targetObj[idx] = value;
+            } else {
+                targetObj[key] = value;
+            }
             return value;
         }
 
@@ -943,14 +951,33 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
         }
 
-        // Positional access on objects: when key is a number (from ArrayAccess, 0-based)
+        // Positional access on objects: when key is a number (from ArrayAccess, 1-based)
         // and target is a plain object (not array), access by position in insertion order
         if (typeof key === 'number' && typeof targetObj === 'object' && !Array.isArray(targetObj)) {
             const entries = Object.entries(targetObj);
-            if (key < 0 || key >= entries.length) {
-                throw this.createError(`Positional index ${key + 1} out of bounds (object has ${entries.length} entries)`, ctx);
+            const idx = key - 1; // 1-based to 0-based
+            if (idx < 0 || idx >= entries.length) {
+                throw this.createError(`Positional index ${key} out of bounds (object has ${entries.length} entries)`, ctx);
             }
-            return entries[key][1];
+            return entries[idx][1];
+        }
+
+        // Array access: convert 1-based to 0-based
+        if (typeof key === 'number' && Array.isArray(targetObj)) {
+            const idx = key - 1;
+            if (idx < 0 || idx >= targetObj.length) {
+                throw this.createError('Array index out of bounds', ctx);
+            }
+            return targetObj[idx];
+        }
+
+        // String character access: convert 1-based to 0-based
+        if (typeof key === 'number' && typeof targetObj === 'string') {
+            const idx = key - 1;
+            if (idx < 0 || idx >= targetObj.length) {
+                throw this.createError('String index out of bounds', ctx);
+            }
+            return targetObj[idx];
         }
 
         if (typeof targetObj === 'object' && !(key in targetObj)) {
@@ -984,8 +1011,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitArrayAccess(ctx) {
-        const oneBased = parseInt(ctx.INTEGER().getText(), 10);
-        return oneBased - 1;
+        return parseInt(ctx.INTEGER().getText(), 10); // 1-based; member access converts for arrays
     }
 
     *visitStringKeyAccess(ctx) {
