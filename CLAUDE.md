@@ -99,7 +99,9 @@ Generators communicate with the scheduler via yield values:
 
 ### Multi Block Purity Model
 
-Functions spawned inside multi blocks are pure with respect to global state:
+**Setup phase scope:** The multi block body (setup phase) runs in an isolated scope — a scope is pushed before setup and popped after. Variables created during setup don't leak into the surrounding scope. The `::` prefix is required to access globals, same as inside functions. Note: `$var` syntax doesn't support `$::var` — use `$(::var)` for global access in dynamic keys.
+
+**Spawned thread purity:** Functions spawned inside multi blocks are pure with respect to global state:
 - **Can read** globals via `::` (reads from a snapshot taken at `multi` block entry)
 - **Cannot write** globals — `::x = value` is a runtime error (enforced via `inThreadContext` flag set by Scheduler)
 - **Can call** any function (user-defined or built-in)
@@ -111,11 +113,11 @@ Functions spawned inside multi blocks are pure with respect to global state:
 
 **At top level:** global variables → built-in properties.
 
-**Inside functions (plain `x`):** local scopes (top of stack first) → multi result vars → error with hint to use `::x`.
+**Inside functions and multi setup (plain `x`):** local scopes (top of stack first) → multi result vars → error with hint to use `::x`.
 
-**Inside functions (`::x`):** global variables/snapshot → built-in properties.
+**Inside functions and multi setup (`::x`):** global variables/snapshot → built-in properties.
 
-The `::` prefix (`GLOBAL_PREFIX` token) bypasses local scopes and accesses globals directly. At top level, `x` and `::x` are equivalent. The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeThread` when set by the scheduler, falling back to `this.scopeStack`/`this.variables` for single-threaded execution.
+The `::` prefix (`GLOBAL_PREFIX` token) bypasses local scopes and accesses globals directly. At top level (outside functions and multi setup), `x` and `::x` are equivalent. The `_getScopeStack()` and `_getVariables()` helpers route through `this.activeThread` when set by the scheduler, falling back to `this.scopeStack`/`this.variables` for single-threaded execution.
 
 ### Scheduler (`Scheduler.js`)
 
@@ -235,15 +237,16 @@ LEN(result)             // 2
 // Dynamic thread keys — $var and $(expr) syntax
 names = ["alpha", "beta"]
 multi result do
-    loop name in names do
+    loop name in ::names do
         thread $name: worker(name)             // key from variable
     end
     thread $("gamma"): worker("C")             // key from expression
 end
 
 // Conditional/dynamic spawning in multi blocks
+// Setup runs in isolated scope — :: required for globals
 multi result do
-    if needsA == true then
+    if ::needsA == true then
         thread rA: workerA()
     end
     i = 1

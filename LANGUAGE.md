@@ -77,9 +77,9 @@ PRINT(x)                 // 42 (unchanged by localOnly)
 At the **top level** (outside functions), `x` and `::x` are equivalent — both access globals.
 
 **Rules:**
-- Inside functions: plain `x` is local-only. Use `::x` to access globals.
-- In multi block functions: `::x` reads from the global snapshot. `::x = value` is a runtime error (thread purity).
-- Built-in properties (host-injected via `-p`): require `::` inside functions.
+- Inside functions and multi setup: plain `x` is local-only. Use `::x` to access globals.
+- In spawned threads: `::x` reads from the global snapshot. `::x = value` is a runtime error (thread purity).
+- Built-in properties (host-injected via `-p`): require `::` inside functions and multi setup.
 - Multi result variables and loop variables: accessible without `::` (they are local).
 - Function names and built-in functions: resolved separately, no `::` needed.
 
@@ -398,13 +398,13 @@ PRINT(x)               // "global" (unchanged)
 1. Global variables
 2. Built-in properties
 
-**Inside functions (plain `x`):**
+**Inside functions and multi setup (plain `x`):**
 
 1. Local scopes (innermost first — nested function calls)
 2. Multi-block result variables
 3. Error if not found (with hint to use `::`)
 
-**Inside functions (`::x`):**
+**Inside functions and multi setup (`::x`):**
 
 1. Global variables (or thread snapshot in multi context)
 2. Built-in properties
@@ -462,16 +462,20 @@ Thread spawn keys use the same `access` syntax as property access (`obj.key`, `o
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
 - Duplicate key names within the same multi block are a runtime error (including dynamic keys)
 
-The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently:
+The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently.
+
+**Setup scope isolation:** The setup phase runs in an isolated local scope, the same as inside a function. Variables created during setup do not leak into the surrounding scope. The `::` prefix is required to access global variables. Note: `$var` syntax does not support `$::var` — use `$(::var)` for global access in dynamic keys.
 
 ```
 multi result do
-    if needsWorkerA == true then
+    if ::needsWorkerA == true then   // :: required to read globals
         thread rA: workerA()
     end
     thread rB: workerB()
     PRINT("setup done")
+    i = 1                            // local to setup, does not leak
 end
+// i is not defined here
 ```
 
 All collected `thread` calls fire simultaneously when the setup phase ends (at `end` or `monitor`).
@@ -510,7 +514,7 @@ end
 
 ### Dynamic Spawning
 
-The setup phase supports loops, enabling dynamic thread spawning:
+The setup phase supports loops, enabling dynamic thread spawning. Since setup runs in an isolated scope, loop variables stay local:
 
 ```
 multi result do
@@ -534,7 +538,7 @@ Thread keys can be computed at runtime using `$var` or `$(expr)` syntax (matchin
 ```
 names = ["alpha", "beta", "gamma"]
 multi result do
-    loop name in names do
+    loop name in ::names do
         thread $name: worker(name)           // key from variable
     end
     thread $("delta"): worker("x")           // key from expression
@@ -561,7 +565,7 @@ This guarantees no data races — threads never see each other's modifications.
 
 ### Semantics
 
-1. The multi block body executes as a setup phase, collecting `thread` calls
+1. The multi block body executes as a setup phase in an isolated scope (like a function), collecting `thread` calls
 2. A snapshot of global variables is taken at `multi` entry — all threads see this snapshot
 3. All spawned functions launch concurrently after setup completes
 4. The result collection is pre-built with `"running"` entries at spawn time
