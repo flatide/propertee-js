@@ -796,7 +796,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 keyName = accessCtx.ID().getText();
             } else if (ctorName === 'StringKeyAccessContext') {
                 const raw = accessCtx.STRING().getText();
-                keyName = this._processStringEscapes(raw.substring(1, raw.length - 1));
+                const key = this._processStringEscapes(raw.substring(1, raw.length - 1));
+                keyName = key.length === 0 ? null : key; // empty string treated as unnamed
             } else if (ctorName === 'ArrayAccessContext') {
                 keyName = accessCtx.INTEGER().getText();
             } else if (ctorName === 'VarEvalAccessContext') {
