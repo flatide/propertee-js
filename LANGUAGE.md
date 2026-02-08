@@ -456,6 +456,7 @@ end
 - `thread $var: funcCall()` — variable key (auto-coerced to string via `TO_STRING()`)
 - `thread $(expr): funcCall()` — expression key (auto-coerced to string via `TO_STRING()`)
 - `thread : funcCall()` — unnamed, auto-keyed as `"#1"`, `"#2"`, etc.
+- `thread "": funcCall()` — also treated as unnamed (empty string key = unnamed)
 
 Thread spawn keys use the same `access` syntax as property access (`obj.key`, `obj."key"`, `obj.1`, `obj.$var`, `obj.$(expr)`). All keys are strings internally.
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
