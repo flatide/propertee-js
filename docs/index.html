@@ -408,8 +408,6 @@
                                 <span class="reference-item keyword" onclick="insertText('function')">function</span>
                                 <span class="reference-item keyword" onclick="insertText('thread')">thread</span>
                                 <span class="reference-item keyword" onclick="insertText('return')">return</span>
-                                <span class="reference-item keyword" onclick="insertText('shared')">shared</span>
-                                <span class="reference-item keyword" onclick="insertText('uses')">uses</span>
                                 <span class="reference-item keyword" onclick="insertText('multi')">multi</span>
                                 <span class="reference-item keyword" onclick="insertText('monitor')">monitor</span>
                                 <span class="reference-item keyword" onclick="insertText('and')">and</span>
@@ -417,7 +415,6 @@
                                 <span class="reference-item keyword" onclick="insertText('not')">not</span>
                                 <span class="reference-item keyword" onclick="insertText('true')">true</span>
                                 <span class="reference-item keyword" onclick="insertText('false')">false</span>
-                                <span class="reference-item keyword" onclick="insertText('null')">null</span>
                             </div>
                         </div>
                         
@@ -448,6 +445,7 @@
                                 <span class="reference-item function" onclick="insertText('UPPERCASE()')">UPPERCASE()</span>
                                 <span class="reference-item function" onclick="insertText('LOWERCASE()')">LOWERCASE()</span>
                                 <span class="reference-item function" onclick="insertText('TRIM()')">TRIM()</span>
+                                <span class="reference-item function" onclick="insertText('HAS_KEY()')">HAS_KEY()</span>
                             </div>
                         </div>
                     </div>
@@ -601,7 +599,7 @@ data`
                 properties: '{}',
                 script: `// Parallel execution with cooperative scheduling
 
-thread worker(name, count) do
+function worker(name, count) do
     i = 0
     loop i < count infinite do
         PRINT(name + ": step " + TO_STRING(i + 1))
@@ -611,16 +609,16 @@ thread worker(name, count) do
 end
 
 // Threads interleave at statement boundaries
-multi
-    worker("Alpha", 4) -> r1
-    worker("Beta", 4) -> r2
+multi result do
+    thread r1: worker("Alpha", 4)
+    thread r2: worker("Beta", 4)
 monitor 50
     PRINT("[monitor tick]")
 end
 
 PRINT("=== All threads done ===")
-PRINT("Alpha result:", r1)
-PRINT("Beta result:", r2)`
+PRINT("Alpha result:", result.r1.value)
+PRINT("Beta result:", result.r2.value)`
             }
         };
         

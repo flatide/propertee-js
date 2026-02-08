@@ -80,7 +80,7 @@
     <h3>Script:</h3>
     <textarea id="script" rows="20" cols="50">/* Interleaved PRINT Demo */
 
-thread worker(name, count) do
+function worker(name, count) do
     i = 0
     loop i < count infinite do
         PRINT(name + ": step " + TO_STRING(i + 1))
@@ -89,16 +89,16 @@ thread worker(name, count) do
     return count
 end
 
-multi
-    worker("Alpha", 4) -> r1
-    worker("Beta", 4) -> r2
-    worker("Gamma", 4) -> r3
+multi result do
+    thread r1: worker("Alpha", 4)
+    thread r2: worker("Beta", 4)
+    thread r3: worker("Gamma", 4)
 end
 
 PRINT("=== All threads done ===")
-PRINT("Alpha result:", r1)
-PRINT("Beta result:", r2)
-PRINT("Gamma result:", r3)
+PRINT("Alpha result:", result.r1.value)
+PRINT("Beta result:", result.r2.value)
+PRINT("Gamma result:", result.r3.value)
 </textarea>
 
     <div class="button-group">
@@ -136,7 +136,7 @@ PRINT("Sum:", total)`,
             interleave: `/* Interleaved PRINT Demo */
 /* Threads yield after every statement, so PRINTs should interleave */
 
-thread worker(name, count) do
+function worker(name, count) do
     i = 0
     loop i < count infinite do
         PRINT(name + ": step " + TO_STRING(i + 1))
@@ -145,21 +145,21 @@ thread worker(name, count) do
     return count
 end
 
-multi
-    worker("Alpha", 4) -> r1
-    worker("Beta", 4) -> r2
-    worker("Gamma", 4) -> r3
+multi result do
+    thread r1: worker("Alpha", 4)
+    thread r2: worker("Beta", 4)
+    thread r3: worker("Gamma", 4)
 end
 
 PRINT("=== All threads done ===")
-PRINT("Alpha result:", r1)
-PRINT("Beta result:", r2)
-PRINT("Gamma result:", r3)`,
+PRINT("Alpha result:", result.r1.value)
+PRINT("Beta result:", result.r2.value)
+PRINT("Gamma result:", result.r3.value)`,
 
             sleep: `/* SLEEP Interleaving Demo */
 /* Sleeping threads don't block others */
 
-thread fast(name) do
+function fast(name) do
     PRINT(name + ": starting fast work")
     PRINT(name + ": step 1")
     PRINT(name + ": step 2")
@@ -168,26 +168,26 @@ thread fast(name) do
     return "fast-done"
 end
 
-thread sleepy(name, ms) do
+function sleepy(name, ms) do
     PRINT(name + ": starting, will sleep " + TO_STRING(ms) + "ms")
     SLEEP(ms)
     PRINT(name + ": woke up!")
     return "slept-" + TO_STRING(ms)
 end
 
-multi
-    sleepy("Sleeper", 100) -> r1
-    fast("Worker") -> r2
+multi result do
+    thread r1: sleepy("Sleeper", 100)
+    thread r2: fast("Worker")
 end
 
 PRINT("=== Results ===")
-PRINT("Sleeper:", r1)
-PRINT("Worker:", r2)`,
+PRINT("Sleeper:", result.r1.value)
+PRINT("Worker:", result.r2.value)`,
 
             monitor: `/* MONITOR Demo */
 /* Monitor runs periodically between scheduler ticks */
 
-thread counter(name, target) do
+function counter(name, target) do
     i = 0
     loop i < target infinite do
         i = i + 1
@@ -196,28 +196,28 @@ thread counter(name, target) do
     return i
 end
 
-multi
-    counter("A", 10) -> rA
-    counter("B", 8) -> rB
+multi result do
+    thread rA: counter("A", 10)
+    thread rB: counter("B", 8)
 monitor 50
     PRINT("[Monitor tick]")
 end
 
 PRINT("=== Results ===")
-PRINT("A counted:", rA)
-PRINT("B counted:", rB)`,
+PRINT("A counted:", result.rA.value)
+PRINT("B counted:", result.rB.value)`,
 
             results: `/* Thread Results Demo */
 
-thread calculate(n) do
+function calculate(n) do
     temp = n * 2
     squared = temp * temp
-    result = squared + n
-    PRINT("Thread", n, "calculated:", result)
-    return result
+    res = squared + n
+    PRINT("Thread", n, "calculated:", res)
+    return res
 end
 
-thread buildObject(id) do
+function buildObject(id) do
     obj = {
         id: id,
         value: id * 100,
@@ -227,19 +227,19 @@ thread buildObject(id) do
     return obj
 end
 
-multi
-    calculate(5) -> r1
-    calculate(3) -> r2
-    buildObject(99) -> r3
+multi result do
+    thread r1: calculate(5)
+    thread r2: calculate(3)
+    thread r3: buildObject(99)
 end
 
 PRINT("=== Results ===")
-PRINT("r1 (calculate 5):", r1)
-PRINT("r2 (calculate 3):", r2)
-PRINT("r3 (buildObject):", r3)
-PRINT("r3.id:", r3.id)
-PRINT("r3.value:", r3.value)
-PRINT("r3.status:", r3.status)`
+PRINT("r1 (calculate 5):", result.r1.value)
+PRINT("r2 (calculate 3):", result.r2.value)
+PRINT("r3 (buildObject):", result.r3.value)
+PRINT("r3.id:", result.r3.value.id)
+PRINT("r3.value:", result.r3.value.value)
+PRINT("r3.status:", result.r3.value.status)`
         };
 
         function loadDemo(name) {
