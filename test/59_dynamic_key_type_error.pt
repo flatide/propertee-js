@@ -5,7 +5,7 @@ end
 
 key = 42
 multi result do
-    thread $key: dummy(1)
+    thread $(::key): dummy(1)
     thread $(true): dummy(2)
     thread 99: dummy(3)
     thread "named": dummy(4)

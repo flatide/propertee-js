@@ -10,13 +10,13 @@ end
 PRINT(r1.a.value)
 
 multi r2 do
-    thread b: addOne(r1.a.value)
+    thread b: addOne(::r1.a.value)
 end
 
 PRINT(r2.b.value)
 
 multi r3 do
-    thread c: addOne(r2.b.value)
+    thread c: addOne(::r2.b.value)
 end
 
 PRINT(r3.c.value)

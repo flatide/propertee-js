@@ -1258,12 +1258,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const globalSnapshot = {...variables};
 
         // Setup phase: execute the block body, collecting SPAWN specs
+        // Push a scope so setup variables don't leak (:: required for globals, like functions)
         this._inMultiSetup = true;
         this._collectedSpawns = [];
+        scopeStack.push({});
 
         try {
             yield* this.visitBlock(ctx.block());
         } finally {
+            scopeStack.pop();
             this._inMultiSetup = false;
         }
 
