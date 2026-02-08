@@ -748,7 +748,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     _resolveAndValidateDynamicKey(keyValue, ctx) {
         const key = this.functions['TO_STRING'](keyValue);
         if (key.length === 0) {
-            throw this.createError('Dynamic thread key must not be empty', ctx);
+            return null; // treat empty as unnamed (auto-keyed)
         }
         // Duplicate key check
         for (const existing of this._collectedSpawns) {

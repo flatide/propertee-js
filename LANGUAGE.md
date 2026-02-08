@@ -544,7 +544,7 @@ PRINT(result.delta.value)
 
 **Validation rules** for dynamic keys:
 - Values are **auto-coerced to string** via `TO_STRING()` — numbers, booleans, objects, arrays all become their string representation
-- Must be **non-empty** — empty string is a runtime error
+- **Empty string** is treated as unnamed (auto-keyed `"#1"`, `"#2"`, etc.)
 - Must be **unique** within the multi block — duplicate keys (including duplicates between static and dynamic keys) are a runtime error
 
 ### Thread Purity
@@ -802,7 +802,5 @@ Common error conditions:
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
-| Dynamic key not string | Dynamic thread key must be a string, got number |
-| Dynamic key empty | Dynamic thread key must not be empty |
 | Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |
