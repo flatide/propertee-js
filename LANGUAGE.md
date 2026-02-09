@@ -616,6 +616,8 @@ monitor 100
 end
 ```
 
+**How the monitor accesses `result`:** In the code above, the monitor body references `result` even though `result` is only assigned after all threads finish (at `end`). This works because the scheduler **injects** the live result collection into the monitor's scope under the `resultVar` name at each monitor tick. The monitor does not read the final assigned variable — it reads a live, in-place-updated map that the scheduler maintains as threads complete. This is why the monitor can see `"running"` entries transition to `"done"` in real time, even though the `result = ...` assignment hasn't happened yet.
+
 ### Sequential Multi Blocks
 
 Multiple `multi` blocks can chain results:
