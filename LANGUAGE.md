@@ -210,7 +210,7 @@ Object keys can be bare identifiers, quoted strings, or integers (stored as stri
 |---|---|---|
 | Static | `obj.name` | Known property name |
 | Quoted key | `obj."special-key"` | Keys with special characters |
-| Variable key | `obj.$varName` | Key name stored in a variable |
+| Variable key | `obj.$varName` or `obj.$::varName` | Key name stored in a variable (`$::` for globals) |
 | Computed key | `obj.$(expression)` | Key determined by an expression |
 | Numeric key | `obj.1` | 1-based index. For arrays, accesses element by index. For objects: **read** accesses Nth entry by insertion order; **write** sets string key `"1"`. |
 
@@ -219,6 +219,8 @@ key = "name"
 person.$key          // "Alice" (same as person.name)
 person.$("na" + "me") // "Alice"
 ```
+
+`$::var` accesses a global variable as a key (equivalent to `$(::var)`).
 
 Accessing a property that doesn't exist is a runtime error.
 
@@ -454,17 +456,18 @@ end
 - `thread "key": funcCall()` — string literal key (allows special characters)
 - `thread 42: funcCall()` — integer literal key (string `"42"`)
 - `thread $var: funcCall()` — variable key (auto-coerced to string via `TO_STRING()`)
+- `thread $::var: funcCall()` — global variable key (same as `$var` but accesses globals directly)
 - `thread $(expr): funcCall()` — expression key (auto-coerced to string via `TO_STRING()`)
 - `thread : funcCall()` — unnamed, auto-keyed as `"#1"`, `"#2"`, etc.
 - `thread "": funcCall()` — also treated as unnamed (empty string key = unnamed)
 
-Thread spawn keys use the same `access` syntax as property access (`obj.key`, `obj."key"`, `obj.1`, `obj.$var`, `obj.$(expr)`). All keys are strings internally.
+Thread spawn keys use the same `access` syntax as property access (`obj.key`, `obj."key"`, `obj.1`, `obj.$var`, `obj.$::var`, `obj.$(expr)`). All keys are strings internally.
 - `thread` can only appear inside multi blocks — using it elsewhere is a runtime error
 - Duplicate key names within the same multi block are a runtime error (including dynamic keys)
 
 The multi block body runs as a **setup phase** before threads launch. Regular code (if/else, loops, PRINT) executes immediately during setup, while `thread` statements collect function calls to run concurrently.
 
-**Setup scope isolation:** The setup phase runs in an isolated local scope, the same as inside a function. Variables created during setup do not leak into the surrounding scope. The `::` prefix is required to access global variables. Note: `$var` syntax does not support `$::var` — use `$(::var)` for global access in dynamic keys.
+**Setup scope isolation:** The setup phase runs in an isolated local scope, the same as inside a function. Variables created during setup do not leak into the surrounding scope. The `::` prefix is required to access global variables.
 
 ```
 multi result do
@@ -533,7 +536,7 @@ end
 
 ### Dynamic Thread Keys
 
-Thread keys can be computed at runtime using `$var` or `$(expr)` syntax (matching property access patterns):
+Thread keys can be computed at runtime using `$var`, `$::var`, or `$(expr)` syntax (matching property access patterns):
 
 ```
 names = ["alpha", "beta", "gamma"]

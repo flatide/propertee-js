@@ -78,7 +78,7 @@ access
     : ID                                    # StaticAccess
     | INTEGER                               # ArrayAccess
     | STRING                                # StringKeyAccess
-    | '$' ID                                # VarEvalAccess
+    | '$' GLOBAL_PREFIX? ID                 # VarEvalAccess
     | '$' '(' expression ')'                # EvalAccess
     ;
 

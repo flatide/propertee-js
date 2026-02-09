@@ -6,5 +6,5 @@ end
 key = "dup"
 multi result do
     thread dup: dummy()
-    thread $(::key): dummy()
+    thread $::key: dummy()
 end

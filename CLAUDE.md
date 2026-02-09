@@ -48,7 +48,7 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ./test/run_tests.sh test/16_thread_basic.pt
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var` and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Test 59 verifies all spawn key types (dynamic `$var`, expression `$(expr)`, integer literal, string literal) with auto-coercion to string. Test 60 verifies duplicate dynamic key error. Test 61 (`duplicate_auto_key`) verifies that an explicit key colliding with an auto-generated `#N` key is a runtime error.
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var`, `$::var`, and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Test 59 verifies all spawn key types (dynamic `$var`/`$::var`, expression `$(expr)`, integer literal, string literal) with auto-coercion to string. Test 60 verifies duplicate dynamic key error. Test 61 (`duplicate_auto_key`) verifies that an explicit key colliding with an auto-generated `#N` key is a runtime error.
 
 **Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
@@ -90,7 +90,7 @@ Generators communicate with the scheduler via yield values:
 
 | File | Role |
 |---|---|
-| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn keys reuse the `access` rule (same as property access): `thread key:`, `thread "key":`, `thread 42:`, `thread $var:`, `thread $(expr):`, `thread :` (unnamed). |
+| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn keys reuse the `access` rule (same as property access): `thread key:`, `thread "key":`, `thread 42:`, `thread $var:`, `thread $::var:`, `thread $(expr):`, `thread :` (unnamed). |
 | `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management. `*visitSpawnKeyStmt` resolves key from `access` context (StaticAccess, StringKeyAccess, ArrayAccess, VarEvalAccess, EvalAccess). `registerExternal()` for external functions with Result pattern. Positional map access in property access. `_resolveAndValidateDynamicKey()` auto-coerces dynamic keys to string via `TO_STRING()` (empty treated as unnamed, no duplicates). PRINT uses `formatDisplayValue` helper to match Java's `TypeChecker.formatValue()` output — objects: `{ "key": 'val' }`, arrays: `[ 1, 'hello' ]`, strings inside collections single-quoted. |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks. Pre-builds result collection with `{status: "running"}` at spawn time (all keys pre-resolved by visitor, including auto-keys `"#1"`, `"#2"` for unnamed threads), updates entries in-place as threads complete, injects result collection into monitor scope for live status reads |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags. `_resultCollection` holds the live result map updated in-place by scheduler |
@@ -99,7 +99,7 @@ Generators communicate with the scheduler via yield values:
 
 ### Multi Block Purity Model
 
-**Setup phase scope:** The multi block body (setup phase) runs in an isolated scope — a scope is pushed before setup and popped after. Variables created during setup don't leak into the surrounding scope. The `::` prefix is required to access globals, same as inside functions. Note: `$var` syntax doesn't support `$::var` — use `$(::var)` for global access in dynamic keys.
+**Setup phase scope:** The multi block body (setup phase) runs in an isolated scope — a scope is pushed before setup and popped after. Variables created during setup don't leak into the surrounding scope. The `::` prefix is required to access globals, same as inside functions. `$::var` syntax accesses globals directly in dynamic keys (equivalent to `$(::var)`).
 
 **Spawned thread purity:** Functions spawned inside multi blocks are pure with respect to global state:
 - **Can read** globals via `::` (reads from a snapshot taken at `multi` block entry)
@@ -234,7 +234,7 @@ PRINT(result.a.value)   // named access
 PRINT(result.1.value)   // positional access
 LEN(result)             // 2
 
-// Dynamic thread keys — $var and $(expr) syntax
+// Dynamic thread keys — $var, $::var, and $(expr) syntax
 names = ["alpha", "beta"]
 multi result do
     loop name in ::names do
@@ -261,7 +261,7 @@ loop condition infinite do ... end
 loop item in collection do ... end
 loop key, val in collection do ... end
 
-// Access patterns: obj.prop, arr.1, obj."key", obj.$var, obj.$(expr)
+// Access patterns: obj.prop, arr.1, obj."key", obj.$var, obj.$::var, obj.$(expr)
 ```
 
 ## External Functions & Result Pattern

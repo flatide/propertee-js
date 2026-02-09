@@ -5,6 +5,6 @@ end
 
 key = "#custom"
 multi result do
-    thread $(::key): dummy()
+    thread $::key: dummy()
 end
 PRINT(result."#custom".value)

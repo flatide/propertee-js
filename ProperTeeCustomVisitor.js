@@ -802,29 +802,42 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 keyName = accessCtx.INTEGER().getText();
             } else if (ctorName === 'VarEvalAccessContext') {
                 const varName = accessCtx.ID().getText();
-                const scopeStack = this._getScopeStack();
-                const variables = this._getVariables();
-
                 let keyValue = undefined;
-                for (let i = scopeStack.length - 1; i >= 0; i--) {
-                    if (varName in scopeStack[i]) {
-                        keyValue = scopeStack[i][varName];
-                        break;
-                    }
-                }
-                if (keyValue === undefined) {
-                    if (this._isInFunctionScope()) {
-                        throw this.createError(
-                            `Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`,
-                            ctx
-                        );
-                    }
+
+                if (accessCtx.GLOBAL_PREFIX()) {
+                    // $::var — resolve from globals/properties directly
+                    const variables = this._getVariables();
                     if (varName in variables) {
                         keyValue = variables[varName];
                     } else if (varName in this.properties) {
                         keyValue = this.properties[varName];
                     } else {
                         throw this.createError(`Variable '${varName}' is not defined`, ctx);
+                    }
+                } else {
+                    const scopeStack = this._getScopeStack();
+                    const variables = this._getVariables();
+
+                    for (let i = scopeStack.length - 1; i >= 0; i--) {
+                        if (varName in scopeStack[i]) {
+                            keyValue = scopeStack[i][varName];
+                            break;
+                        }
+                    }
+                    if (keyValue === undefined) {
+                        if (this._isInFunctionScope()) {
+                            throw this.createError(
+                                `Variable '${varName}' is not defined in local scope. Use ::${varName} to access the global variable.`,
+                                ctx
+                            );
+                        }
+                        if (varName in variables) {
+                            keyValue = variables[varName];
+                        } else if (varName in this.properties) {
+                            keyValue = this.properties[varName];
+                        } else {
+                            throw this.createError(`Variable '${varName}' is not defined`, ctx);
+                        }
                     }
                 }
                 keyName = this._resolveAndValidateDynamicKey(keyValue, ctx);
@@ -1030,6 +1043,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitVarEvalAccess(ctx) {
         const varName = ctx.ID().getText();
+
+        // $::var — resolve from globals/properties directly (same as ::var)
+        if (ctx.GLOBAL_PREFIX()) {
+            const variables = this._getVariables();
+            if (varName in variables) return variables[varName];
+            if (varName in this.properties) return this.properties[varName];
+            return undefined;
+        }
+
         const scopeStack = this._getScopeStack();
         const variables = this._getVariables();
 
