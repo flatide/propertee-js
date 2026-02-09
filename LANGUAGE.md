@@ -742,9 +742,11 @@ end
 ```
 
 Result objects have three fields:
-- `status` — `"done"` for success, `"error"` for failure (also `"running"` for in-progress thread results)
-- `ok` — `true` for success, `false` for failure
-- `value` — the result value on success, or an error message string on failure
+- `ok` — `true` for success, `false` for failure or in-progress
+- `value` — the result value on success, error message string on failure, or `{}` while in-progress
+- `status` — `"done"`, `"error"`, or `"running"` (in-progress threads in multi blocks)
+
+For external function results, `ok` is sufficient — check `res.ok == true`. The `status` field exists primarily for multi block thread results, where it distinguishes between `"running"` (not yet finished) and `"error"` (finished with failure) — both have `ok: false`.
 
 ## Comments
 
