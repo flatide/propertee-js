@@ -499,6 +499,8 @@ The `resultVar` receives a **map/object** containing all thread results:
 
 The collection is pre-built at spawn time with `"running"` entries. As threads complete, entries are updated in-place. After the multi block ends, all entries will be `"done"` or `"error"`.
 
+**Result variable scoping:** `resultVar` is assigned to the current scope when the multi block completes — at top level it becomes a global variable, inside a function it becomes a local variable in that function's scope. This follows the same rules as regular variable assignment.
+
 ```
 multi result do
     thread a: funcA()         // result.a
@@ -606,6 +608,7 @@ end
 - Monitor code is **read-only** — variable assignment inside a monitor is a runtime error
 - Monitor can call built-in functions (e.g., `PRINT`)
 - Monitor can read the result collection variable to check thread status (e.g., `result.key.status`)
+- Monitor can read global variables (via `::` prefix) but **cannot** access setup phase locals — the monitor runs in its own scope containing only globals and the result variable
 - Monitor runs one final time after all threads complete
 
 ```
@@ -691,7 +694,6 @@ All built-in function names are UPPERCASE.
 
 | Function | Description |
 |---|---|
-| `LEN(arr)` | Number of elements (also works on objects — returns number of keys) |
 | `PUSH(arr, values...)` | Returns new array with values appended. Original unchanged. |
 | `POP(arr)` | Returns new array with last element removed. Original unchanged. |
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
@@ -702,7 +704,6 @@ All built-in function names are UPPERCASE.
 | Function | Description |
 |---|---|
 | `HAS_KEY(obj, key)` | Returns `true` if `obj` contains `key`, `false` otherwise. Both arguments required: `obj` must be an object, `key` must be a string. |
-| `LEN(obj)` | Number of entries in the object |
 
 ### Timing
 
@@ -810,7 +811,7 @@ Common error conditions:
 | Array out of bounds | Array index out of bounds |
 | Loop limit exceeded | Loop exceeded maximum iterations (1000) |
 | Global write in multi block | Cannot assign to global variable '::x' inside multi block |
-| Global without `::` in function | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
+| Global without `::` in local scope | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
