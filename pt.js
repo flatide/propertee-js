@@ -8,8 +8,15 @@ import ProperTeeParser from './ProperTeeParser.js';
 import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
+const VERSION = '0.1.0';
+
 // Parse CLI args
 const args = process.argv.slice(2);
+
+if (args.includes('--version') || args.includes('-v')) {
+    console.log(`ProperTee ${VERSION}`);
+    process.exit(0);
+}
 
 if (args.includes('--help') || args.includes('-h')) {
     console.log('Usage: node pt.js [options] [script.pt]');
@@ -22,6 +29,7 @@ if (args.includes('--help') || args.includes('-h')) {
     console.log('  -f, --props-file <f>  Built-in properties from JSON file');
     console.log('  --max-iterations <n>  Max loop iterations (default: 1000)');
     console.log('  --warn-loops          Warn instead of error on loop limit');
+    console.log('  -v, --version         Show version');
     console.log('  -h, --help            Show this help');
     process.exit(0);
 }
@@ -138,7 +146,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         console.error(`File '${scriptFile}' not found. Entering interactive mode.\n`);
     }
 
-    console.log('ProperTee Interactive Mode');
+    console.log(`ProperTee ${VERSION} Interactive Mode`);
     console.log('Type ProperTee statements. Multi-line blocks auto-detected (do/end, if/end, multi/end).');
     console.log('Type .exit to quit, .vars to show variables.\n');
 
