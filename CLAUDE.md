@@ -41,14 +41,14 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ## Testing
 
 ```bash
-# Run all tests (59 tests with expected output validation)
+# Run all tests (62 tests with expected output validation)
 ./test/run_tests.sh
 
 # Run a single test
 ./test/run_tests.sh test/16_thread_basic.pt
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var`, `$::var`, and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Test 59 verifies all spawn key types (dynamic `$var`/`$::var`, expression `$(expr)`, integer literal, string literal) with auto-coercion to string. Test 60 verifies duplicate dynamic key error. Test 61 (`duplicate_auto_key`) verifies that an explicit key colliding with an auto-generated `#N` key is a runtime error.
+Each `test/*.pt` file has a matching `.expected` file. The runner compares actual output against expected and reports PASS/FAIL. Some tests verify error messages (tests 23-29, 32). Test 41 (`result_pattern`) uses a separate harness (`test/run_test41.js`) that registers external functions via `registerExternal()`. Test 46 (`thread_error_result`) verifies that thread errors are captured as `{ok: false, value: "..."}` Result objects. Test 47 (`spawn_outside_multi`) verifies `thread` outside multi block is a runtime error. Test 48 (`has_key`) verifies `HAS_KEY()` built-in function. Tests 49-54 cover multi result collection, dynamic spawn, auto keys, duplicate key error, LEN on maps, and map positional access. Test 55 (`thread_status_field`) verifies the `status` field on thread results. Test 56 (`monitor_reads_result`) verifies that monitor clauses can read thread result status during execution. Test 57 (`dynamic_thread_keys`) verifies `$var`, `$::var`, and `$(expr)` dynamic key syntax in thread spawns. Test 58 verifies `#`-prefixed dynamic keys work. Test 59 verifies all spawn key types (dynamic `$var`/`$::var`, expression `$(expr)`, integer literal, string literal) with auto-coercion to string. Test 60 verifies duplicate dynamic key error. Test 61 (`duplicate_auto_key`) verifies that an explicit key colliding with an auto-generated `#N` key is a runtime error. Test 62 (`range_array`) verifies range array literal syntax `[start~end]` and `[start~end, step]`. Test 63 (`range_step_zero`) verifies that step=0 is a runtime error.
 
 **Browser testing:** Open `scratch.html` (or `docs/dist/scratch.html`) for interactive testing with demo buttons. Open `docs/index.html` for the full playground.
 
@@ -90,7 +90,7 @@ Generators communicate with the scheduler via yield values:
 
 | File | Role |
 |---|---|
-| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn keys reuse the `access` rule (same as property access): `thread key:`, `thread "key":`, `thread 42:`, `thread $var:`, `thread $::var:`, `thread $(expr):`, `thread :` (unnamed). |
+| `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn keys reuse the `access` rule (same as property access): `thread key:`, `thread "key":`, `thread 42:`, `thread $var:`, `thread $::var:`, `thread $(expr):`, `thread :` (unnamed). `arrayLiteral` has two alternatives: `RangeArray` (`[start~end]` or `[start~end, step]`) and `ListArray` (`[1, 2, 3]`). |
 | `ProperTeeCustomVisitor.js` | The interpreter. All `visit*` methods are generators. Contains built-in functions, scope management. `*visitSpawnKeyStmt` resolves key from `access` context (StaticAccess, StringKeyAccess, ArrayAccess, VarEvalAccess, EvalAccess). `registerExternal()` for external functions with Result pattern. Positional map access in property access. `_resolveAndValidateDynamicKey()` auto-coerces dynamic keys to string via `TO_STRING()` (empty treated as unnamed, no duplicates). PRINT uses `formatDisplayValue` helper to match Java's `TypeChecker.formatValue()` output — objects: `{ "key": 'val' }`, arrays: `[ 1, 'hello' ]`, strings inside collections single-quoted. |
 | `Scheduler.js` | Round-robin scheduler. Calls `generator.next()` on READY threads, processes yield commands, manages SLEEP timers, spawns child threads for MULTI blocks. Pre-builds result collection with `{status: "running"}` at spawn time (all keys pre-resolved by visitor, including auto-keys `"#1"`, `"#2"` for unnamed threads), updates entries in-place as threads complete, injects result collection into monitor scope for live status reads |
 | `ThreadContext.js` | Per-thread state: scope stack, thread status (READY/RUNNING/SLEEPING/WAITING/COMPLETED/ERROR), global snapshot reference, context flags. `_resultCollection` holds the live result map updated in-place by scheduler |
@@ -256,10 +256,16 @@ multi result do
     end
 end
 
+// Range arrays
+nums = [1~5]              // [1, 2, 3, 4, 5]
+odds = [1~10, 2]          // [1, 3, 5, 7, 9]
+down = [5~1]              // [5, 4, 3, 2, 1] (auto step -1)
+
 // Loops
 loop condition infinite do ... end
 loop item in collection do ... end
 loop key, val in collection do ... end
+loop x in [1~10] do ... end  // range in loop
 
 // Access patterns: obj.prop, arr.1, obj."key", obj.$var, obj.$::var, obj.$(expr)
 ```

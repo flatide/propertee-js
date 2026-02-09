@@ -192,6 +192,23 @@ nums.1 = 99     // nums is now [99, 20, 30]
 
 Built-in array functions (`PUSH`, `POP`, `CONCAT`, `SLICE`) return **new** arrays and do not mutate the original.
 
+### Range Arrays
+
+`[start~end]` creates an array from `start` to `end` (inclusive). An optional step controls the increment:
+
+| Syntax | Result |
+|---|---|
+| `[1~5]` | `[1, 2, 3, 4, 5]` |
+| `[1~6, 2]` | `[1, 3, 5]` |
+| `[10~5, 1]` | `[10, 9, 8, 7, 6, 5]` |
+| `[0.0~0.3, 0.1]` | `[0.0, 0.1, 0.2, 0.3]` |
+| `[5~1]` | `[5, 4, 3, 2, 1]` (auto step -1) |
+
+- Both bounds and step must be numbers
+- Step must be positive (defaults to `1`). Direction is inferred from start vs end
+- Step of `0` or negative is a runtime error
+- Bounds and step can be expressions: `[1~n]`, `[a~b, c]`
+
 ## Objects
 
 Objects are ordered key-value pairs with string keys.
@@ -817,3 +834,6 @@ Common error conditions:
 | Duplicate result key | Duplicate result key 'x' in multi block |
 | Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |
+| Range step not positive | Range step must be positive |
+| Range bounds not numbers | Range bounds must be numbers |
+| Range step not a number | Range step must be a number |

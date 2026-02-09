@@ -981,12 +981,64 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return yield* this.visit(ctx.arrayLiteral());
     }
 
-    *visitArrayLiteral(ctx) {
+    *visitListArray(ctx) {
         const arr = [];
         if (!ctx.expression()) return arr;
 
         for (const exprCtx of ctx.expression()) {
             arr.push(yield* this.visit(exprCtx));
+        }
+        return arr;
+    }
+
+    *visitRangeArray(ctx) {
+        const startVal = yield* this.visit(ctx.rangeStart);
+        const endVal = yield* this.visit(ctx.rangeEnd);
+
+        if (typeof startVal !== 'number' || typeof endVal !== 'number') {
+            throw this.createError('Range bounds must be numbers', ctx);
+        }
+
+        let step;
+        if (ctx.rangeStep) {
+            const stepVal = yield* this.visit(ctx.rangeStep);
+            if (typeof stepVal !== 'number') {
+                throw this.createError('Range step must be a number', ctx);
+            }
+            step = stepVal;
+            if (step <= 0) {
+                throw this.createError('Range step must be positive', ctx);
+            }
+        } else {
+            step = 1;
+        }
+
+        // Negate step when descending
+        if (startVal > endVal) {
+            step = -step;
+        }
+
+        const arr = [];
+        if (Number.isInteger(startVal) && Number.isInteger(endVal) && (ctx.rangeStep == null || Number.isInteger(step))) {
+            if (step > 0) {
+                for (let i = startVal; i <= endVal; i += step) arr.push(i);
+            } else {
+                for (let i = startVal; i >= endVal; i += step) arr.push(i);
+            }
+        } else {
+            if (step > 0) {
+                for (let v = startVal; v <= endVal + 1e-9; v += step) {
+                    v = Math.round(v * 1e12) / 1e12;
+                    if (v > endVal + 1e-9) break;
+                    arr.push(v);
+                }
+            } else {
+                for (let v = startVal; v >= endVal - 1e-9; v += step) {
+                    v = Math.round(v * 1e12) / 1e12;
+                    if (v < endVal - 1e-9) break;
+                    arr.push(v);
+                }
+            }
         }
         return arr;
     }
