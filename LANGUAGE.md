@@ -686,6 +686,9 @@ All built-in function names are UPPERCASE.
 | `FLOOR(n)` | Round down |
 | `CEIL(n)` | Round up |
 | `ROUND(n)` | Round to nearest integer |
+| `RANDOM()` | Random decimal between 0.0 (inclusive) and 1.0 (exclusive) |
+| `RANDOM(max)` | Random integer from 0 (inclusive) to `max` (exclusive). `max` must be positive. |
+| `RANDOM(min, max)` | Random integer from `min` to `max` (both inclusive). |
 
 ### Type Conversion
 
@@ -727,6 +730,9 @@ All built-in function names are UPPERCASE.
 | Function | Description |
 |---|---|
 | `SLEEP(ms)` | Pause current thread for `ms` milliseconds |
+| `MILTIME()` | Current time as epoch milliseconds (number) |
+| `DATE()` | Current date as `"YYYY-MM-DD"` string |
+| `TIME()` | Current time of day as `"HH:MM:SS"` string |
 
 ## Built-in Properties
 

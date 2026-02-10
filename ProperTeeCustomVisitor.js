@@ -164,6 +164,33 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (typeof key !== 'string')
                     throw new Error('Runtime Error: HAS_KEY() second argument must be a string');
                 return obj.hasOwnProperty(key);
+            },
+            'RANDOM': (...args) => {
+                if (args.length === 0) {
+                    return Math.random();
+                } else if (args.length === 1) {
+                    if (typeof args[0] !== 'number')
+                        throw new Error('Runtime Error: RANDOM() argument must be a number');
+                    const max = args[0];
+                    if (max <= 0) throw new Error('Runtime Error: RANDOM() max must be positive');
+                    return Math.floor(Math.random() * max);
+                } else {
+                    if (typeof args[0] !== 'number' || typeof args[1] !== 'number')
+                        throw new Error('Runtime Error: RANDOM() arguments must be numbers');
+                    const min = args[0];
+                    const max = args[1];
+                    if (min > max) throw new Error('Runtime Error: RANDOM() min cannot be greater than max');
+                    return min + Math.floor(Math.random() * (max - min + 1));
+                }
+            },
+            'MILTIME': () => {
+                return Date.now();
+            },
+            'DATE': () => {
+                return new Date().toISOString().slice(0, 10);
+            },
+            'TIME': () => {
+                return new Date().toTimeString().slice(0, 8);
             }
         };
 

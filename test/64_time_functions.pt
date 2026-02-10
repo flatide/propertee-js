@@ -1,0 +1,69 @@
+// Test 64: RANDOM, MILTIME, DATE, TIME functions
+
+// RANDOM() - no args: float between 0.0 and 1.0
+r = RANDOM()
+if r >= 0 == true then
+    if r < 1 == true then
+        PRINT("PASS random float range")
+    else
+        PRINT("FAIL random float >= 1")
+    end
+else
+    PRINT("FAIL random float < 0")
+end
+
+// RANDOM(max) - 1 arg: integer 0 to max-1
+r2 = RANDOM(10)
+if r2 >= 0 == true then
+    if r2 < 10 == true then
+        if FLOOR(r2) == r2 == true then
+            PRINT("PASS random int max")
+        else
+            PRINT("FAIL random int not integer")
+        end
+    else
+        PRINT("FAIL random int >= max")
+    end
+else
+    PRINT("FAIL random int < 0")
+end
+
+// RANDOM(min, max) - 2 args: integer min to max
+r3 = RANDOM(5, 10)
+if r3 >= 5 == true then
+    if r3 <= 10 == true then
+        if FLOOR(r3) == r3 == true then
+            PRINT("PASS random int range")
+        else
+            PRINT("FAIL random range not integer")
+        end
+    else
+        PRINT("FAIL random range > max")
+    end
+else
+    PRINT("FAIL random range < min")
+end
+
+// MILTIME() - epoch milliseconds
+t = MILTIME()
+if t > 0 == true then
+    PRINT("PASS miltime positive")
+else
+    PRINT("FAIL miltime not positive")
+end
+
+// DATE() - "YYYY-MM-DD" format
+d = DATE()
+if LEN(d) == 10 == true then
+    PRINT("PASS date length")
+else
+    PRINT("FAIL date length " + TO_STRING(LEN(d)))
+end
+
+// TIME() - "HH:MM:SS" format
+tm = TIME()
+if LEN(tm) == 8 == true then
+    PRINT("PASS time length")
+else
+    PRINT("FAIL time length " + TO_STRING(LEN(tm)))
+end
