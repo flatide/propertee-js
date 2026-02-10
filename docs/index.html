@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,638 +10,1080 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-        
-        header h1 {
-            font-size: 3em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        header p {
-            font-size: 1.2em;
-            opacity: 0.95;
-        }
-        
-        .github-link {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-        
-        .github-link:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .playground {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            margin-bottom: 20px;
-            height: calc(100vh - 250px);
-            min-height: 600px;
+            color: #333;
         }
-        
-        .panel {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
+
+        /* Header */
+        .top-bar {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 12px 24px;
             display: flex;
-            flex-direction: column;
-        }
-        
-        .panel:nth-child(1) {
-            flex: 0 0 20%;
-            min-height: 150px;
-        }
-        
-        .panel:nth-child(2) {
-            flex: 0 0 50%;
-        }
-        
-        .panel:nth-child(3) {
-            flex: 0 0 30%;
-            min-height: 200px;
-        }
-        
-        .input-layout {
-            display: flex;
-            gap: 15px;
-            height: 100%;
-        }
-        
-        .properties-area {
-            flex: 0 0 50%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .script-area {
-            flex: 0 0 50%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-start;
-        }
-        
-        .panel-header {
-            background: #667eea;
-            color: white;
-            padding: 15px 20px;
-            font-weight: 600;
-            font-size: 1.1em;
-            display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
         }
-        
-        .header-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+
+        .top-bar h1 {
+            font-size: 1.2em;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .top-bar h1 span {
+            color: #8b9cf7;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .github-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: color 0.2s;
+        }
+
+        .github-link:hover {
+            color: #fff;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 6px 16px;
             border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-run {
+            background: #4f46e5;
+            color: #fff;
+        }
+
+        .btn-run:hover {
+            background: #4338ca;
+        }
+
+        .btn-run:active {
+            background: #3730a3;
+        }
+
+        .example-select {
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 5px 12px;
+            border-radius: 6px;
             font-size: 0.85em;
             cursor: pointer;
-            transition: background 0.2s;
+            background: #fff;
+            outline: none;
+            transition: border-color 0.15s;
         }
-        
-        .header-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+
+        .example-select:hover,
+        .example-select:focus {
+            border-color: #4f46e5;
         }
-        
-        .header-btn.clear {
-            background: rgba(220, 53, 69, 0.8);
+
+        .btn-restore {
+            background: #f3f4f6;
+            color: #6b7280;
         }
-        
-        .header-btn.clear:hover {
-            background: rgba(220, 53, 69, 1);
+
+        .btn-restore:hover {
+            background: #e5e7eb;
+            color: #374151;
         }
-        
-        .panel-content {
-            padding: 20px;
+
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: #e0e0e0;
+            margin: 0 4px;
+        }
+
+        /* Main layout */
+        .main {
             flex: 1;
-            overflow-y: auto;
+            display: flex;
+            overflow: hidden;
         }
-        
-        textarea {
-            width: 100%;
-            border: 1px solid #3e4451;
-            border-radius: 5px;
-            padding: 15px;
-            font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-            font-size: 14px;
+
+        /* Right column */
+        .right-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e2e;
+        }
+
+        /* Section labels */
+        .section-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 10px 16px 6px;
+            color: #9ca3af;
+            flex-shrink: 0;
+        }
+
+        .right-col .section-label {
+            color: #6b7280;
+            background: #1e1e2e;
+        }
+
+        /* Output */
+        .output-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-top: 1px solid #313244;
+            min-height: 100px;
+        }
+
+        .output-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #181825;
+            padding: 6px 16px 4px;
+            flex-shrink: 0;
+        }
+
+        .output-header .section-label {
+            padding: 0;
+        }
+
+        .btn-clear-output {
+            background: none;
+            border: none;
+            color: #6c7086;
+            font-size: 0.7em;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .btn-clear-output:hover {
+            color: #cdd6f4;
+            background: rgba(205, 214, 244, 0.1);
+        }
+
+        #output {
+            flex: 1;
+            padding: 8px 16px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
             line-height: 1.6;
-            resize: vertical;
-            transition: border-color 0.3s, box-shadow 0.3s;
-            
-            /* 코드 에디터 스타일 */
-            background-color: #282c34;
-            color: #abb2bf;
+            overflow: auto;
+            color: #cdd6f4;
+            background: #181825;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Editor wrapper */
+        .editor-wrapper {
+            flex: 2;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .line-numbers {
+            width: 48px;
+            background: #181825;
+            color: #6c7086;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            padding: 8px 8px 16px 0;
+            text-align: right;
+            overflow: hidden;
+            user-select: none;
+            flex-shrink: 0;
+            border-right: 1px solid #313244;
+        }
+
+        .line-numbers span {
+            display: block;
+        }
+
+        .line-numbers span.line-error {
+            color: #f38ba8;
+            background: rgba(243, 139, 168, 0.12);
+            font-weight: 600;
+        }
+
+        /* Editor highlight overlay */
+        .editor-highlight {
+            position: absolute;
+            top: 0;
+            left: 48px;
+            right: 0;
+            bottom: 0;
+            background: #1e1e2e;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .editor-highlight-inner {
+            position: relative;
+        }
+
+        .error-line-highlight {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: rgba(243, 139, 168, 0.15);
+        }
+
+        /* Script editor */
+        #script {
+            flex: 1;
+            width: 100%;
+            border: none;
+            padding: 8px 12px 16px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            resize: none;
+            background: transparent;
+            color: #cdd6f4;
+            outline: none;
             tab-size: 4;
             -moz-tab-size: 4;
             white-space: pre;
             word-wrap: normal;
             overflow-wrap: normal;
+            position: relative;
+            z-index: 1;
         }
-        
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+
+        #script::placeholder {
+            color: #585b70;
         }
-        
-        textarea::placeholder {
-            color: #5c6370;
+
+        #script::selection {
+            background: #45475a;
         }
-        
-        textarea::selection {
-            background-color: #3e4451;
-        }
-        
-        #properties {
-            min-height: 120px;
-        }
-        
-        #script {
-            min-height: 300px;
-            flex: 1;
-            /* 라인 가이드 배경 */
-            background-image: 
-                linear-gradient(transparent 0%, transparent calc(1.6em - 1px), #21252b calc(1.6em - 1px), #21252b 1.6em);
-            background-size: 100% 1.6em;
-            background-position: 0 15px;
-        }
-        
-        #output {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            overflow-x: auto;
-            max-height: 500px;
-            overflow-y: auto;
-            color: #2d3748;
-        }
-        
-        .examples {
-            margin-bottom: 10px;
-        }
-        
-        .example-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-        
-        .example-btn {
-            background: #f0f0f0;
-            color: #333;
-            border: 1px solid #ddd;
+
+        /* Reference bar */
+        .reference-bar {
+            background: #181825;
             padding: 8px 16px;
-            font-size: 0.9em;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .example-btn:hover {
-            background: #e0e0e0;
-            border-color: #667eea;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .reference-box {
-            display: flex;
-            gap: 15px;
-            height: 100%;
-        }
-        
-        .reference-box h4 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-        
-        .reference-column {
-            flex: 1;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            padding: 15px;
-            font-size: 0.9em;
-            overflow-y: auto;
-            max-height: 150px;
-        }
-        
-        .script-layout {
-            display: flex;
-            gap: 15px;
-            height: 100%;
-        }
-        
-        .script-editor-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .script-reference-area {
-            display: none; /* 이제 상단으로 이동 */
-        }
-        
-        .reference-box h4 {
-            margin: 0 0 10px 0;
-            color: #667eea;
-            font-size: 1em;
-        }
-        
-        .reference-list {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 5px 0;
+            gap: 6px;
+            flex-shrink: 0;
+            border-bottom: 1px solid #313244;
+            max-height: 80px;
+            overflow-y: auto;
         }
-        
-        .reference-item {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 4px 10px;
-            border-radius: 3px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 0.85em;
-            color: #555;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .reference-item:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .reference-item.keyword {
-            background: #e3f2fd;
-            border-color: #90caf9;
-            color: #1976d2;
-        }
-        
-        .reference-item.keyword:hover {
-            background: #bbdefb;
-        }
-        
-        .reference-item.function {
-            background: #f3e5f5;
-            border-color: #ce93d8;
-            color: #7b1fa2;
-        }
-        
-        .reference-item.function:hover {
-            background: #e1bee7;
-        }
-        
-        .script-footer {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            margin-top: 15px;
-            gap: 10px;
-        }
-        
-        .run-btn-small {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            font-size: 0.9em;
-            font-weight: 600;
+
+        .ref-chip {
+            padding: 2px 8px;
             border-radius: 4px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+            font-size: 0.75em;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.15s;
+            border: none;
+            background: none;
         }
-        
-        .run-btn-small:hover {
-            background: #5568d3;
+
+        .ref-chip.kw {
+            color: #cba6f7;
         }
-        
-        .run-btn-small:active {
-            background: #4456b8;
+
+        .ref-chip.kw:hover {
+            background: rgba(203, 166, 247, 0.15);
         }
-        
-        @media (max-width: 768px) {
-            header h1 {
-                font-size: 2em;
-            }
-            
-            .github-link {
-                position: static;
-                display: inline-block;
-                margin-top: 10px;
-            }
+
+        .ref-chip.fn {
+            color: #89b4fa;
         }
+
+        .ref-chip.fn:hover {
+            background: rgba(137, 180, 250, 0.15);
+        }
+
     </style>
 </head>
 <body>
-    <a href="https://github.com/flatide/ProperTee" class="github-link" target="_blank">⭐ GitHub</a>
-    
-    <div class="container">
-        <header>
-            <h1>ProperTee Playground</h1>
-            <p>Generator-based cooperative multithreading DSL</p>
-        </header>
-        
-        <div class="playground">
-            <!-- Reference panel -->
-            <div class="panel">
-                <div class="panel-header">Reference</div>
-                <div class="panel-content">
-                    <div class="reference-box">
-                        <!-- Keywords -->
-                        <div class="reference-column">
-                            <h4>Keywords</h4>
-                            <div class="reference-list">
-                                <span class="reference-item keyword" onclick="insertText('if')">if</span>
-                                <span class="reference-item keyword" onclick="insertText('then')">then</span>
-                                <span class="reference-item keyword" onclick="insertText('else')">else</span>
-                                <span class="reference-item keyword" onclick="insertText('end')">end</span>
-                                <span class="reference-item keyword" onclick="insertText('loop')">loop</span>
-                                <span class="reference-item keyword" onclick="insertText('in')">in</span>
-                                <span class="reference-item keyword" onclick="insertText('do')">do</span>
-                                <span class="reference-item keyword" onclick="insertText('infinite')">infinite</span>
-                                <span class="reference-item keyword" onclick="insertText('break')">break</span>
-                                <span class="reference-item keyword" onclick="insertText('continue')">continue</span>
-                                <span class="reference-item keyword" onclick="insertText('function')">function</span>
-                                <span class="reference-item keyword" onclick="insertText('thread')">thread</span>
-                                <span class="reference-item keyword" onclick="insertText('return')">return</span>
-                                <span class="reference-item keyword" onclick="insertText('multi')">multi</span>
-                                <span class="reference-item keyword" onclick="insertText('monitor')">monitor</span>
-                                <span class="reference-item keyword" onclick="insertText('and')">and</span>
-                                <span class="reference-item keyword" onclick="insertText('or')">or</span>
-                                <span class="reference-item keyword" onclick="insertText('not')">not</span>
-                                <span class="reference-item keyword" onclick="insertText('true')">true</span>
-                                <span class="reference-item keyword" onclick="insertText('false')">false</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Built-in functions -->
-                        <div class="reference-column">
-                            <h4>Built-in Functions</h4>
-                            <div class="reference-list">
-                                <span class="reference-item function" onclick="insertText('PRINT()')">PRINT()</span>
-                                <span class="reference-item function" onclick="insertText('SUM()')">SUM()</span>
-                                <span class="reference-item function" onclick="insertText('MAX()')">MAX()</span>
-                                <span class="reference-item function" onclick="insertText('MIN()')">MIN()</span>
-                                <span class="reference-item function" onclick="insertText('ABS()')">ABS()</span>
-                                <span class="reference-item function" onclick="insertText('FLOOR()')">FLOOR()</span>
-                                <span class="reference-item function" onclick="insertText('CEIL()')">CEIL()</span>
-                                <span class="reference-item function" onclick="insertText('ROUND()')">ROUND()</span>
-                                <span class="reference-item function" onclick="insertText('LEN()')">LEN()</span>
-                                <span class="reference-item function" onclick="insertText('TO_NUMBER()')">TO_NUMBER()</span>
-                                <span class="reference-item function" onclick="insertText('TO_STRING()')">TO_STRING()</span>
-                                <span class="reference-item function" onclick="insertText('SLEEP()')">SLEEP()</span>
-                                <span class="reference-item function" onclick="insertText('PUSH()')">PUSH()</span>
-                                <span class="reference-item function" onclick="insertText('POP()')">POP()</span>
-                                <span class="reference-item function" onclick="insertText('CONCAT()')">CONCAT()</span>
-                                <span class="reference-item function" onclick="insertText('SLICE()')">SLICE()</span>
-                                <span class="reference-item function" onclick="insertText('CHARS()')">CHARS()</span>
-                                <span class="reference-item function" onclick="insertText('SPLIT()')">SPLIT()</span>
-                                <span class="reference-item function" onclick="insertText('JOIN()')">JOIN()</span>
-                                <span class="reference-item function" onclick="insertText('SUBSTRING()')">SUBSTRING()</span>
-                                <span class="reference-item function" onclick="insertText('UPPERCASE()')">UPPERCASE()</span>
-                                <span class="reference-item function" onclick="insertText('LOWERCASE()')">LOWERCASE()</span>
-                                <span class="reference-item function" onclick="insertText('TRIM()')">TRIM()</span>
-                                <span class="reference-item function" onclick="insertText('HAS_KEY()')">HAS_KEY()</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="top-bar">
+        <h1><span>ProperTee</span> Playground</h1>
+        <div class="top-bar-right">
+            <a href="https://github.com/flatide/ProperTee" class="github-link" target="_blank">GitHub</a>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn btn-run" id="runButton" onclick="run()">Run</button>
+        <div class="toolbar-divider"></div>
+        <select class="example-select" id="exampleSelect" onchange="loadExample(this.value)">
+            <option value="01_hello" selected>01 Hello World</option>
+            <option value="02_variables">02 Variables</option>
+            <option value="03_arithmetic">03 Arithmetic</option>
+            <option value="04_comparisons">04 Comparisons</option>
+            <option value="05_if_else">05 If / Else</option>
+            <option value="06_loops">06 Loops</option>
+            <option value="07_functions">07 Functions</option>
+            <option value="08_strings">08 Strings</option>
+            <option value="09_arrays">09 Arrays</option>
+            <option value="10_objects">10 Objects</option>
+            <option value="11_threads_basic">11 Threads Basic</option>
+            <option value="12_threads_sleep">12 Threads Sleep</option>
+            <option value="13_threads_monitor">13 Monitor</option>
+            <option value="14_threads_results">14 Thread Results</option>
+            <option value="15_infinite_loop">15 Infinite Loop</option>
+            <option value="16_comments">16 Comments</option>
+        </select>
+        <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
+    </div>
+
+    <div class="main">
+        <div class="right-col">
+            <div class="reference-bar">
+                <button class="ref-chip kw" onclick="insertText('if')">if</button>
+                <button class="ref-chip kw" onclick="insertText('then')">then</button>
+                <button class="ref-chip kw" onclick="insertText('else')">else</button>
+                <button class="ref-chip kw" onclick="insertText('end')">end</button>
+                <button class="ref-chip kw" onclick="insertText('loop')">loop</button>
+                <button class="ref-chip kw" onclick="insertText('in')">in</button>
+                <button class="ref-chip kw" onclick="insertText('do')">do</button>
+                <button class="ref-chip kw" onclick="insertText('infinite')">infinite</button>
+                <button class="ref-chip kw" onclick="insertText('break')">break</button>
+                <button class="ref-chip kw" onclick="insertText('continue')">continue</button>
+                <button class="ref-chip kw" onclick="insertText('function')">function</button>
+                <button class="ref-chip kw" onclick="insertText('thread')">thread</button>
+                <button class="ref-chip kw" onclick="insertText('return')">return</button>
+                <button class="ref-chip kw" onclick="insertText('multi')">multi</button>
+                <button class="ref-chip kw" onclick="insertText('monitor')">monitor</button>
+                <button class="ref-chip kw" onclick="insertText('and')">and</button>
+                <button class="ref-chip kw" onclick="insertText('or')">or</button>
+                <button class="ref-chip kw" onclick="insertText('not')">not</button>
+                <button class="ref-chip kw" onclick="insertText('true')">true</button>
+                <button class="ref-chip kw" onclick="insertText('false')">false</button>
+                <button class="ref-chip fn" onclick="insertText('PRINT()')">PRINT</button>
+                <button class="ref-chip fn" onclick="insertText('SUM()')">SUM</button>
+                <button class="ref-chip fn" onclick="insertText('MAX()')">MAX</button>
+                <button class="ref-chip fn" onclick="insertText('MIN()')">MIN</button>
+                <button class="ref-chip fn" onclick="insertText('ABS()')">ABS</button>
+                <button class="ref-chip fn" onclick="insertText('FLOOR()')">FLOOR</button>
+                <button class="ref-chip fn" onclick="insertText('CEIL()')">CEIL</button>
+                <button class="ref-chip fn" onclick="insertText('ROUND()')">ROUND</button>
+                <button class="ref-chip fn" onclick="insertText('LEN()')">LEN</button>
+                <button class="ref-chip fn" onclick="insertText('TO_NUMBER()')">TO_NUMBER</button>
+                <button class="ref-chip fn" onclick="insertText('TO_STRING()')">TO_STRING</button>
+                <button class="ref-chip fn" onclick="insertText('SLEEP()')">SLEEP</button>
+                <button class="ref-chip fn" onclick="insertText('PUSH()')">PUSH</button>
+                <button class="ref-chip fn" onclick="insertText('POP()')">POP</button>
+                <button class="ref-chip fn" onclick="insertText('CONCAT()')">CONCAT</button>
+                <button class="ref-chip fn" onclick="insertText('SLICE()')">SLICE</button>
+                <button class="ref-chip fn" onclick="insertText('CHARS()')">CHARS</button>
+                <button class="ref-chip fn" onclick="insertText('SPLIT()')">SPLIT</button>
+                <button class="ref-chip fn" onclick="insertText('JOIN()')">JOIN</button>
+                <button class="ref-chip fn" onclick="insertText('SUBSTRING()')">SUBSTRING</button>
+                <button class="ref-chip fn" onclick="insertText('UPPERCASE()')">UPPERCASE</button>
+                <button class="ref-chip fn" onclick="insertText('LOWERCASE()')">LOWERCASE</button>
+                <button class="ref-chip fn" onclick="insertText('TRIM()')">TRIM</button>
+                <button class="ref-chip fn" onclick="insertText('HAS_KEY()')">HAS_KEY</button>
             </div>
-            
-            <!-- Input panel -->
-            <div class="panel">
-                <div class="panel-header">Input</div>
-                <div class="panel-content">
-                    <div class="input-layout">
-                        <!-- Properties -->
-                        <div class="properties-area">
-                            <!-- Example buttons -->
-                            <div class="examples">
-                                <div class="example-buttons">
-                                    <button class="example-btn" onclick="loadExample('basic')">Basic</button>
-                                    <button class="example-btn" onclick="loadExample('property')">Properties</button>
-                                    <button class="example-btn" onclick="loadExample('control')">Control Flow</button>
-                                    <button class="example-btn" onclick="loadExample('dynamic')">Dynamic Access</button>
-                                    <button class="example-btn" onclick="loadExample('parallel')">Parallel</button>
-                                </div>
-                            </div>
-                            
-                            <h4 style="margin: 0;">Properties (JSON)</h4>
-                            <textarea id="properties" placeholder='{"key": "value"}'>{"user": {"name": "Test", "score": 100}}</textarea>
-                            
-                            <div class="button-group">
-                                <button class="run-btn-small" id="runButton" onclick="run()">Run</button>
-                                <button class="header-btn clear" onclick="clearOutput()" style="background: rgba(220, 53, 69, 0.8); border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; transition: all 0.3s;">Clear</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Script -->
-                        <div class="script-area">
-                            <h4 style="margin: 0;">ProperTee Script</h4>
+            <div class="editor-wrapper">
+                <div class="line-numbers" id="lineNumbers">1</div>
+                <div class="editor-highlight" id="editorHighlight"><div class="editor-highlight-inner" id="editorHighlightInner"></div></div>
+                <textarea id="script" placeholder="// Enter ProperTee code..." spellcheck="false">// 01 - Hello World
+// The simplest ProperTee program. PRINT is a built-in function.
 
-                            <textarea id="script" placeholder="// Enter ProperTee code...">PRINT("Hello, ProperTee!")
-PRINT("User:", user.name)
-PRINT("Score:", user.score)
-
-user.score = user.score + 10
-PRINT("New Score:", user.score)
-
-user.score</textarea>
-                        </div>
-                    </div>
-                </div>
+PRINT("Hello, World!")</textarea>
             </div>
-            
-            <!-- Output -->
-            <div class="panel">
-                <div class="panel-header">Output</div>
-                <div class="panel-content">
-                    <pre id="output">Output will appear here...</pre>
+            <div class="output-section">
+                <div class="output-header">
+                    <div class="section-label">Output</div>
+                    <button class="btn-clear-output" onclick="clearOutput()">Clear</button>
                 </div>
+                <pre id="output"></pre>
             </div>
         </div>
     </div>
-    
-    <!-- ProperTee 번들 로드 -->
+
     <script src="dist/propertee-bundle.js"></script>
-    
+
     <script>
-        // 에러 리스너
         class ErrorListener extends antlr4.error.ErrorListener {
             constructor() {
                 super();
                 this.errors = [];
+                this.lines = [];
             }
             syntaxError(recognizer, offendingSymbol, line, column, msg, err) {
                 this.errors.push(`Line ${line}:${column} - ${msg}`);
+                this.lines.push(line);
             }
         }
-        
-        // 텍스트 삽입 함수 (커서 위치에 키워드/함수 삽입)
+
+        let errorLineSet = new Set();
+
+        function updateLineNumbers() {
+            const script = document.getElementById('script');
+            const lineNumbers = document.getElementById('lineNumbers');
+            const lineCount = script.value.split('\n').length;
+            let html = '';
+            for (let i = 1; i <= lineCount; i++) {
+                if (errorLineSet.has(i)) {
+                    html += '<span class="line-error">' + i + '</span>';
+                } else {
+                    html += '<span>' + i + '</span>';
+                }
+            }
+            lineNumbers.innerHTML = html;
+        }
+
+        function updateEditorHighlight() {
+            const inner = document.getElementById('editorHighlightInner');
+            const highlight = document.getElementById('editorHighlight');
+            const script = document.getElementById('script');
+            if (errorLineSet.size === 0) {
+                inner.innerHTML = '';
+                inner.style.height = '0';
+                return;
+            }
+            const style = getComputedStyle(script);
+            const lineHeight = parseFloat(style.lineHeight);
+            const paddingTop = parseFloat(style.paddingTop);
+            inner.style.height = script.scrollHeight + 'px';
+            let html = '';
+            errorLineSet.forEach(function(line) {
+                const top = paddingTop + (line - 1) * lineHeight;
+                html += '<div class="error-line-highlight" style="top:' + top + 'px;height:' + lineHeight + 'px"></div>';
+            });
+            inner.innerHTML = html;
+            highlight.scrollTop = script.scrollTop;
+        }
+
+        function highlightErrorLines(lines) {
+            errorLineSet = new Set(lines);
+            updateLineNumbers();
+            updateEditorHighlight();
+            if (lines.length > 0) {
+                const script = document.getElementById('script');
+                const lineHeight = parseFloat(getComputedStyle(script).lineHeight);
+                const targetScroll = (lines[0] - 1) * lineHeight - script.clientHeight / 3;
+                script.scrollTop = Math.max(0, targetScroll);
+                document.getElementById('lineNumbers').scrollTop = script.scrollTop;
+                document.getElementById('editorHighlight').scrollTop = script.scrollTop;
+            }
+        }
+
+        function clearErrorHighlights() {
+            if (errorLineSet.size > 0) {
+                errorLineSet = new Set();
+                updateLineNumbers();
+                updateEditorHighlight();
+            }
+        }
+
+        function parseErrorLines(message) {
+            const lines = [];
+            const re = /(?:at |^)line (\d+):/gim;
+            let match;
+            while ((match = re.exec(message)) !== null) {
+                lines.push(parseInt(match[1], 10));
+            }
+            return lines;
+        }
+
         function insertText(text) {
             const scriptArea = document.getElementById('script');
             const start = scriptArea.selectionStart;
             const end = scriptArea.selectionEnd;
             const value = scriptArea.value;
-            
-            // 커서 위치에 텍스트 삽입
             scriptArea.value = value.substring(0, start) + text + value.substring(end);
-            
-            // 함수인 경우 괄호 안에 커서 위치
             if (text.includes('()')) {
                 scriptArea.selectionStart = scriptArea.selectionEnd = start + text.length - 1;
             } else {
                 scriptArea.selectionStart = scriptArea.selectionEnd = start + text.length;
             }
-            
-            // 포커스 유지
             scriptArea.focus();
+            updateLineNumbers();
         }
-        
-        // 예제 로드
+
         const examples = {
-            basic: {
-                properties: '{"user": {"name": "Test", "score": 100}}',
-                script: `PRINT("Hello, ProperTee!")
-PRINT("User:", user.name)
-PRINT("Score:", user.score)
+            '01_hello': `// 01 - Hello World
+// The simplest ProperTee program. PRINT is a built-in function.
 
-user.score = user.score + 10
-PRINT("New Score:", user.score)
+PRINT("Hello, World!")`,
 
-user.score`
-            },
-            property: {
-                properties: '{"config": {"debug": true, "ports": [8080, 8443], "api-key": "secret123"}}',
-                script: `// Object property access
-PRINT("Debug mode:", config.debug)
-PRINT("API Key:", config."api-key")
+            '02_variables': `// 02 - Variables and Types
+// ProperTee has numbers, strings, booleans, arrays, and objects.
 
-// Array access (1-based indexing)
-PRINT("First port:", config.ports.1)
-PRINT("Second port:", config.ports.2)
+// Numbers
+x = 10
+y = 3.14
 
-config.ports`
-            },
-            control: {
-                properties: '{"users": [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]}',
-                script: `// Conditionals
-if users.1.age > 20 then
-    PRINT(users.1.name, "is adult")
+// Strings
+name = "ProperTee"
+
+// Booleans
+active = true
+done = false
+
+// Arrays (use 1-based indexing)
+colors = ["red", "green", "blue"]
+PRINT("First color:", colors.1)
+PRINT("Third color:", colors.3)
+
+// Objects
+person = {
+    name: "Alice",
+    age: 30,
+    active: true
+}
+PRINT("Name:", person.name)
+PRINT("Age:", person.age)
+
+// Nested structures
+team = {
+    lead: { name: "Bob", role: "manager" },
+    members: ["Alice", "Charlie", "Dana"]
+}
+PRINT("Lead:", team.lead.name)
+PRINT("Second member:", team.members.2)`,
+
+            '03_arithmetic': `// 03 - Arithmetic and Expressions
+// Operators: +  -  *  /  %
+// Note: + also concatenates strings, but both sides must be the same type.
+
+a = 10
+b = 3
+
+PRINT("a + b =", a + b)
+PRINT("a - b =", a - b)
+PRINT("a * b =", a * b)
+PRINT("a / b =", a / b)
+PRINT("a % b =", a % b)
+
+// Unary minus
+PRINT("Negative a:", -a)
+
+// String concatenation
+greeting = "Hello" + " " + "World"
+PRINT(greeting)
+
+// To mix numbers and strings, convert first
+PRINT("Score: " + TO_STRING(100))
+
+// Built-in math functions
+PRINT("ABS(-5):", ABS(-5))
+PRINT("FLOOR(3.7):", FLOOR(3.7))
+PRINT("CEIL(3.2):", CEIL(3.2))
+PRINT("ROUND(3.5):", ROUND(3.5))
+PRINT("MIN(4, 2, 7):", MIN(4, 2, 7))
+PRINT("MAX(4, 2, 7):", MAX(4, 2, 7))
+PRINT("SUM(1, 2, 3, 4):", SUM(1, 2, 3, 4))`,
+
+            '04_comparisons': `// 04 - Comparisons and Logic
+// Comparison: ==  !=  >  <  >=  <=
+// Logic: and  or  not  (operands must be booleans -- no truthy/falsy coercion)
+
+x = 10
+y = 20
+
+PRINT("x == 10:", x == 10)
+PRINT("x != y:", x != y)
+PRINT("x > y:", x > y)
+PRINT("x < y:", x < y)
+PRINT("x >= 10:", x >= 10)
+PRINT("y <= 15:", y <= 15)
+
+// Logical operators (both sides must be booleans)
+a = true
+b = false
+
+PRINT("a and b:", a and b)
+PRINT("a or b:", a or b)
+PRINT("not a:", not a)
+
+// Combining comparisons
+age = 25
+PRINT("Is adult (18-65):", age >= 18 and age <= 65)`,
+
+            '05_if_else': `// 05 - If / Else
+// Syntax: if <condition> then <body> [else <body>] end
+
+score = 85
+
+if score >= 90 then
+    PRINT("Grade: A")
 else
-    PRINT(users.1.name, "is minor")
+    if score >= 80 then
+        PRINT("Grade: B")
+    else
+        if score >= 70 then
+            PRINT("Grade: C")
+        else
+            PRINT("Grade: F")
+        end
+    end
 end
 
-// Loops
-loop user in users do
-    PRINT("Name:", user.name, "Age:", user.age)
+// Simple if (no else)
+logged_in = true
+if logged_in then
+    PRINT("Welcome back!")
+end`,
+
+            '06_loops': `// 06 - Loops
+// ProperTee has three loop forms: condition, value-in, and key-value-in.
+
+// --- Condition loop (like while) ---
+count = 0
+loop count < 5 do
+    PRINT("count =", count)
+    count = count + 1
 end
 
-users`
-            },
-            dynamic: {
-                properties: '{"data": {"username": "admin", "email": "admin@example.com"}}',
-                script: `// Dynamic property access
-key = "username"
-PRINT("Dynamic access:", data.$key)
+PRINT("---")
 
-// Expression-based access
-field = "email"
-PRINT("Email:", data.$(field))
+// --- Value loop (iterate over array) ---
+fruits = ["apple", "banana", "cherry"]
+loop fruit in fruits do
+    PRINT("Fruit:", fruit)
+end
 
-data`
-            },
-            parallel: {
-                properties: '{}',
-                script: `// Parallel execution with cooperative scheduling
+PRINT("---")
 
-function worker(name, count) do
-    i = 0
-    loop i < count infinite do
-        PRINT(name + ": step " + TO_STRING(i + 1))
+// --- Key-value loop (iterate with index or key) ---
+// On arrays: key is the 1-based index
+scores = [95, 82, 71]
+loop i, score in scores do
+    PRINT("Student " + TO_STRING(i) + ": " + TO_STRING(score))
+end
+
+PRINT("---")
+
+// On objects: key is the property name
+config = { host: "localhost", port: "8080", debug: "true" }
+loop key, val in config do
+    PRINT(key + " = " + val)
+end
+
+PRINT("---")
+
+// --- break and continue ---
+nums = [1, 2, 3, 4, 5, 6, 7, 8]
+loop n in nums do
+    if n == 3 then
+        continue       // skip 3
+    end
+    if n == 6 then
+        break          // stop at 6
+    end
+    PRINT(n)
+end`,
+
+            '07_functions': `// 07 - Functions
+// Syntax: function <name>(<params>) do <body> end
+
+// Basic function
+function greet(name) do
+    return "Hello, " + name + "!"
+end
+
+PRINT(greet("World"))
+
+// Function with multiple parameters
+function add(a, b) do
+    return a + b
+end
+
+PRINT("3 + 4 =", add(3, 4))
+
+// Functions can use local variables
+function factorial(n) do
+    result = 1
+    i = 1
+    loop i <= n infinite do
+        result = result * i
         i = i + 1
     end
-    return count
+    return result
 end
 
-// Threads interleave at statement boundaries
+PRINT("5! =", factorial(5))
+
+// Recursive function
+function fib(n) do
+    if n <= 1 then
+        return n
+    end
+    return fib(n - 1) + fib(n - 2)
+end
+
+PRINT("fib(10) =", fib(10))
+
+// Function without return (returns empty object {})
+function say(msg) do
+    PRINT(">> " + msg)
+end
+
+result = say("no return value")
+PRINT("result:", result)`,
+
+            '08_strings': `// 08 - String Functions
+// Built-in functions for working with strings.
+
+text = "  Hello, ProperTee World!  "
+
+// Length
+PRINT("Length:", LEN(text))
+
+// Trim whitespace
+trimmed = TRIM(text)
+PRINT("Trimmed:", trimmed)
+
+// Case conversion
+PRINT("Upper:", UPPERCASE(trimmed))
+PRINT("Lower:", LOWERCASE(trimmed))
+
+// Substring (1-based start, optional length)
+PRINT("First 5 chars:", SUBSTRING(trimmed, 1, 5))
+PRINT("From position 8:", SUBSTRING(trimmed, 8))
+
+// Split and Join
+csv = "apple,banana,cherry,date"
+parts = SPLIT(csv, ",")
+PRINT("Split:", parts)
+PRINT("Second item:", parts.2)
+
+rejoined = JOIN(parts, " | ")
+PRINT("Joined:", rejoined)
+
+// Convert string to character array
+chars = CHARS("ABC")
+PRINT("Chars:", chars)
+
+// Type conversion
+num = TO_NUMBER("42")
+PRINT("As number:", num + 8)
+
+str = TO_STRING(3.14)
+PRINT("As string:", str + " is pi")`,
+
+            '09_arrays': `// 09 - Array Functions
+// Arrays use 1-based indexing.
+
+items = [10, 20, 30, 40, 50]
+PRINT("Array:", items)
+PRINT("Length:", LEN(items))
+
+// Access (1-based)
+PRINT("First:", items.1)
+PRINT("Third:", items.3)
+
+// PUSH - returns a new array with item added
+items = PUSH(items, 60)
+PRINT("After PUSH(60):", items)
+
+// POP - returns a new array with last item removed
+items = POP(items)
+PRINT("After POP:", items)
+
+// SLICE (1-based start, exclusive end)
+middle = SLICE(items, 2, 4)
+PRINT("Slice(2,4):", middle)
+
+tail = SLICE(items, 3)
+PRINT("Slice(3):", tail)
+
+// CONCAT - merge arrays
+a = [1, 2, 3]
+b = [4, 5, 6]
+c = CONCAT(a, b)
+PRINT("Concat:", c)
+
+// Modify elements
+items.2 = 999
+PRINT("After items.2 = 999:", items)
+
+// SUM on arrays (pass individual elements via loop)
+total = 0
+loop v in items do
+    total = total + v
+end
+PRINT("Total:", total)`,
+
+            '10_objects': `// 10 - Objects and Access Patterns
+// Objects are key-value maps with several access styles.
+
+person = {
+    name: "Alice",
+    age: 30,
+    city: "Seoul"
+}
+
+// Static access
+PRINT("Name:", person.name)
+
+// String key access (useful for keys with special chars)
+PRINT("City:", person."city")
+
+// Dynamic access with a variable
+field = "age"
+PRINT("Age via $field:", person.$field)
+
+// Dynamic access with an expression
+fields = ["name", "age", "city"]
+loop f in fields do
+    PRINT(f + ":", person.$(f))
+end
+
+// Modify properties
+person.age = 31
+person."email" = "alice@example.com"
+PRINT("Updated age:", person.age)
+PRINT("Email:", person.email)
+
+// Nested objects
+company = {
+    name: "Acme",
+    address: {
+        street: "123 Main St",
+        zip: "10001"
+    }
+}
+PRINT("Street:", company.address.street)
+
+// Iterate over object keys and values
+loop key, val in person do
+    PRINT(key + " => " + TO_STRING(val))
+end`,
+
+            '11_threads_basic': `// 11 - Threads (Basic)
+// Functions run concurrently inside a "multi" block using "thread".
+// They are pure: can read globals (snapshot), cannot write globals.
+
+// Define functions normally with the "function" keyword
+function worker(name, steps) do
+    i = 0
+    loop i < steps infinite do
+        PRINT(name + " step " + TO_STRING(i + 1))
+        i = i + 1
+    end
+    return name + " done"
+end
+
+// Run functions in parallel with "multi result do ... end"
+// Use "thread key: funcCall()" to name each result in the collection
 multi result do
-    thread r1: worker("Alpha", 4)
-    thread r2: worker("Beta", 4)
-monitor 50
-    PRINT("[monitor tick]")
+    thread resultA: worker("Alpha", 3)
+    thread resultB: worker("Beta", 3)
 end
 
-PRINT("=== All threads done ===")
-PRINT("Alpha result:", result.r1.value)
-PRINT("Beta result:", result.r2.value)`
-            }
+// Results are available after the multi block
+// Each entry is {status: "done", ok: true, value: <return value>}
+PRINT("---")
+PRINT("Alpha status:", result.resultA.status)
+PRINT("Alpha returned:", result.resultA.value)
+PRINT("Beta returned:", result.resultB.value)`,
+
+            '12_threads_sleep': `// 12 - Threads with SLEEP
+// SLEEP(ms) pauses only the calling thread.
+// Other threads keep running while one sleeps.
+
+function fast_worker(name) do
+    PRINT(name + ": start")
+    PRINT(name + ": working...")
+    PRINT(name + ": done!")
+    return "fast"
+end
+
+function slow_worker(name, ms) do
+    PRINT(name + ": start, sleeping " + TO_STRING(ms) + "ms")
+    SLEEP(ms)
+    PRINT(name + ": woke up, done!")
+    return "slow"
+end
+
+multi result do
+    thread r1: slow_worker("Sleepy", 200)
+    thread r2: fast_worker("Speedy")
+end
+
+// Speedy finishes while Sleepy is asleep
+PRINT("---")
+PRINT("Sleepy:", result.r1.value)
+PRINT("Speedy:", result.r2.value)`,
+
+            '13_threads_monitor': `// 13 - Monitor Blocks
+// A monitor runs periodically while threads are executing.
+// Monitors can read the live result collection to check thread progress.
+// Each result entry has a "status" field: "running", "done", or "error".
+
+function counter(name, target) do
+    i = 0
+    loop i < target infinite do
+        i = i + 1
+    end
+    PRINT(name + " counted to " + TO_STRING(target))
+    return i
+end
+
+multi result do
+    thread rA: counter("A", 20)
+    thread rB: counter("B", 15)
+monitor 50
+    PRINT("[monitor] A:" + result.rA.status + " B:" + result.rB.status)
+end
+
+PRINT("---")
+PRINT("A:", result.rA.status, result.rA.value)
+PRINT("B:", result.rB.status, result.rB.value)`,
+
+            '14_threads_results': `// 14 - Thread Results
+// Functions in multi blocks can return any value: numbers, strings, objects, arrays.
+// Results collected into a single object via multi result do ... end
+// Each entry is {status, ok, value} — check status/ok for success or error.
+
+function compute(n) do
+    res = n * n + n
+    PRINT("compute(" + TO_STRING(n) + ") = " + TO_STRING(res))
+    return res
+end
+
+function build_report(id) do
+    report = {
+        id: id,
+        value: id * 100,
+        status: "complete"
+    }
+    PRINT("Built report #" + TO_STRING(id))
+    return report
+end
+
+multi result do
+    thread val1: compute(5)
+    thread val2: compute(3)
+    thread report: build_report(42)
+end
+
+PRINT("---")
+PRINT("val1:", result.val1.value)
+PRINT("val2:", result.val2.value)
+PRINT("report.id:", result.report.value.id)
+PRINT("report.value:", result.report.value.value)
+PRINT("report.status:", result.report.value.status)
+PRINT("Sum of computations:", result.val1.value + result.val2.value)`,
+
+            '15_infinite_loop': `// 15 - Infinite Loops
+// By default, loops are limited to 1000 iterations (safety net).
+// Add "infinite" keyword to allow unlimited iterations.
+
+// This would error after 1000 iterations without "infinite":
+//   loop count < 5000 do ... end
+
+// With "infinite", no limit is enforced
+count = 0
+loop count < 5 infinite do
+    PRINT("tick " + TO_STRING(count))
+    count = count + 1
+end
+
+PRINT("---")
+
+// Infinite loop with break
+i = 0
+loop true infinite do
+    i = i + 1
+    if i > 3 then
+        break
+    end
+    PRINT("loop " + TO_STRING(i))
+end
+
+PRINT("Broke out at i =", i)`,
+
+            '16_comments': `// 16 - Comments
+// ProperTee supports single-line and block comments.
+
+// This is a single-line comment
+
+/* This is a
+   block comment
+   spanning multiple lines */
+
+x = 42 // inline comment after code
+
+PRINT("Comments don't affect execution")
+PRINT("x =", x)`
         };
-        
+
+        let currentExample = '01_hello';
+        const scriptCache = {};
+
         function loadExample(name) {
-            const example = examples[name];
-            if (example) {
-                document.getElementById('properties').value = example.properties;
-                document.getElementById('script').value = example.script;
+            if (!name) return;
+            const scriptEl = document.getElementById('script');
+            if (currentExample) {
+                scriptCache[currentExample] = scriptEl.value;
+            }
+            const content = scriptCache[name] !== undefined ? scriptCache[name] : examples[name];
+            if (content !== undefined) {
+                scriptEl.value = content;
+                currentExample = name;
+                clearErrorHighlights();
+                updateLineNumbers();
             }
         }
-        
+
+        function restoreExample() {
+            if (!currentExample || !examples[currentExample]) return;
+            delete scriptCache[currentExample];
+            document.getElementById('script').value = examples[currentExample];
+            clearErrorHighlights();
+            updateLineNumbers();
+        }
+
         async function run() {
             const output = document.getElementById('output');
             const runButton = document.getElementById('runButton');
-            const propertiesText = document.getElementById('properties').value;
             const scriptText = document.getElementById('script').value;
 
-            output.textContent = '';
+            clearErrorHighlights();
             runButton.disabled = true;
             runButton.textContent = 'Running...';
+            appendOutput('Starting...\n', '#6c7086');
 
             try {
-                const properties = JSON.parse(propertiesText);
+                const properties = {};
 
                 const chars = new antlr4.InputStream(scriptText);
                 const lexer = new ProperTeeLexer(chars);
@@ -658,22 +1100,22 @@ PRINT("Beta result:", result.r2.value)`
                 const tree = parser.root();
 
                 if (lexerErrors.errors.length > 0) {
-                    output.textContent = 'Lexer Error:\n' + lexerErrors.errors.join('\n');
+                    appendOutput('Lexer Error:\n' + lexerErrors.errors.join('\n') + '\n', '#f38ba8');
+                    highlightErrorLines(lexerErrors.lines);
                     return;
                 }
                 if (parserErrors.errors.length > 0) {
-                    output.textContent = 'Parser Error:\n' + parserErrors.errors.join('\n');
+                    appendOutput('Parser Error:\n' + parserErrors.errors.join('\n') + '\n', '#f38ba8');
+                    highlightErrorLines(parserErrors.lines);
                     return;
                 }
 
                 const ioStreams = {
                     stdout: (...args) => {
-                        output.textContent += args.join(' ') + '\n';
-                        output.scrollTop = output.scrollHeight;
+                        appendOutput(args.join(' ') + '\n');
                     },
                     stderr: (...args) => {
-                        output.textContent += '[ERROR] ' + args.join(' ') + '\n';
-                        output.scrollTop = output.scrollHeight;
+                        appendOutput('[ERROR] ' + args.join(' ') + '\n', '#f38ba8');
                     }
                 };
 
@@ -687,127 +1129,110 @@ PRINT("Beta result:", result.r2.value)`
                 const mainGenerator = visitor.visitRoot(tree);
                 const result = await scheduler.run(mainGenerator);
 
-                output.textContent += '\n--- Return Value ---\n' + JSON.stringify(result, null, 2) + '\n\n';
-                output.textContent += '--- Properties ---\n' + JSON.stringify(properties, null, 2) + '\n\n';
-                output.textContent += '--- Variables ---\n' + JSON.stringify(visitor.variables, null, 2);
+                appendOutput('Finished with result: ' + JSON.stringify(result, null, 2) + '\n', '#a6e3a1');
 
             } catch (e) {
-                output.textContent += '\n\nRuntime Error:\n' + e.message;
+                appendOutput('Runtime Error: ' + e.message + '\n', '#f38ba8');
+                const errLines = parseErrorLines(e.message);
+                if (errLines.length > 0) highlightErrorLines(errLines);
                 console.error(e);
             } finally {
                 runButton.disabled = false;
                 runButton.textContent = 'Run';
+                output.scrollTop = output.scrollHeight;
             }
         }
-        
-        function clearOutput() {
+
+        function appendOutput(text, color) {
             const output = document.getElementById('output');
-            output.textContent = 'Output will appear here...';
+            if (color) {
+                const span = document.createElement('span');
+                span.style.color = color;
+                span.textContent = text;
+                output.appendChild(span);
+            } else {
+                output.appendChild(document.createTextNode(text));
+            }
+            output.scrollTop = output.scrollHeight;
         }
 
-        window.addEventListener('load', () => {
-            initCodeEditor();
-            setTimeout(() => {
-                run();
-            }, 500);
-        });
-        
-        // 코드 에디터 기능 (탭 키, 자동 들여쓰기)
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+
+        // Code editor features
         function initCodeEditor() {
             const textareas = document.querySelectorAll('textarea');
-            
             textareas.forEach(textarea => {
                 textarea.addEventListener('keydown', function(e) {
-                    // Tab 키 처리
                     if (e.key === 'Tab') {
                         e.preventDefault();
                         const start = this.selectionStart;
                         const end = this.selectionEnd;
                         const value = this.value;
-                        
                         if (e.shiftKey) {
-                            // Shift+Tab: 들여쓰기 제거
                             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
                             const line = value.substring(lineStart, end);
                             if (line.startsWith('    ')) {
-                                this.value = value.substring(0, lineStart) + 
-                                           line.substring(4) + 
-                                           value.substring(end);
+                                this.value = value.substring(0, lineStart) + line.substring(4) + value.substring(end);
                                 this.selectionStart = Math.max(lineStart, start - 4);
                                 this.selectionEnd = end - 4;
                             }
                         } else {
-                            // Tab: 4칸 스페이스 삽입
                             this.value = value.substring(0, start) + '    ' + value.substring(end);
                             this.selectionStart = this.selectionEnd = start + 4;
                         }
+                        updateLineNumbers();
                     }
-                    
-                    // Enter 키: 자동 들여쓰기
+
                     if (e.key === 'Enter') {
                         const start = this.selectionStart;
                         const value = this.value;
                         const currentLine = value.substring(0, start).split('\n').pop();
                         const indent = currentLine.match(/^\s*/)[0];
                         const trimmedLine = currentLine.trim();
-                        
-                        // 들여쓰기가 필요한 키워드 체크
                         const indentKeywords = ['then', 'do', 'else'];
-                        const shouldIndent = indentKeywords.some(keyword => 
-                            trimmedLine.endsWith(keyword)
-                        );
-                        
+                        const shouldIndent = indentKeywords.some(kw => trimmedLine.endsWith(kw));
                         if (shouldIndent || indent.length > 0) {
                             e.preventDefault();
                             const newIndent = shouldIndent ? indent + '    ' : indent;
-                            const insertText = '\n' + newIndent;
-                            
-                            this.value = value.substring(0, start) + 
-                                       insertText + 
-                                       value.substring(start);
-                            this.selectionStart = this.selectionEnd = start + insertText.length;
+                            const ins = '\n' + newIndent;
+                            this.value = value.substring(0, start) + ins + value.substring(start);
+                            this.selectionStart = this.selectionEnd = start + ins.length;
+                            updateLineNumbers();
                         }
                     }
-                    
-                    // 자동으로 'end' 들여쓰기 감소
+
                     if (e.key === 'd' && this.value.substring(this.selectionStart - 2, this.selectionStart) === 'en') {
                         setTimeout(() => {
                             const start = this.selectionStart;
                             const value = this.value;
                             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
                             const line = value.substring(lineStart, start);
-                            
                             if (line.trim() === 'end' && line.startsWith('    ')) {
-                                // 들여쓰기 제거
-                                this.value = value.substring(0, lineStart) + 
-                                           line.substring(4) + 
-                                           value.substring(start);
+                                this.value = value.substring(0, lineStart) + line.substring(4) + value.substring(start);
                                 this.selectionStart = this.selectionEnd = start - 4;
+                                updateLineNumbers();
                             }
                         }, 0);
                     }
-                    
-                    // Ctrl/Cmd + / : 주석 토글
+
                     if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
                         e.preventDefault();
                         const start = this.selectionStart;
                         const end = this.selectionEnd;
                         const value = this.value;
-                        
                         const lineStart = value.lastIndexOf('\n', start - 1) + 1;
                         const lineEnd = value.indexOf('\n', end);
                         const line = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
-                        
                         if (line.trim().startsWith('//')) {
-                            // 주석 제거
                             const newLine = line.replace(/^(\s*)\/\/\s?/, '$1');
                             this.value = value.substring(0, lineStart) + newLine + value.substring(lineEnd === -1 ? value.length : lineEnd);
                             this.selectionStart = start;
                             this.selectionEnd = end - (line.length - newLine.length);
                         } else {
-                            // 주석 추가
-                            const indent = line.match(/^\s*/)[0];
-                            const newLine = indent + '// ' + line.substring(indent.length);
+                            const ind = line.match(/^\s*/)[0];
+                            const newLine = ind + '// ' + line.substring(ind.length);
                             this.value = value.substring(0, lineStart) + newLine + value.substring(lineEnd === -1 ? value.length : lineEnd);
                             this.selectionStart = start + 3;
                             this.selectionEnd = end + 3;
@@ -816,6 +1241,25 @@ PRINT("Beta result:", result.r2.value)`
                 });
             });
         }
+
+        window.addEventListener('load', () => {
+            initCodeEditor();
+            updateLineNumbers();
+
+            const script = document.getElementById('script');
+            const lineNumbers = document.getElementById('lineNumbers');
+            script.addEventListener('input', () => {
+                clearErrorHighlights();
+                updateLineNumbers();
+            });
+            const editorHighlight = document.getElementById('editorHighlight');
+            script.addEventListener('scroll', () => {
+                lineNumbers.scrollTop = script.scrollTop;
+                editorHighlight.scrollTop = script.scrollTop;
+            });
+
+            setTimeout(() => run(), 500);
+        });
     </script>
 </body>
 </html>
