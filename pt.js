@@ -8,7 +8,7 @@ import ProperTeeParser from './ProperTeeParser.js';
 import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 // Parse CLI args
 const args = process.argv.slice(2);
