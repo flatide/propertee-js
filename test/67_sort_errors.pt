@@ -1,0 +1,35 @@
+// Test SORT error cases
+
+// Mixed types
+function testMixed() do
+    return SORT([1, "two", 3])
+end
+
+multi r1 do
+    thread : testMixed()
+end
+PRINT(r1."#1".ok)
+PRINT(r1."#1".value)
+
+// Non-array
+function testNonArray() do
+    return SORT("hello")
+end
+
+multi r2 do
+    thread : testNonArray()
+end
+PRINT(r2."#1".ok)
+PRINT(r2."#1".value)
+
+// SORT_BY missing key
+function testMissingKey() do
+    items = [{name: "A", score: 10}, {name: "B"}]
+    return SORT_BY(items, "score")
+end
+
+multi r3 do
+    thread : testMissingKey()
+end
+PRINT(r3."#1".ok)
+PRINT(r3."#1".value)

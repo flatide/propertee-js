@@ -1,0 +1,53 @@
+// Test SORT, SORT_DESC, SORT_BY, SORT_BY_DESC, REVERSE
+
+// SORT numbers
+nums = [3, 1, 4, 1, 5, 9, 2, 6]
+PRINT(SORT(nums))
+
+// SORT strings
+strs = ["banana", "apple", "cherry"]
+PRINT(SORT(strs))
+
+// SORT_DESC numbers
+PRINT(SORT_DESC(nums))
+
+// SORT_DESC strings
+PRINT(SORT_DESC(strs))
+
+// Original unchanged
+PRINT(nums)
+
+// SORT_BY objects
+people = [
+    {name: "Charlie", age: 30},
+    {name: "Alice", age: 25},
+    {name: "Bob", age: 35}
+]
+sorted = SORT_BY(people, "name")
+loop p in sorted do
+    PRINT(p.name, p.age)
+end
+
+// SORT_BY numeric key
+byAge = SORT_BY(people, "age")
+loop p in byAge do
+    PRINT(p.name, p.age)
+end
+
+// SORT_BY_DESC
+byAgeDesc = SORT_BY_DESC(people, "age")
+loop p in byAgeDesc do
+    PRINT(p.name, p.age)
+end
+
+// REVERSE
+PRINT(REVERSE([1, 2, 3, 4, 5]))
+PRINT(REVERSE(["a", "b", "c"]))
+
+// REVERSE mixed types (no restriction)
+PRINT(REVERSE([1, "two", true]))
+
+// Empty and single element
+PRINT(SORT([]))
+PRINT(SORT([42]))
+PRINT(REVERSE([]))

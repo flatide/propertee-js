@@ -706,6 +706,11 @@ All built-in function names are UPPERCASE.
 | `POP(arr)` | Returns new array with last element removed. Original unchanged. |
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
 | `SLICE(arr, start, [end])` | Returns sub-array. `start` is 1-based. `end` is exclusive. |
+| `SORT(arr)` | Returns new array sorted ascending. All elements must be the same type (number or string). |
+| `SORT_DESC(arr)` | Returns new array sorted descending. Same type restriction as `SORT`. |
+| `SORT_BY(arr, key)` | Returns new array of objects sorted ascending by the given key. |
+| `SORT_BY_DESC(arr, key)` | Returns new array of objects sorted descending by the given key. |
+| `REVERSE(arr)` | Returns new array with elements in reverse order. No type restriction. |
 
 ### Object Functions
 
@@ -828,6 +833,9 @@ Common error conditions:
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |
+| Mixed type sort | SORT() requires all elements to be the same type (number or string) |
+| SORT_BY key missing | Property 'x' does not exist in array element at index N |
+| Non-array sort | SORT() requires an array argument |
 | Range step not positive | Range step must be positive |
 | Range bounds not numbers | Range bounds must be numbers |
 | Range step not a number | Range step must be a number |

@@ -65,6 +65,30 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return String(value);
         };
 
+        const validateHomogeneous = (arr, funcName) => {
+            const allNumbers = arr.every(x => typeof x === 'number');
+            const allStrings = arr.every(x => typeof x === 'string');
+            if (!allNumbers && !allStrings) {
+                throw new Error(`Runtime Error: ${funcName}() requires all elements to be the same type (number or string)`);
+            }
+        };
+
+        const validateKeyExists = (arr, key, funcName) => {
+            for (let i = 0; i < arr.length; i++) {
+                if (typeof arr[i] !== 'object' || arr[i] === null || Array.isArray(arr[i])) {
+                    throw new Error(`Runtime Error: ${funcName}() requires an array of objects`);
+                }
+                if (!(key in arr[i])) {
+                    throw new Error(`Runtime Error: Property '${key}' does not exist in array element at index ${i + 1}`);
+                }
+            }
+        };
+
+        const compareValues = (a, b) => {
+            if (typeof a === 'number' && typeof b === 'number') return a - b;
+            return String(a).localeCompare(String(b));
+        };
+
         const defaultFunctions = {
             'PRINT': (...args) => { this.stdout(...args.map(a => formatDisplayValue(a))); return {}; },
             'SUM': (...args) => args.reduce((a, b) => a + b, 0),
@@ -169,6 +193,51 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
                     throw new Error('Runtime Error: KEYS() argument must be an object');
                 return Object.keys(obj);
+            },
+            'SORT': (arr) => {
+                if (!Array.isArray(arr))
+                    throw new Error('Runtime Error: SORT() requires an array argument');
+                const result = [...arr];
+                if (result.length <= 1) return result;
+                validateHomogeneous(result, 'SORT');
+                result.sort((a, b) => compareValues(a, b));
+                return result;
+            },
+            'SORT_DESC': (arr) => {
+                if (!Array.isArray(arr))
+                    throw new Error('Runtime Error: SORT_DESC() requires an array argument');
+                const result = [...arr];
+                if (result.length <= 1) return result;
+                validateHomogeneous(result, 'SORT_DESC');
+                result.sort((a, b) => compareValues(b, a));
+                return result;
+            },
+            'SORT_BY': (arr, key) => {
+                if (!Array.isArray(arr))
+                    throw new Error('Runtime Error: SORT_BY() requires an array argument');
+                if (typeof key !== 'string')
+                    throw new Error('Runtime Error: SORT_BY() second argument must be a string key');
+                const result = [...arr];
+                if (result.length <= 1) return result;
+                validateKeyExists(result, key, 'SORT_BY');
+                result.sort((a, b) => compareValues(a[key], b[key]));
+                return result;
+            },
+            'SORT_BY_DESC': (arr, key) => {
+                if (!Array.isArray(arr))
+                    throw new Error('Runtime Error: SORT_BY_DESC() requires an array argument');
+                if (typeof key !== 'string')
+                    throw new Error('Runtime Error: SORT_BY_DESC() second argument must be a string key');
+                const result = [...arr];
+                if (result.length <= 1) return result;
+                validateKeyExists(result, key, 'SORT_BY_DESC');
+                result.sort((a, b) => compareValues(b[key], a[key]));
+                return result;
+            },
+            'REVERSE': (arr) => {
+                if (!Array.isArray(arr))
+                    throw new Error('Runtime Error: REVERSE() requires an array argument');
+                return [...arr].reverse();
             },
             'RANDOM': (...args) => {
                 if (args.length === 0) {

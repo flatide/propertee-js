@@ -1,0 +1,9 @@
+[THREAD ERROR] Runtime Error: SORT() requires all elements to be the same type (number or string)
+false
+Runtime Error: SORT() requires all elements to be the same type (number or string)
+[THREAD ERROR] Runtime Error: SORT() requires an array argument
+false
+Runtime Error: SORT() requires an array argument
+[THREAD ERROR] Runtime Error: Property 'score' does not exist in array element at index 2
+false
+Runtime Error: Property 'score' does not exist in array element at index 2
