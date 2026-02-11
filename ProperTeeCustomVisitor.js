@@ -1084,15 +1084,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
         }
 
-        // Positional access on objects: when key is a number (from ArrayAccess, 1-based)
-        // and target is a plain object (not array), access by position in insertion order
+        // Object access: integer keys become string keys (no positional access)
         if (typeof key === 'number' && typeof targetObj === 'object' && !Array.isArray(targetObj)) {
-            const entries = Object.entries(targetObj);
-            const idx = key - 1; // 1-based to 0-based
-            if (idx < 0 || idx >= entries.length) {
-                throw this.createError(`Positional index ${key} out of bounds (object has ${entries.length} entries)`, ctx);
+            const strKey = String(key);
+            if (!(strKey in targetObj)) {
+                throw this.createError(`Property '${key}' does not exist`, ctx);
             }
-            return entries[idx][1];
+            return targetObj[strKey];
         }
 
         // Array access: convert 1-based to 0-based

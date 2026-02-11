@@ -1,4 +1,4 @@
-// Test: Multi result collection — named + positional access, LEN(), iteration
+// Test: Multi result collection — named access, LEN(), iteration
 function double(n) do
     return n * 2
 end
@@ -15,10 +15,6 @@ end
 // Named access
 PRINT("d:", result.d.value)
 PRINT("t:", result.t.value)
-
-// Positional access (1-based)
-PRINT("first:", result.1.value)
-PRINT("second:", result.2.value)
 
 // LEN on result collection
 PRINT("len:", LEN(result))

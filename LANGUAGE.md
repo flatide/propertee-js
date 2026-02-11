@@ -229,7 +229,7 @@ Object keys can be bare identifiers, quoted strings, or integers (stored as stri
 | Quoted key | `obj."special-key"` | Keys with special characters |
 | Variable key | `obj.$varName` or `obj.$::varName` | Key name stored in a variable (`$::` for globals) |
 | Computed key | `obj.$(expression)` | Key determined by an expression |
-| Numeric key | `obj.1` | 1-based index. For arrays, accesses element by index. For objects: **read** accesses Nth entry by insertion order; **write** sets string key `"1"`. |
+| Numeric key | `obj.1` | 1-based index for arrays and strings. For objects, the integer becomes string key `"1"` (both read and write). |
 
 ```
 key = "name"
@@ -250,15 +250,15 @@ person.email = "alice@example.com"    // adds new property
 person.age = 31                       // modifies existing
 ```
 
-Integer keys become string keys on assignment:
+Integer keys become string keys on both read and write:
 
 ```
 obj = {}
 obj.1 = "first"      // obj is {"1": "first"}
 obj.2 = "second"     // obj is {"1": "first", "2": "second"}
+PRINT(obj.1)          // "first" (reads key "1")
+PRINT(obj."1")        // "first" (same thing)
 ```
-
-Note: `.INTEGER` on read is **positional** (by insertion order), but on write it sets the **string key**. For example, `obj.1` reads the first entry, while `obj.1 = val` sets key `"1"`.
 
 ### Nested Access
 
@@ -527,7 +527,6 @@ end
 
 result.a.status               // "done"
 result.a.value                // named access
-result.1.value                // positional access (1st entry by insertion order)
 LEN(result)                   // 3
 loop key, val in result do    // iterate all results
     PRINT(key, val.status, val.value)
@@ -596,17 +595,6 @@ This guarantees no data races — threads never see each other's modifications.
 7. The monitor clause can read the live result collection during execution
 8. All threads must complete before execution continues past `end`
 9. The result collection is assigned to `resultVar` after **all** threads finish
-
-### Positional Access on Objects
-
-The `.INTEGER` syntax provides positional access on objects (maps) by insertion order. This is especially useful for iterating over result collections:
-
-```
-obj = {a: 1, b: 2, c: 3}
-obj.1    // 1 (first entry by insertion order)
-obj.2    // 2
-obj.3    // 3
-```
 
 ### Monitor Clause
 
@@ -839,7 +827,6 @@ Common error conditions:
 | Assignment in monitor | Cannot assign variables in monitor block (read-only) |
 | thread outside multi | thread can only be used inside multi blocks |
 | Duplicate result key | Duplicate result key 'x' in multi block |
-| Map positional OOB | Map positional index out of bounds: N |
 | Too many arguments | Function 'foo' expects 2 argument(s), but 3 were provided |
 | Range step not positive | Range step must be positive |
 | Range bounds not numbers | Range bounds must be numbers |

@@ -52,7 +52,7 @@ multi r3 do
     thread : testNumber()
 end
 
-PRINT(r1.1.ok)
-PRINT(r2.1.ok)
-PRINT(r3.1.ok)
-PRINT(r1.1.value)
+PRINT(r1."#1".ok)
+PRINT(r2."#1".ok)
+PRINT(r3."#1".ok)
+PRINT(r1."#1".value)

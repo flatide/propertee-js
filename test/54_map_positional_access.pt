@@ -1,15 +1,26 @@
-// Test: .INTEGER positional access on objects/maps
-obj = { first: "a", second: "b", third: "c" }
+// Test: .INTEGER on objects uses string key (not positional)
+obj = {}
+obj.1 = "first"
+obj.2 = "second"
+obj.3 = "third"
 
-// Positional access (1-based)
+// Read back by integer key
 PRINT(obj.1)
 PRINT(obj.2)
 PRINT(obj.3)
 
-// Named access still works
-PRINT(obj.first)
+// Same as string key access
+PRINT(obj."1")
+PRINT(obj."2")
 
-// Nested positional
-nested = { x: { a: 10, b: 20 } }
-PRINT(nested.x.1)
-PRINT(nested.x.2)
+// HAS_KEY with string version of integer
+PRINT(HAS_KEY(obj, "1"))
+PRINT(HAS_KEY(obj, "4"))
+
+// Mixed string and integer keys
+mixed = { name: "test" }
+mixed.1 = "one"
+PRINT(mixed.name)
+PRINT(mixed.1)
+PRINT(mixed."1")
+PRINT(LEN(mixed))
