@@ -724,6 +724,7 @@ All built-in function names are UPPERCASE.
 | Function | Description |
 |---|---|
 | `HAS_KEY(obj, key)` | Returns `true` if `obj` contains `key`, `false` otherwise. Both arguments required: `obj` must be an object, `key` must be a string. |
+| `KEYS(obj)` | Returns an array of the object's keys in insertion order. `obj` must be an object. |
 
 ### Timing
 

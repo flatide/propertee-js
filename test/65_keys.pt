@@ -1,0 +1,58 @@
+// Test KEYS() built-in function
+
+// Basic object keys
+obj = {"a": 1, "b": 2, "c": 3}
+k = KEYS(obj)
+PRINT(k)
+PRINT(LEN(k))
+
+// Empty object
+empty = {}
+PRINT(KEYS(empty))
+PRINT(LEN(KEYS(empty)))
+
+// Keys preserve insertion order
+ordered = {"z": 1, "a": 2, "m": 3}
+PRINT(KEYS(ordered))
+
+// Use keys in a loop
+obj2 = {"x": 10, "y": 20}
+loop key in KEYS(obj2) do
+    PRINT(key, obj2.$key)
+end
+
+// Error: not an object
+function testArray() do
+    KEYS([1, 2, 3])
+end
+
+function testString() do
+    KEYS("hello")
+end
+
+function testNumber() do
+    KEYS(42)
+end
+
+// Test error cases via try-like pattern
+function tryKeys(val) do
+    return KEYS(val)
+end
+
+// These should error - test with thread to capture
+multi r1 do
+    thread : testArray()
+end
+
+multi r2 do
+    thread : testString()
+end
+
+multi r3 do
+    thread : testNumber()
+end
+
+PRINT(r1.1.ok)
+PRINT(r2.1.ok)
+PRINT(r3.1.ok)
+PRINT(r1.1.value)

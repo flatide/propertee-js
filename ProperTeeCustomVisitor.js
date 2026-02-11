@@ -165,6 +165,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     throw new Error('Runtime Error: HAS_KEY() second argument must be a string');
                 return obj.hasOwnProperty(key);
             },
+            'KEYS': (obj) => {
+                if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+                    throw new Error('Runtime Error: KEYS() argument must be an object');
+                return Object.keys(obj);
+            },
             'RANDOM': (...args) => {
                 if (args.length === 0) {
                     return Math.random();
