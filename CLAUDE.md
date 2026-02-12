@@ -351,7 +351,7 @@ end
 - Numbers: `Integer` for whole numbers, `Double` for decimals. Format helper strips `.0`
 - Division always produces `Double`
 - Semicolons are optional statement separators (treated as whitespace by the lexer)
-- **Syntax highlighting** — ProperTee repo has Vim (`editors/vim/syntax/propertee.vim`) and VS Code (`editors/vscode/syntaxes/propertee.tmLanguage.json`) syntax files. Update when adding keywords or built-in functions.
+- **Syntax highlighting** — ProperTee repo has Vim (`editors/vim/syntax/propertee.vim`) and VS Code (`editors/vscode/syntaxes/propertee.tmLanguage.json`) syntax files. The playground (`docs/index.html`) has its own regex-based syntax highlighting via `highlightSyntax()` — update the `builtins` and `keywords` strings there when adding new built-in functions or keywords. Update all three locations when adding keywords or built-in functions.
 
 ## Dependencies
 
