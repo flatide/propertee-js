@@ -293,6 +293,35 @@
             background: rgba(250, 204, 21, 0.18);
         }
 
+        /* Syntax highlight overlay */
+        .editor-syntax {
+            position: absolute;
+            top: 0;
+            left: 48px;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            padding: 8px 12px 16px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre;
+            overflow: hidden;
+            pointer-events: none;
+            background: transparent;
+            z-index: 0;
+            color: #cdd6f4;
+        }
+
+        .syn-kw { color: #cba6f7; }
+        .syn-fn { color: #89b4fa; }
+        .syn-str { color: #a6e3a1; }
+        .syn-num { color: #fab387; }
+        .syn-bool { color: #fab387; }
+        .syn-cmt { color: #6c7086; }
+        .syn-gl { color: #f9e2af; }
+        .syn-op { color: #89dceb; }
+
         /* Script editor */
         #script {
             flex: 1;
@@ -304,7 +333,8 @@
             line-height: 1.7;
             resize: none;
             background: transparent;
-            color: #cdd6f4;
+            color: transparent;
+            caret-color: #cdd6f4;
             outline: none;
             tab-size: 4;
             -moz-tab-size: 4;
@@ -589,6 +619,7 @@
             <div class="editor-wrapper">
                 <div class="line-numbers" id="lineNumbers">1</div>
                 <div class="editor-highlight" id="editorHighlight"><div class="editor-highlight-inner" id="editorHighlightInner"></div></div>
+                <pre class="editor-syntax" id="editorSyntax" aria-hidden="true"></pre>
                 <textarea id="script" placeholder="// Enter ProperTee code..." spellcheck="false">// 01 - Hello World
 // The simplest ProperTee program. PRINT is a built-in function.
 
@@ -687,6 +718,7 @@ PRINT("Hello, World!")</textarea>
                 script.scrollTop = Math.max(0, targetScroll);
                 document.getElementById('lineNumbers').scrollTop = script.scrollTop;
                 document.getElementById('editorHighlight').scrollTop = script.scrollTop;
+                document.getElementById('editorSyntax').scrollTop = script.scrollTop;
             }
         }
 
@@ -722,6 +754,7 @@ PRINT("Hello, World!")</textarea>
             }
             scriptArea.focus();
             updateLineNumbers();
+            updateSyntaxHighlight();
         }
 
         const examples = {
@@ -1249,6 +1282,7 @@ PRINT("x =", x)`
                 currentExample = name;
                 clearErrorHighlights();
                 updateLineNumbers();
+                updateSyntaxHighlight();
             }
         }
 
@@ -1258,6 +1292,7 @@ PRINT("x =", x)`
             document.getElementById('script').value = examples[currentExample];
             clearErrorHighlights();
             updateLineNumbers();
+            updateSyntaxHighlight();
         }
 
         async function run() {
@@ -1361,6 +1396,7 @@ PRINT("x =", x)`
                 script.scrollTop = Math.max(0, targetScroll);
                 document.getElementById('lineNumbers').scrollTop = script.scrollTop;
                 document.getElementById('editorHighlight').scrollTop = script.scrollTop;
+                document.getElementById('editorSyntax').scrollTop = script.scrollTop;
             }
         }
 
@@ -1570,6 +1606,54 @@ PRINT("x =", x)`
             }
         }
 
+        // Syntax highlighting
+        function highlightSyntax(code) {
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|HAS_KEY|KEYS|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME';
+            var keywords = 'if|then|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
+            var pattern = new RegExp(
+                '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
+                + '|(\\/\\/[^\\n]*)'                               // line comments
+                + '|("(?:[^"\\\\]|\\\\.)*")'                       // strings
+                + '|(\\b(?:' + builtins + ')\\b(?=\\s*\\())'       // built-in functions
+                + '|(\\b(?:' + keywords + ')\\b)'                  // keywords
+                + '|(\\b(?:true|false)\\b)'                        // booleans
+                + '|(\\b\\d+\\.\\d+\\b|\\b\\d+\\b)'               // numbers
+                + '|(::)'                                          // global prefix
+                + '|(==|!=|>=|<=|\\.\\.|>|<|[+\\-*\\/%=])'         // operators
+                , 'g'
+            );
+            var result = '';
+            var lastIndex = 0;
+            var match;
+            while ((match = pattern.exec(code)) !== null) {
+                // Append unmatched text (HTML-escaped)
+                if (match.index > lastIndex) {
+                    result += escapeHtml(code.substring(lastIndex, match.index));
+                }
+                var text = escapeHtml(match[0]);
+                if (match[1]) result += '<span class="syn-cmt">' + text + '</span>';
+                else if (match[2]) result += '<span class="syn-cmt">' + text + '</span>';
+                else if (match[3]) result += '<span class="syn-str">' + text + '</span>';
+                else if (match[4]) result += '<span class="syn-fn">' + text + '</span>';
+                else if (match[5]) result += '<span class="syn-kw">' + text + '</span>';
+                else if (match[6]) result += '<span class="syn-bool">' + text + '</span>';
+                else if (match[7]) result += '<span class="syn-num">' + text + '</span>';
+                else if (match[8]) result += '<span class="syn-gl">' + text + '</span>';
+                else if (match[9]) result += '<span class="syn-op">' + text + '</span>';
+                else result += text;
+                lastIndex = pattern.lastIndex;
+            }
+            if (lastIndex < code.length) {
+                result += escapeHtml(code.substring(lastIndex));
+            }
+            return result + '\n';
+        }
+
+        function updateSyntaxHighlight() {
+            var code = document.getElementById('script').value;
+            document.getElementById('editorSyntax').innerHTML = highlightSyntax(code);
+        }
+
         // Code editor features
         function initCodeEditor() {
             const textareas = document.querySelectorAll('textarea');
@@ -1593,6 +1677,7 @@ PRINT("x =", x)`
                             this.selectionStart = this.selectionEnd = start + 4;
                         }
                         updateLineNumbers();
+                        updateSyntaxHighlight();
                     }
 
                     if (e.key === 'Enter') {
@@ -1610,6 +1695,7 @@ PRINT("x =", x)`
                             this.value = value.substring(0, start) + ins + value.substring(start);
                             this.selectionStart = this.selectionEnd = start + ins.length;
                             updateLineNumbers();
+                            updateSyntaxHighlight();
                         }
                     }
 
@@ -1623,6 +1709,7 @@ PRINT("x =", x)`
                                 this.value = value.substring(0, lineStart) + line.substring(4) + value.substring(start);
                                 this.selectionStart = this.selectionEnd = start - 4;
                                 updateLineNumbers();
+                                updateSyntaxHighlight();
                             }
                         }, 0);
                     }
@@ -1655,17 +1742,21 @@ PRINT("x =", x)`
         window.addEventListener('load', () => {
             initCodeEditor();
             updateLineNumbers();
+            updateSyntaxHighlight();
 
             const script = document.getElementById('script');
             const lineNumbers = document.getElementById('lineNumbers');
             script.addEventListener('input', () => {
                 clearErrorHighlights();
                 updateLineNumbers();
+                updateSyntaxHighlight();
             });
             const editorHighlight = document.getElementById('editorHighlight');
+            const editorSyntax = document.getElementById('editorSyntax');
             script.addEventListener('scroll', () => {
                 lineNumbers.scrollTop = script.scrollTop;
                 editorHighlight.scrollTop = script.scrollTop;
+                editorSyntax.scrollTop = script.scrollTop;
             });
 
             // Breakpoint toggle via click on line numbers
