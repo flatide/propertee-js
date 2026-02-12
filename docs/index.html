@@ -234,12 +234,33 @@
 
         .line-numbers span {
             display: block;
+            cursor: pointer;
+            position: relative;
         }
 
         .line-numbers span.line-error {
             color: #f38ba8;
             background: rgba(243, 139, 168, 0.12);
             font-weight: 600;
+        }
+
+        .line-numbers span.line-debug {
+            color: #f9e2af;
+            background: rgba(250, 204, 21, 0.15);
+            font-weight: 600;
+        }
+
+        .line-numbers span.line-breakpoint::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f38ba8;
+            position: absolute;
+            left: 4px;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         /* Editor highlight overlay */
@@ -263,6 +284,13 @@
             left: 0;
             right: 0;
             background: rgba(243, 139, 168, 0.15);
+        }
+
+        .debug-line-highlight {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: rgba(250, 204, 21, 0.18);
         }
 
         /* Script editor */
@@ -335,6 +363,131 @@
             background: rgba(137, 180, 250, 0.15);
         }
 
+        /* Debug buttons */
+        .btn-debug {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .btn-debug:hover {
+            background: #b45309;
+        }
+
+        .btn-step {
+            background: #0891b2;
+            color: #fff;
+        }
+
+        .btn-step:hover {
+            background: #0e7490;
+        }
+
+        .btn-continue {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .btn-continue:hover {
+            background: #15803d;
+        }
+
+        .btn-stop {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        .btn-stop:hover {
+            background: #b91c1c;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .debug-info {
+            font-size: 0.8em;
+            color: #6b7280;
+            margin-left: 4px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+        }
+
+        .debug-info .thread-name {
+            color: #d97706;
+            font-weight: 500;
+        }
+
+        /* Variables panel */
+        .variables-section {
+            display: none;
+            border-top: 1px solid #313244;
+            max-height: 200px;
+            flex-shrink: 0;
+        }
+
+        .variables-section.visible {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .variables-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #181825;
+            padding: 6px 16px 4px;
+            flex-shrink: 0;
+        }
+
+        .variables-header .section-label {
+            padding: 0;
+        }
+
+        .variables-content {
+            padding: 6px 16px;
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow: auto;
+            color: #cdd6f4;
+            background: #181825;
+            flex: 1;
+        }
+
+        .var-scope-label {
+            color: #6c7086;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 4px;
+            margin-bottom: 2px;
+        }
+
+        .var-scope-label:first-child {
+            margin-top: 0;
+        }
+
+        .var-entry {
+            display: flex;
+            gap: 8px;
+            padding: 1px 0;
+        }
+
+        .var-name {
+            color: #89b4fa;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .var-value {
+            color: #a6e3a1;
+            word-break: break-all;
+        }
+
+        .var-value.type-string { color: #f9e2af; }
+        .var-value.type-number { color: #a6e3a1; }
+        .var-value.type-boolean { color: #cba6f7; }
+        .var-value.type-object { color: #89dceb; }
+
     </style>
 </head>
 <body>
@@ -347,6 +500,11 @@
 
     <div class="toolbar">
         <button class="btn btn-run" id="runButton" onclick="run()">Run</button>
+        <button class="btn btn-debug" id="debugButton" onclick="startDebug()">Debug</button>
+        <button class="btn btn-step" id="stepButton" onclick="debugStep()" style="display:none">Step</button>
+        <button class="btn btn-continue" id="continueButton" onclick="debugContinue()" style="display:none">Continue</button>
+        <button class="btn btn-stop" id="stopButton" onclick="debugStop()" style="display:none">Stop</button>
+        <span class="debug-info" id="debugInfo"></span>
         <div class="toolbar-divider"></div>
         <select class="example-select" id="exampleSelect" onchange="loadExample(this.value)">
             <option value="01_hello" selected>01 Hello World</option>
@@ -385,6 +543,7 @@
                 <button class="ref-chip kw" onclick="insertText('function')">function</button>
                 <button class="ref-chip kw" onclick="insertText('thread')">thread</button>
                 <button class="ref-chip kw" onclick="insertText('return')">return</button>
+                <button class="ref-chip kw" onclick="insertText('debug')">debug</button>
                 <button class="ref-chip kw" onclick="insertText('multi')">multi</button>
                 <button class="ref-chip kw" onclick="insertText('monitor')">monitor</button>
                 <button class="ref-chip kw" onclick="insertText('and')">and</button>
@@ -442,6 +601,12 @@ PRINT("Hello, World!")</textarea>
                 </div>
                 <pre id="output"></pre>
             </div>
+            <div class="variables-section" id="variablesSection">
+                <div class="variables-header">
+                    <div class="section-label">Variables</div>
+                </div>
+                <div class="variables-content" id="variablesContent"></div>
+            </div>
         </div>
     </div>
 
@@ -461,6 +626,10 @@ PRINT("Hello, World!")</textarea>
         }
 
         let errorLineSet = new Set();
+        let debugLineSet = new Set();
+        let breakpointSet = new Set();
+        let activeScheduler = null;
+        let isDebugging = false;
 
         function updateLineNumbers() {
             const script = document.getElementById('script');
@@ -468,10 +637,14 @@ PRINT("Hello, World!")</textarea>
             const lineCount = script.value.split('\n').length;
             let html = '';
             for (let i = 1; i <= lineCount; i++) {
-                if (errorLineSet.has(i)) {
-                    html += '<span class="line-error">' + i + '</span>';
+                let classes = [];
+                if (errorLineSet.has(i)) classes.push('line-error');
+                if (debugLineSet.has(i)) classes.push('line-debug');
+                if (breakpointSet.has(i)) classes.push('line-breakpoint');
+                if (classes.length > 0) {
+                    html += '<span class="' + classes.join(' ') + '" data-line="' + i + '">' + i + '</span>';
                 } else {
-                    html += '<span>' + i + '</span>';
+                    html += '<span data-line="' + i + '">' + i + '</span>';
                 }
             }
             lineNumbers.innerHTML = html;
@@ -481,7 +654,7 @@ PRINT("Hello, World!")</textarea>
             const inner = document.getElementById('editorHighlightInner');
             const highlight = document.getElementById('editorHighlight');
             const script = document.getElementById('script');
-            if (errorLineSet.size === 0) {
+            if (errorLineSet.size === 0 && debugLineSet.size === 0) {
                 inner.innerHTML = '';
                 inner.style.height = '0';
                 return;
@@ -494,6 +667,10 @@ PRINT("Hello, World!")</textarea>
             errorLineSet.forEach(function(line) {
                 const top = paddingTop + (line - 1) * lineHeight;
                 html += '<div class="error-line-highlight" style="top:' + top + 'px;height:' + lineHeight + 'px"></div>';
+            });
+            debugLineSet.forEach(function(line) {
+                const top = paddingTop + (line - 1) * lineHeight;
+                html += '<div class="debug-line-highlight" style="top:' + top + 'px;height:' + lineHeight + 'px"></div>';
             });
             inner.innerHTML = html;
             highlight.scrollTop = script.scrollTop;
@@ -514,8 +691,9 @@ PRINT("Hello, World!")</textarea>
         }
 
         function clearErrorHighlights() {
-            if (errorLineSet.size > 0) {
+            if (errorLineSet.size > 0 || debugLineSet.size > 0) {
                 errorLineSet = new Set();
+                debugLineSet = new Set();
                 updateLineNumbers();
                 updateEditorHighlight();
             }
@@ -1170,6 +1348,228 @@ PRINT("x =", x)`
             document.getElementById('output').textContent = '';
         }
 
+        // --- Debug functions ---
+
+        function updateDebugHighlight(line) {
+            debugLineSet = line ? new Set([line]) : new Set();
+            updateLineNumbers();
+            updateEditorHighlight();
+            if (line) {
+                const script = document.getElementById('script');
+                const lineHeight = parseFloat(getComputedStyle(script).lineHeight);
+                const targetScroll = (line - 1) * lineHeight - script.clientHeight / 3;
+                script.scrollTop = Math.max(0, targetScroll);
+                document.getElementById('lineNumbers').scrollTop = script.scrollTop;
+                document.getElementById('editorHighlight').scrollTop = script.scrollTop;
+            }
+        }
+
+        function setToolbarState(state) {
+            const runBtn = document.getElementById('runButton');
+            const debugBtn = document.getElementById('debugButton');
+            const stepBtn = document.getElementById('stepButton');
+            const contBtn = document.getElementById('continueButton');
+            const stopBtn = document.getElementById('stopButton');
+
+            if (state === 'idle') {
+                runBtn.disabled = false;
+                runBtn.textContent = 'Run';
+                debugBtn.disabled = false;
+                debugBtn.style.display = '';
+                stepBtn.style.display = 'none';
+                contBtn.style.display = 'none';
+                stopBtn.style.display = 'none';
+                document.getElementById('debugInfo').textContent = '';
+            } else if (state === 'running') {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Running...';
+                debugBtn.disabled = true;
+                stepBtn.style.display = 'none';
+                contBtn.style.display = 'none';
+                stopBtn.style.display = 'none';
+            } else if (state === 'debugging') {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Run';
+                debugBtn.style.display = 'none';
+                stepBtn.style.display = '';
+                contBtn.style.display = '';
+                stopBtn.style.display = '';
+            }
+        }
+
+        function formatVarValue(val) {
+            if (val === null || val === undefined) return { text: '{}', cls: 'type-object' };
+            if (typeof val === 'string') return { text: "'" + val + "'", cls: 'type-string' };
+            if (typeof val === 'number') return { text: String(val), cls: 'type-number' };
+            if (typeof val === 'boolean') return { text: String(val), cls: 'type-boolean' };
+            if (Array.isArray(val)) {
+                const items = val.map(v => formatVarValue(v).text).join(', ');
+                return { text: '[ ' + items + ' ]', cls: 'type-object' };
+            }
+            if (typeof val === 'object') {
+                const entries = Object.keys(val).map(k => '"' + k + '": ' + formatVarValue(val[k]).text).join(', ');
+                return { text: '{ ' + entries + ' }', cls: 'type-object' };
+            }
+            return { text: String(val), cls: '' };
+        }
+
+        function updateVariableInspector(variables, scopeStack) {
+            const container = document.getElementById('variablesContent');
+            const section = document.getElementById('variablesSection');
+            section.classList.add('visible');
+
+            let html = '';
+
+            // Show local scope if present
+            if (scopeStack && scopeStack.length > 0) {
+                const localScope = scopeStack[scopeStack.length - 1];
+                const localKeys = Object.keys(localScope);
+                if (localKeys.length > 0) {
+                    html += '<div class="var-scope-label">Local Scope</div>';
+                    for (const key of localKeys) {
+                        const fv = formatVarValue(localScope[key]);
+                        html += '<div class="var-entry"><span class="var-name">' + key + '</span><span class="var-value ' + fv.cls + '">' + escapeHtml(fv.text) + '</span></div>';
+                    }
+                }
+            }
+
+            // Show globals
+            if (variables) {
+                const globalKeys = Object.keys(variables).filter(k => typeof variables[k] !== 'function');
+                if (globalKeys.length > 0) {
+                    html += '<div class="var-scope-label">Globals</div>';
+                    for (const key of globalKeys) {
+                        const fv = formatVarValue(variables[key]);
+                        html += '<div class="var-entry"><span class="var-name">' + key + '</span><span class="var-value ' + fv.cls + '">' + escapeHtml(fv.text) + '</span></div>';
+                    }
+                }
+            }
+
+            container.innerHTML = html || '<div class="var-scope-label">No variables</div>';
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function endDebugSession() {
+            isDebugging = false;
+            activeScheduler = null;
+            setToolbarState('idle');
+            updateDebugHighlight(null);
+        }
+
+        async function startDebug() {
+            const scriptText = document.getElementById('script').value;
+
+            clearErrorHighlights();
+            clearOutput();
+            setToolbarState('debugging');
+            isDebugging = true;
+            appendOutput('Debug session started. Click Step or Continue.\n', '#d97706');
+
+            try {
+                const properties = {};
+
+                const chars = new antlr4.InputStream(scriptText);
+                const lexer = new ProperTeeLexer(chars);
+                const lexerErrors = new ErrorListener();
+                lexer.removeErrorListeners();
+                lexer.addErrorListener(lexerErrors);
+
+                const tokens = new antlr4.CommonTokenStream(lexer);
+                const parser = new ProperTeeParser(tokens);
+                const parserErrors = new ErrorListener();
+                parser.removeErrorListeners();
+                parser.addErrorListener(parserErrors);
+
+                const tree = parser.root();
+
+                if (lexerErrors.errors.length > 0) {
+                    appendOutput('Lexer Error:\n' + lexerErrors.errors.join('\n') + '\n', '#f38ba8');
+                    highlightErrorLines(lexerErrors.lines);
+                    endDebugSession();
+                    return;
+                }
+                if (parserErrors.errors.length > 0) {
+                    appendOutput('Parser Error:\n' + parserErrors.errors.join('\n') + '\n', '#f38ba8');
+                    highlightErrorLines(parserErrors.lines);
+                    endDebugSession();
+                    return;
+                }
+
+                const ioStreams = {
+                    stdout: (...args) => {
+                        appendOutput(args.join(' ') + '\n');
+                    },
+                    stderr: (...args) => {
+                        appendOutput('[ERROR] ' + args.join(' ') + '\n', '#f38ba8');
+                    }
+                };
+
+                const options = {
+                    maxIterations: 1000,
+                    iterationLimitBehavior: 'error'
+                };
+
+                const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+                const scheduler = new Scheduler(visitor);
+                activeScheduler = scheduler;
+
+                scheduler.setDebugMode(true);
+                scheduler.setBreakpoints(breakpointSet);
+
+                scheduler.onStep = function(info) {
+                    if (info.done) {
+                        appendOutput('Debug session ended.\n', '#d97706');
+                        endDebugSession();
+                        return;
+                    }
+                    updateDebugHighlight(info.line);
+                    updateVariableInspector(info.variables, info.scopeStack);
+                    const debugInfo = document.getElementById('debugInfo');
+                    debugInfo.innerHTML = '<span class="thread-name">' + escapeHtml(info.threadName) + '</span> line ' + (info.line || '?');
+                };
+
+                const mainGenerator = visitor.visitRoot(tree);
+                const result = await scheduler.run(mainGenerator);
+
+                if (isDebugging) {
+                    appendOutput('Finished with result: ' + JSON.stringify(result, null, 2) + '\n', '#a6e3a1');
+                    endDebugSession();
+                }
+
+            } catch (e) {
+                if (e.message !== 'Execution stopped by user') {
+                    appendOutput('Runtime Error: ' + e.message + '\n', '#f38ba8');
+                    const errLines = parseErrorLines(e.message);
+                    if (errLines.length > 0) highlightErrorLines(errLines);
+                    console.error(e);
+                } else {
+                    appendOutput('Execution stopped.\n', '#d97706');
+                }
+                endDebugSession();
+            }
+        }
+
+        function debugStep() {
+            if (activeScheduler) {
+                activeScheduler.debugStep();
+            }
+        }
+
+        function debugContinue() {
+            if (activeScheduler) {
+                activeScheduler.debugContinue();
+            }
+        }
+
+        function debugStop() {
+            if (activeScheduler) {
+                activeScheduler.debugStop();
+            }
+        }
+
         // Code editor features
         function initCodeEditor() {
             const textareas = document.querySelectorAll('textarea');
@@ -1266,6 +1666,23 @@ PRINT("x =", x)`
             script.addEventListener('scroll', () => {
                 lineNumbers.scrollTop = script.scrollTop;
                 editorHighlight.scrollTop = script.scrollTop;
+            });
+
+            // Breakpoint toggle via click on line numbers
+            lineNumbers.addEventListener('click', function(e) {
+                const span = e.target.closest('span[data-line]');
+                if (!span) return;
+                const line = parseInt(span.getAttribute('data-line'), 10);
+                if (isNaN(line)) return;
+                if (breakpointSet.has(line)) {
+                    breakpointSet.delete(line);
+                } else {
+                    breakpointSet.add(line);
+                }
+                updateLineNumbers();
+                if (activeScheduler) {
+                    activeScheduler.setBreakpoints(breakpointSet);
+                }
             });
 
             setTimeout(() => run(), 500);

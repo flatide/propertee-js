@@ -162,6 +162,12 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
+	// Visit a parse tree produced by ProperTeeParser#DebugStmt.
+	visitDebugStmt(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
 	// Visit a parse tree produced by ProperTeeParser#AndExpr.
 	visitAndExpr(ctx) {
 	  return this.visitChildren(ctx);

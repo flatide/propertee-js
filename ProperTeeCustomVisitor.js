@@ -403,8 +403,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         try {
             for (const stmt of statements) {
+                yield stmt.start.line; // Statement boundary yield (before execution)
                 result = yield* this.visit(stmt);
-                yield; // Statement boundary yield
             }
             return result;
         } catch (e) {
@@ -418,8 +418,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitBlock(ctx) {
         let result = null;
         for (const stmt of ctx.statement()) {
+            yield stmt.start.line; // Statement boundary yield (before execution)
             result = yield* this.visit(stmt);
-            yield; // Statement boundary yield
         }
         return result;
     }
@@ -631,6 +631,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     }
                 }
 
+                yield ctx.start.line; // Loop iteration boundary (before execution)
+
                 try {
                     result = yield* this.visitBlock(ctx.block());
                 } catch (e) {
@@ -638,8 +640,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     else if (e instanceof ContinueException) { /* continue */ }
                     else throw e;
                 }
-
-                yield; // Loop iteration boundary
 
                 condition = yield* this.visit(ctx.expression());
             }
@@ -679,6 +679,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         variables[valueVar] = this.deepCopy(iterable[i]);
                     }
 
+                    yield ctx.start.line; // Loop iteration boundary (before execution)
+
                     try {
                         result = yield* this.visitBlock(ctx.block());
                     } catch (e) {
@@ -686,8 +688,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         else if (e instanceof ContinueException) { /* continue */ }
                         else throw e;
                     }
-
-                    yield; // Loop iteration boundary
                 }
             } catch (e) {
                 if (!(e instanceof BreakException)) throw e;
@@ -711,6 +711,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             variables[valueVar] = this.deepCopy(iterable[key]);
                         }
 
+                        yield ctx.start.line; // Loop iteration boundary (before execution)
+
                         try {
                             result = yield* this.visitBlock(ctx.block());
                         } catch (e) {
@@ -718,8 +720,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             else if (e instanceof ContinueException) { /* continue */ }
                             else throw e;
                         }
-
-                        yield; // Loop iteration boundary
                     }
                 }
             } catch (e) {
@@ -763,6 +763,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         variables[valueVar] = this.deepCopy(iterable[i]);
                     }
 
+                    yield ctx.start.line; // Loop iteration boundary (before execution)
+
                     try {
                         result = yield* this.visitBlock(ctx.block());
                     } catch (e) {
@@ -770,8 +772,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         else if (e instanceof ContinueException) { /* continue */ }
                         else throw e;
                     }
-
-                    yield; // Loop iteration boundary
                 }
             } catch (e) {
                 if (!(e instanceof BreakException)) throw e;
@@ -797,6 +797,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             variables[valueVar] = this.deepCopy(iterable[key]);
                         }
 
+                        yield ctx.start.line; // Loop iteration boundary (before execution)
+
                         try {
                             result = yield* this.visitBlock(ctx.block());
                         } catch (e) {
@@ -804,8 +806,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             else if (e instanceof ContinueException) { /* continue */ }
                             else throw e;
                         }
-
-                        yield; // Loop iteration boundary
                     }
                 }
             } catch (e) {
@@ -833,6 +833,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitReturnStmt(ctx) {
         const value = ctx.expression() ? yield* this.visit(ctx.expression()) : {};
         throw new ReturnException(value);
+    }
+
+    *visitDebugStmt(ctx) {
+        yield { __debugBreak: true, line: ctx.start.line };
     }
 
     // --- Function Definition ---
@@ -1412,8 +1416,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         try {
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
+                    yield stmtCtx.start.line; // Statement boundary (before execution)
                     yield* this.visit(stmtCtx);
-                    yield; // Statement boundary
                 }
             }
 
@@ -1602,8 +1606,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         try {
             if (body.statement()) {
                 for (const stmtCtx of body.statement()) {
+                    yield stmtCtx.start.line; // Statement boundary (before execution)
                     yield* this.visit(stmtCtx);
-                    yield; // Statement boundary
                 }
             }
 

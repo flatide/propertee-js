@@ -28,7 +28,7 @@ end
 PRINT("---")
 
 // On objects: key is the property name
-config = { host: "localhost", port: "8080", debug: "true" }
+config = { host: "localhost", port: "8080", verbose: "true" }
 loop key, val in config do
     PRINT(key + " = " + val)
 end

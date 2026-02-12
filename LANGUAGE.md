@@ -360,6 +360,12 @@ end
 
 `break` and `continue` affect the innermost enclosing loop only.
 
+### Debug Statement
+
+`debug` — Explicit breakpoint for the debugger. In the playground's debug mode,
+execution pauses at each `debug` statement. In normal execution, `debug` is a
+no-op (does nothing). Can be placed anywhere a statement is valid.
+
 ## Functions
 
 ```

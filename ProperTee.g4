@@ -59,6 +59,7 @@ flowControl
     : K_BREAK              # BreakStmt
     | K_CONTINUE           # ContinueStmt
     | K_RETURN expression? # ReturnStmt
+    | K_DEBUG              # DebugStmt
     ;
 
 expression
@@ -142,6 +143,7 @@ K_FALSE     : 'false';
 K_INFINITE  : 'infinite';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
+K_DEBUG     : 'debug';
 
 GLOBAL_PREFIX : '::' ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;

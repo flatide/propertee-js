@@ -1,0 +1,5 @@
+x = 1
+debug
+x = 2
+debug
+PRINT(x)
