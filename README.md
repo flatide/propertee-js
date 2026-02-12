@@ -1,4 +1,4 @@
-# ProperTee for JavaScript
+# ProperTee for JavaScript v0.3.0
 
 A JavaScript implementation of the [ProperTee](https://github.com/flatide/ProperTee) language using **generator-based cooperative multithreading**. Built with ANTLR4 for parsing and JavaScript generators for scheduling — every interpreter method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
 
@@ -30,7 +30,7 @@ Every `visit*` method in the interpreter is a `function*` generator:
 Thread functions are **pure** with respect to global state:
 - Can read globals via a snapshot taken at `multi` block entry
 - Cannot write globals (enforced at runtime)
-- Return results via `->` syntax; results assigned only after all threads complete
+- Return results via `thread key: func()` syntax; results assigned only after all threads complete
 - No locks, no shared mutable state
 
 ## External Functions & Result Pattern
@@ -88,7 +88,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 41 tests
+# Run all 69 tests
 npm test
 
 # Run a single test
