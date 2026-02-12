@@ -859,3 +859,39 @@ Common error conditions:
 | Range step not positive | Range step must be positive |
 | Range bounds not numbers | Range bounds must be numbers |
 | Range step not a number | Range step must be a number |
+
+---
+
+## Changelog
+
+### v0.3.0
+
+- **No bare identifier keys**: Object keys must be quoted strings or integers. `{"name": "Alice"}` is valid; `{name: "Alice"}` is now a parse error.
+- **`debug` statement**: New keyword for explicit breakpoints in the playground debugger. No-op in normal execution.
+- **Deep-copy value semantics**: All assignments (variables, properties, function args, thread args, loop variables) produce independent deep copies. No shared mutable state between variables.
+- **Range syntax `..`**: Range array syntax changed from `[start~end]` to `[start..end]` and `[start..end, step]`.
+- **Sort functions**: Added `SORT()`, `SORT_DESC()`, `SORT_BY()`, `SORT_BY_DESC()`, and `REVERSE()` built-in functions.
+- **No object positional access**: Integer keys on objects always resolve as string keys. `obj.1` reads key `"1"`, not the first entry by insertion order.
+- **`KEYS()` built-in**: `KEYS(obj)` returns an array of the object's keys in insertion order.
+
+### v0.2.0
+
+- **`RANDOM()`, `MILTIME()`, `DATE()`, `TIME()` built-ins**: Random numbers, epoch milliseconds, formatted date and time strings.
+- **Range array literals**: `[1..5]` produces `[1, 2, 3, 4, 5]`. Optional step: `[1..10, 2]`.
+- **`$::var` syntax**: Global variable access in dynamic keys and property access. `obj.$::var` and `thread $::var: func()`.
+- **Multi block setup scope isolation**: Setup phase runs in isolated scope. `::` required for global access.
+- **Empty dynamic key as unnamed**: Empty `$var`/`$(expr)` key treated as unnamed (auto-keyed `#1`, `#2`).
+- **Thread spawn key syntax**: `thread key: func()` prefix syntax. Keys reuse the `access` rule.
+- **Auto-key `#` prefix**: Unnamed thread results keyed as `"#1"`, `"#2"` instead of `"1"`, `"2"`.
+- **Dynamic thread keys**: `$var` and `$(expr)` syntax for computed keys in thread spawns.
+- **Thread status field**: `status` field on Result objects (`"running"`, `"done"`, `"error"`).
+- **Multi block result collection**: `multi resultVar do ... end` collects all thread results.
+- **`HAS_KEY()` built-in**: `HAS_KEY(obj, key)` returns `true`/`false`.
+- **`thread` keyword for spawning**: `thread` repurposed as spawn keyword inside multi blocks.
+- **`::` global prefix**: Inside functions, `::x` accesses globals. Thread purity enforced.
+- **Truthiness**: Only `true` is truthy.
+- **Implicit return**: Functions without `return` produce `{}`.
+
+### v0.1.0
+
+- Initial release with variables, functions, loops, conditionals, arrays, objects, strings, cooperative multithreading, and 30 built-in functions.
