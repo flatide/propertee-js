@@ -2,7 +2,7 @@
 
 A JavaScript implementation of the [ProperTee](https://github.com/flatide/ProperTee) language using **generator-based cooperative multithreading**. Built with ANTLR4 for parsing and JavaScript generators for scheduling — every interpreter method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
 
-For language specification, syntax reference, and built-in functions, see the [ProperTee Language Home](https://github.com/flatide/ProperTee).
+For language specification, syntax reference, and built-in functions, see the [ProperTee Language Home](https://github.com/flatide/ProperTee). See the [Changelog](LANGUAGE.md#changelog) for what's new.
 
 **[Try the Playground](https://flatide.github.io/propertee-js/)**
 
