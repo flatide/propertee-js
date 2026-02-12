@@ -116,7 +116,7 @@ export default class ProperTeeParser extends antlr4.Parser {
     static grammarFileName = "ProperTee.g4";
     static literalNames = [ null, "'='", "'.'", "'('", "')'", "','", "':'", 
                             "'-'", "'*'", "'/'", "'%'", "'+'", "'$'", "'{'", 
-                            "'}'", "'['", "'~'", "']'", "'>'", "'<'", "'=='", 
+                            "'}'", "'['", "'..'", "']'", "'>'", "'<'", "'=='", 
                             "'>='", "'<='", "'!='", "'if'", "'then'", "'else'", 
                             "'end'", "'loop'", "'in'", "'do'", "'break'", 
                             "'continue'", "'function'", "'thread'", "'return'", 

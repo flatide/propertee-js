@@ -114,7 +114,7 @@ objectKey
     ;
 
 arrayLiteral
-    : '[' rangeStart=expression '~' rangeEnd=expression (',' rangeStep=expression)? ']'  # RangeArray
+    : '[' rangeStart=expression '..' rangeEnd=expression (',' rangeStep=expression)? ']'  # RangeArray
     | '[' (expression (',' expression)*)? ']'                                              # ListArray
     ;
 

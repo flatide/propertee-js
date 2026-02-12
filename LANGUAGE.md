@@ -194,20 +194,20 @@ Built-in array functions (`PUSH`, `POP`, `CONCAT`, `SLICE`) return **new** array
 
 ### Range Arrays
 
-`[start~end]` creates an array from `start` to `end` (inclusive). An optional step controls the increment:
+`[start..end]` creates an array from `start` to `end` (inclusive). An optional step controls the increment:
 
 | Syntax | Result |
 |---|---|
-| `[1~5]` | `[1, 2, 3, 4, 5]` |
-| `[1~6, 2]` | `[1, 3, 5]` |
-| `[10~5, 1]` | `[10, 9, 8, 7, 6, 5]` |
-| `[0.0~0.3, 0.1]` | `[0.0, 0.1, 0.2, 0.3]` |
-| `[5~1]` | `[5, 4, 3, 2, 1]` (auto step -1) |
+| `[1..5]` | `[1, 2, 3, 4, 5]` |
+| `[1..6, 2]` | `[1, 3, 5]` |
+| `[10..5, 1]` | `[10, 9, 8, 7, 6, 5]` |
+| `[0.0..0.3, 0.1]` | `[0.0, 0.1, 0.2, 0.3]` |
+| `[5..1]` | `[5, 4, 3, 2, 1]` (auto step -1) |
 
 - Both bounds and step must be numbers
 - Step must be positive (defaults to `1`). Direction is inferred from start vs end
 - Step of `0` or negative is a runtime error
-- Bounds and step can be expressions: `[1~n]`, `[a~b, c]`
+- Bounds and step can be expressions: `[1..n]`, `[a..b, c]`
 
 ## Objects
 

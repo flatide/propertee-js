@@ -1,32 +1,32 @@
 // 62_range_array.pt
-a = [1~5]
+a = [1..5]
 PRINT(a)
 
-b = [1~6, 2]
+b = [1..6, 2]
 PRINT(b)
 
-c = [10~5, 1]
+c = [10..5, 1]
 PRINT(c)
 
-d = [0.0~0.3, 0.1]
+d = [0.0..0.3, 0.1]
 PRINT(d)
 
 // Empty range (start == end)
-e = [3~3]
+e = [3..3]
 PRINT(e)
 
 // Use in loop
 sum = 0
-loop x in [1~5] do
+loop x in [1..5] do
     sum = sum + x
 end
 PRINT(sum)
 
 // Expressions as bounds
 n = 5
-f = [1~n]
+f = [1..n]
 PRINT(f)
 
 // Range with step, descending default
-g = [5~1]
+g = [5..1]
 PRINT(g)
