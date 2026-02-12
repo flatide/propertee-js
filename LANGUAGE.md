@@ -47,6 +47,19 @@ items = [1, 2, 3]
 
 Referencing an undefined variable is a runtime error.
 
+### Value Semantics
+
+All assignments produce a **deep copy** of the right-hand side. Modifying a variable never affects any other variable, even for objects and arrays:
+
+```
+a = {x: 1}
+b = a           // b is an independent copy
+b.x = 99
+PRINT(a.x)      // 1 — a is unchanged
+```
+
+This applies everywhere values cross boundaries: variable assignment, property/element assignment, function arguments, loop variables, and thread global snapshots.
+
 ### `::` Global Variable Prefix
 
 Inside functions, plain variable names only access **local** variables. To read or write a global variable from within a function, use the `::` prefix:
@@ -367,6 +380,7 @@ result = add(3, 4)    // 7
 
 - Missing arguments default to `{}` (empty object)
 - Extra arguments beyond the declared parameters are a runtime error
+- All arguments are **call-by-value** — the function receives a copy. Modifications to parameters inside the function do not affect the caller's variables.
 
 ```
 function greet(name, title) do

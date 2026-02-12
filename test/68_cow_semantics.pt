@@ -1,0 +1,52 @@
+// 1: Variable assignment isolation
+a = {x: 1, y: 2}
+b = a
+b.x = 99
+PRINT(a.x)
+PRINT(b.x)
+
+// 2: Nested mutation isolation
+c = {nested: {val: 10}}
+d = c
+d.nested.val = 42
+PRINT(c.nested.val)
+PRINT(d.nested.val)
+
+// 3: Function parameter isolation
+function modify(obj) do
+    obj.x = 999
+    return obj.x
+end
+orig = {x: 1}
+result = modify(orig)
+PRINT(orig.x)
+PRINT(result)
+
+// 4: Array isolation
+arr1 = [10, 20, 30]
+arr2 = arr1
+arr2.1 = 99
+PRINT(arr1.1)
+PRINT(arr2.1)
+
+// 5: Object in array isolation
+arr3 = [{name: "a"}, {name: "b"}]
+arr4 = arr3
+arr4.1.name = "changed"
+PRINT(arr3.1.name)
+PRINT(arr4.1.name)
+
+// 6: Deep nesting isolation
+deep = {a: {b: {c: 1}}}
+shallow = deep
+shallow.a.b.c = 2
+PRINT(deep.a.b.c)
+PRINT(shallow.a.b.c)
+
+// 7: Loop variable isolation
+items = [{val: 1}, {val: 2}]
+loop item in items do
+    item.val = item.val + 100
+end
+PRINT(items.1.val)
+PRINT(items.2.val)

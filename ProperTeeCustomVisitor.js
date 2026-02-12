@@ -30,6 +30,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.maxIterations = options.maxIterations || 1000;
         this.iterationLimitBehavior = options.iterationLimitBehavior || 'error';
 
+        // Deep-copy helper for value semantics at sharing boundaries
+        this.deepCopy = (value) => {
+            if (value === null || value === undefined || typeof value !== 'object') return value;
+            if (Array.isArray(value)) return value.map(item => this.deepCopy(item));
+            const copy = {};
+            for (const key of Object.keys(value)) copy[key] = this.deepCopy(value[key]);
+            return copy;
+        };
+
         // Format a value for display inside collections (strings get single quotes)
         const formatJsonValue = (value) => {
             if (value === null || value === undefined) return 'null';
@@ -444,7 +453,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             // Write directly to globals (bypasses local scopes)
-            this.variables[varName] = value;
+            this.variables[varName] = this.deepCopy(value);
             return value;
         }
 
@@ -462,9 +471,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             if (scopeStack.length > 0) {
-                scopeStack[scopeStack.length - 1][varName] = value;
+                scopeStack[scopeStack.length - 1][varName] = this.deepCopy(value);
             } else {
-                variables[varName] = value;
+                variables[varName] = this.deepCopy(value);
             }
             return value;
         }
@@ -482,9 +491,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (idx < 0 || idx >= targetObj.length) {
                     throw this.createError('Array index out of bounds', ctx);
                 }
-                targetObj[idx] = value;
+                targetObj[idx] = this.deepCopy(value);
             } else {
-                targetObj[key] = value;
+                targetObj[key] = this.deepCopy(value);
             }
             return value;
         }
@@ -525,6 +534,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const targetObj = yield* this._evaluateLValueForAssignment(lvalueCtx.lvalue());
             const key = yield* this.visit(lvalueCtx.access());
             if (targetObj === null) throw new Error(`Runtime Error: Cannot access property '${key}' of null`);
+            // Array access: convert 1-based key to 0-based index
+            if (typeof key === 'number' && Array.isArray(targetObj)) {
+                return targetObj[key - 1];
+            }
+            // Object access: integer keys become string keys
+            if (typeof key === 'number' && typeof targetObj === 'object') {
+                return targetObj[String(key)];
+            }
             return targetObj[key];
         }
 
@@ -657,9 +674,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
                     // Set loop variable
                     if (scopeStack.length > 0) {
-                        scopeStack[scopeStack.length - 1][valueVar] = iterable[i];
+                        scopeStack[scopeStack.length - 1][valueVar] = this.deepCopy(iterable[i]);
                     } else {
-                        variables[valueVar] = iterable[i];
+                        variables[valueVar] = this.deepCopy(iterable[i]);
                     }
 
                     try {
@@ -689,9 +706,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         }
 
                         if (scopeStack.length > 0) {
-                            scopeStack[scopeStack.length - 1][valueVar] = iterable[key];
+                            scopeStack[scopeStack.length - 1][valueVar] = this.deepCopy(iterable[key]);
                         } else {
-                            variables[valueVar] = iterable[key];
+                            variables[valueVar] = this.deepCopy(iterable[key]);
                         }
 
                         try {
@@ -740,10 +757,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
                     if (scopeStack.length > 0) {
                         scopeStack[scopeStack.length - 1][keyVar] = i + 1;
-                        scopeStack[scopeStack.length - 1][valueVar] = iterable[i];
+                        scopeStack[scopeStack.length - 1][valueVar] = this.deepCopy(iterable[i]);
                     } else {
                         variables[keyVar] = i + 1;
-                        variables[valueVar] = iterable[i];
+                        variables[valueVar] = this.deepCopy(iterable[i]);
                     }
 
                     try {
@@ -774,10 +791,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
                         if (scopeStack.length > 0) {
                             scopeStack[scopeStack.length - 1][keyVar] = key;
-                            scopeStack[scopeStack.length - 1][valueVar] = iterable[key];
+                            scopeStack[scopeStack.length - 1][valueVar] = this.deepCopy(iterable[key]);
                         } else {
                             variables[keyVar] = key;
-                            variables[valueVar] = iterable[key];
+                            variables[valueVar] = this.deepCopy(iterable[key]);
                         }
 
                         try {
@@ -1383,7 +1400,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Create local scope with parameters
         const localScope = {};
         for (let i = 0; i < params.length; i++) {
-            localScope[params[i]] = i < args.length ? args[i] : {};
+            localScope[params[i]] = i < args.length ? this.deepCopy(args[i]) : {};
         }
 
         // Push scope
@@ -1427,8 +1444,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Extract optional result collection variable name: multi result do
         const resultVarName = ctx.resultVar ? ctx.resultVar.text : null;
 
-        // Snapshot globals for threads
-        const globalSnapshot = {...variables};
+        // Deep-copy snapshot of globals for thread purity
+        const globalSnapshot = {};
+        for (const key of Object.keys(variables)) {
+            globalSnapshot[key] = this.deepCopy(variables[key]);
+        }
 
         // Setup phase: execute the block body, collecting SPAWN specs
         // Push a scope so setup variables don't leak (:: required for globals, like functions)
@@ -1501,7 +1521,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 // Create local scope for the thread
                 const localScope = {};
                 for (let j = 0; j < params.length; j++) {
-                    localScope[params[j]] = j < spawn.args.length ? spawn.args[j] : {};
+                    localScope[params[j]] = j < spawn.args.length ? this.deepCopy(spawn.args[j]) : {};
                 }
 
                 // Create a generator for this thread's execution

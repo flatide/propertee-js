@@ -1,0 +1,12 @@
+function modify_and_return(obj) do
+    obj.val = obj.val + 100
+    return obj.val
+end
+
+data = {val: 5}
+multi result do
+    thread a: modify_and_return(::data)
+end
+PRINT(data.val)
+PRINT(result.a.ok)
+PRINT(result.a.value)
