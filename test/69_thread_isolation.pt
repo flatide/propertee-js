@@ -3,7 +3,7 @@ function modify_and_return(obj) do
     return obj.val
 end
 
-data = {val: 5}
+data = {"val": 5}
 multi result do
     thread a: modify_and_return(::data)
 end

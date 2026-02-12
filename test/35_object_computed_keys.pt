@@ -1,6 +1,6 @@
 // Test: Object with various key types and dynamic access
 obj = {
-    name: "test",
+    "name": "test",
     "special-key": "special",
     1: "first"
 }

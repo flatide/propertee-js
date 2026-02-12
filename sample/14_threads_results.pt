@@ -11,9 +11,9 @@ end
 
 function build_report(id) do
     report = {
-        id: id,
-        value: id * 100,
-        status: "complete"
+        "id": id,
+        "value": id * 100,
+        "status": "complete"
     }
     PRINT("Built report #" + TO_STRING(id))
     return report

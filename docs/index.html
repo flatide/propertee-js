@@ -70,26 +70,26 @@
         }
 
         .btn {
-            padding: 6px 16px;
+            padding: 3px 12px;
             border: none;
-            border-radius: 6px;
-            font-size: 0.85em;
+            border-radius: 4px;
+            font-size: 0.75em;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.15s;
         }
 
         .btn-run {
-            background: #4f46e5;
-            color: #fff;
+            background: rgba(137, 180, 250, 0.15);
+            color: #89b4fa;
         }
 
         .btn-run:hover {
-            background: #4338ca;
+            background: rgba(137, 180, 250, 0.25);
         }
 
         .btn-run:active {
-            background: #3730a3;
+            background: rgba(137, 180, 250, 0.35);
         }
 
         .example-select {
@@ -396,39 +396,39 @@
 
         /* Debug buttons */
         .btn-debug {
-            background: #d97706;
-            color: #fff;
+            background: rgba(249, 226, 175, 0.15);
+            color: #f9e2af;
         }
 
         .btn-debug:hover {
-            background: #b45309;
+            background: rgba(249, 226, 175, 0.25);
         }
 
         .btn-step {
-            background: #0891b2;
-            color: #fff;
+            background: rgba(137, 220, 235, 0.15);
+            color: #89dceb;
         }
 
         .btn-step:hover {
-            background: #0e7490;
+            background: rgba(137, 220, 235, 0.25);
         }
 
         .btn-continue {
-            background: #16a34a;
-            color: #fff;
+            background: rgba(166, 227, 161, 0.15);
+            color: #a6e3a1;
         }
 
         .btn-continue:hover {
-            background: #15803d;
+            background: rgba(166, 227, 161, 0.25);
         }
 
         .btn-stop {
-            background: #dc2626;
-            color: #fff;
+            background: rgba(243, 139, 168, 0.15);
+            color: #f38ba8;
         }
 
         .btn-stop:hover {
-            background: #b91c1c;
+            background: rgba(243, 139, 168, 0.25);
         }
 
         .btn:disabled {
@@ -437,8 +437,8 @@
         }
 
         .debug-info {
-            font-size: 0.8em;
-            color: #6b7280;
+            font-size: 0.75em;
+            color: #6c7086;
             margin-left: 4px;
             font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
         }
@@ -530,13 +530,6 @@
     </div>
 
     <div class="toolbar">
-        <button class="btn btn-run" id="runButton" onclick="run()">Run</button>
-        <button class="btn btn-debug" id="debugButton" onclick="startDebug()">Debug</button>
-        <button class="btn btn-step" id="stepButton" onclick="debugStep()" style="display:none">Step</button>
-        <button class="btn btn-continue" id="continueButton" onclick="debugContinue()" style="display:none">Continue</button>
-        <button class="btn btn-stop" id="stopButton" onclick="debugStop()" style="display:none">Stop</button>
-        <span class="debug-info" id="debugInfo"></span>
-        <div class="toolbar-divider"></div>
         <select class="example-select" id="exampleSelect" onchange="loadExample(this.value)">
             <option value="01_hello" selected>01 Hello World</option>
             <option value="02_variables">02 Variables</option>
@@ -629,6 +622,13 @@ PRINT("Hello, World!")</textarea>
             <div class="output-section">
                 <div class="output-header">
                     <div class="section-label">Output</div>
+                    <button class="btn btn-run" id="runButton" onclick="run()">Run</button>
+                    <button class="btn btn-debug" id="debugButton" onclick="startDebug()">Debug</button>
+                    <button class="btn btn-step" id="stepButton" onclick="debugStep()" style="display:none">Step</button>
+                    <button class="btn btn-continue" id="continueButton" onclick="debugContinue()" style="display:none">Continue</button>
+                    <button class="btn btn-stop" id="stopButton" onclick="debugStop()" style="display:none">Stop</button>
+                    <span class="debug-info" id="debugInfo"></span>
+                    <div style="flex:1"></div>
                     <button class="btn-clear-output" onclick="clearOutput()">Clear</button>
                 </div>
                 <pre id="output"></pre>
@@ -785,17 +785,17 @@ PRINT("Third color:", colors.3)
 
 // Objects
 person = {
-    name: "Alice",
-    age: 30,
-    active: true
+    "name": "Alice",
+    "age": 30,
+    "active": true
 }
 PRINT("Name:", person.name)
 PRINT("Age:", person.age)
 
 // Nested structures
 team = {
-    lead: { name: "Bob", role: "manager" },
-    members: ["Alice", "Charlie", "Dana"]
+    "lead": { "name": "Bob", "role": "manager" },
+    "members": ["Alice", "Charlie", "Dana"]
 }
 PRINT("Lead:", team.lead.name)
 PRINT("Second member:", team.members.2)`,
@@ -913,7 +913,7 @@ end
 PRINT("---")
 
 // On objects: key is the property name
-config = { host: "localhost", port: "8080", debug: "true" }
+config = { "host": "localhost", "port": "8080", "debug": "true" }
 loop key, val in config do
     PRINT(key + " = " + val)
 end
@@ -1067,9 +1067,9 @@ PRINT("Total:", total)`,
 // Objects are key-value maps with several access styles.
 
 person = {
-    name: "Alice",
-    age: 30,
-    city: "Seoul"
+    "name": "Alice",
+    "age": 30,
+    "city": "Seoul"
 }
 
 // Static access
@@ -1096,10 +1096,10 @@ PRINT("Email:", person.email)
 
 // Nested objects
 company = {
-    name: "Acme",
-    address: {
-        street: "123 Main St",
-        zip: "10001"
+    "name": "Acme",
+    "address": {
+        "street": "123 Main St",
+        "zip": "10001"
     }
 }
 PRINT("Street:", company.address.street)
@@ -1203,9 +1203,9 @@ end
 
 function build_report(id) do
     report = {
-        id: id,
-        value: id * 100,
-        status: "complete"
+        "id": id,
+        "value": id * 100,
+        "status": "complete"
     }
     PRINT("Built report #" + TO_STRING(id))
     return report

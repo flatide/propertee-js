@@ -26,7 +26,7 @@ PRINT(localOnly())
 PRINT(x)
 
 // :: works with property chains
-obj = {name: "hello", nested: {val: 99}}
+obj = {"name": "hello", "nested": {"val": 99}}
 function readProp() do
     return ::obj.name
 end

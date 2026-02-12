@@ -1,7 +1,7 @@
 // Test HAS_KEY built-in function
 
 // Basic object key check
-obj = {name: "Alice", age: 30, active: true}
+obj = {"name": "Alice", "age": 30, "active": true}
 
 PRINT(HAS_KEY(obj, "name"))
 PRINT(HAS_KEY(obj, "age"))
@@ -14,7 +14,7 @@ empty = {}
 PRINT(HAS_KEY(empty, "anything"))
 
 // Nested object - only checks top-level keys
-nested = {outer: {inner: 42}}
+nested = {"outer": {"inner": 42}}
 PRINT(HAS_KEY(nested, "outer"))
 PRINT(HAS_KEY(nested, "inner"))
 

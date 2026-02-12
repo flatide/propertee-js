@@ -24,7 +24,7 @@ PRINT(r2."#1".value)
 
 // SORT_BY missing key
 function testMissingKey() do
-    items = [{name: "A", score: 10}, {name: "B"}]
+    items = [{"name": "A", "score": 10}, {"name": "B"}]
     return SORT_BY(items, "score")
 end
 

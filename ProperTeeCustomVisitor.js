@@ -1090,7 +1090,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     // Non-generator helper
     resolveObjectKey(ctx) {
-        if (ctx.ID()) return ctx.ID().getText();
         if (ctx.STRING()) {
             const str = ctx.STRING().getText();
             return str.substring(1, str.length - 1);

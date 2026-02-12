@@ -15,7 +15,7 @@ ProperTee has six types:
 | string | `"hello"`, `"it's \"quoted\""` | Double-quoted, `\"` for embedded quotes |
 | boolean | `true`, `false` | |
 | array | `[1, 2, 3]`, `[]` | Ordered, 1-based indexing, heterogeneous |
-| object | `{name: "Alice", age: 30}`, `{}` | Ordered key-value pairs, string keys |
+| object | `{"name": "Alice", "age": 30}`, `{}` | Ordered key-value pairs, string keys |
 
 There is **no null**. The empty object `{}` serves as the "no value" sentinel throughout the language.
 
@@ -52,7 +52,7 @@ Referencing an undefined variable is a runtime error.
 All assignments produce a **deep copy** of the right-hand side. Modifying a variable never affects any other variable, even for objects and arrays:
 
 ```
-a = {x: 1}
+a = {"x": 1}
 b = a           // b is an independent copy
 b.x = 99
 PRINT(a.x)      // 1 — a is unchanged
@@ -227,12 +227,12 @@ Built-in array functions (`PUSH`, `POP`, `CONCAT`, `SLICE`) return **new** array
 Objects are ordered key-value pairs with string keys.
 
 ```
-person = {name: "Alice", age: 30}
+person = {"name": "Alice", "age": 30}
 config = {"special-key": true, 1: "one"}
 empty = {}
 ```
 
-Object keys can be bare identifiers, quoted strings, or integers (stored as string keys).
+Object keys must be quoted strings or integers (stored as string keys). Bare identifiers are not allowed as keys.
 
 ### Object Access
 
@@ -278,7 +278,7 @@ PRINT(obj."1")        // "first" (same thing)
 Access patterns chain for nested structures:
 
 ```
-data = {users: [{name: "Alice"}, {name: "Bob"}]}
+data = {"users": [{"name": "Alice"}, {"name": "Bob"}]}
 data.users.1.name    // "Alice"
 data.users.2.name    // "Bob"
 ```
@@ -327,7 +327,7 @@ loop i, val in ["a", "b", "c"] do
 end
 
 // Objects: key is property name
-loop k, v in {x: 1, y: 2} do
+loop k, v in {"x": 1, "y": 2} do
     PRINT(k, v)      // x 1, y 2
 end
 ```

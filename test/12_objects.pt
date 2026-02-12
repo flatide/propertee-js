@@ -1,5 +1,5 @@
 // Test: Object operations
-obj = { name: "Alice", age: 30 }
+obj = { "name": "Alice", "age": 30 }
 PRINT(obj.name)
 PRINT(obj.age)
 
@@ -26,7 +26,7 @@ PRINT(obj.email)
 
 // Nested objects
 data = {
-    user: { name: "Bob", scores: [90, 85, 92] }
+    "user": { "name": "Bob", "scores": [90, 85, 92] }
 }
 PRINT(data.user.name)
 PRINT(data.user.scores.2)

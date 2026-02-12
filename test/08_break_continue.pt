@@ -34,7 +34,7 @@ end
 PRINT("---")
 
 // Break in key-value loop
-obj = { a: 1, b: 2, c: 3 }
+obj = { "a": 1, "b": 2, "c": 3 }
 loop k, v in obj do
     if k == "b" then
         break

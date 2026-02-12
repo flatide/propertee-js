@@ -109,8 +109,7 @@ objectEntry
     ;
 
 objectKey
-    : ID
-    | STRING
+    : STRING
     | INTEGER
     ;
 

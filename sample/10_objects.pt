@@ -2,9 +2,9 @@
 // Objects are key-value maps with several access styles.
 
 person = {
-    name: "Alice",
-    age: 30,
-    city: "Seoul"
+    "name": "Alice",
+    "age": 30,
+    "city": "Seoul"
 }
 
 // Static access
@@ -31,10 +31,10 @@ PRINT("Email:", person.email)
 
 // Nested objects
 company = {
-    name: "Acme",
-    address: {
-        street: "123 Main St",
-        zip: "10001"
+    "name": "Acme",
+    "address": {
+        "street": "123 Main St",
+        "zip": "10001"
     }
 }
 PRINT("Street:", company.address.street)

@@ -19,9 +19,9 @@ PRINT(nums)
 
 // SORT_BY objects
 people = [
-    {name: "Charlie", age: 30},
-    {name: "Alice", age: 25},
-    {name: "Bob", age: 35}
+    {"name": "Charlie", "age": 30},
+    {"name": "Alice", "age": 25},
+    {"name": "Bob", "age": 35}
 ]
 sorted = SORT_BY(people, "name")
 loop p in sorted do

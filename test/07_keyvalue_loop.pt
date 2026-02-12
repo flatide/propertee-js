@@ -8,7 +8,7 @@ end
 PRINT("---")
 
 // Object: keys are property names
-obj = { x: 1, y: 2, z: 3 }
+obj = { "x": 1, "y": 2, "z": 3 }
 loop k, v in obj do
     PRINT(k + "=" + TO_STRING(v))
 end

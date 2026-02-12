@@ -26,7 +26,7 @@ const serializedATN = [4,1,51,306,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,
 19,1,20,1,20,1,20,1,20,1,20,1,20,3,20,286,8,20,1,20,1,20,1,20,1,20,1,20,
 1,20,5,20,294,8,20,10,20,12,20,297,9,20,3,20,299,8,20,1,20,3,20,302,8,20,
 1,21,1,21,1,21,0,2,6,26,22,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,
-34,36,38,40,42,0,5,1,0,8,10,2,0,7,7,11,11,1,0,39,40,1,0,46,48,1,0,18,23,
+34,36,38,40,42,0,5,1,0,8,10,2,0,7,7,11,11,1,0,39,40,1,0,47,48,1,0,18,23,
 339,0,47,1,0,0,0,2,60,1,0,0,0,4,62,1,0,0,0,6,70,1,0,0,0,8,83,1,0,0,0,10,
 86,1,0,0,0,12,96,1,0,0,0,14,107,1,0,0,0,16,115,1,0,0,0,18,126,1,0,0,0,20,
 130,1,0,0,0,22,170,1,0,0,0,24,179,1,0,0,0,26,187,1,0,0,0,28,226,1,0,0,0,
@@ -1267,7 +1267,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.state = 269;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(((((_la - 46)) & ~0x1f) === 0 && ((1 << (_la - 46)) & 7) !== 0)) {
+	        if(_la===47 || _la===48) {
 	            this.state = 261;
 	            this.objectEntry();
 	            this.state = 266;
@@ -1337,7 +1337,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.enterOuterAlt(localctx, 1);
 	        this.state = 277;
 	        _la = this._input.LA(1);
-	        if(!(((((_la - 46)) & ~0x1f) === 0 && ((1 << (_la - 46)) & 7) !== 0))) {
+	        if(!(_la===47 || _la===48)) {
 	        this._errHandler.recoverInline(this);
 	        }
 	        else {
@@ -3434,10 +3434,6 @@ class ObjectKeyContext extends antlr4.ParserRuleContext {
         this.parser = parser;
         this.ruleIndex = ProperTeeParser.RULE_objectKey;
     }
-
-	ID() {
-	    return this.getToken(ProperTeeParser.ID, 0);
-	};
 
 	STRING() {
 	    return this.getToken(ProperTeeParser.STRING, 0);

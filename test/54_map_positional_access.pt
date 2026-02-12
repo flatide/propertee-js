@@ -18,7 +18,7 @@ PRINT(HAS_KEY(obj, "1"))
 PRINT(HAS_KEY(obj, "4"))
 
 // Mixed string and integer keys
-mixed = { name: "test" }
+mixed = { "name": "test" }
 mixed.1 = "one"
 PRINT(mixed.name)
 PRINT(mixed.1)
