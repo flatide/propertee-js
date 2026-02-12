@@ -1,4 +1,4 @@
-# ProperTee Language Specification
+# ProperTee Language Specification v0.3.0
 
 ## Overview
 
