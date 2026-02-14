@@ -786,7 +786,64 @@ Result objects have three fields:
 
 For external function results, `ok` is sufficient — check `res.ok == true`. The `status` field exists primarily for multi block thread results, where it distinguishes between `"running"` (not yet finished) and `"error"` (finished with failure) — both have `ok: false`.
 
-Host applications can also register **async external functions** that perform blocking I/O without freezing other ProperTee threads. When an async function is called, the current thread blocks while other threads in a multi block continue executing. The async result is cached and the statement is replayed when the I/O completes. See the Java implementation's README for the `registerExternalAsync()` API.
+### Async External Functions
+
+Host applications can register **async external functions** for blocking I/O (database queries, HTTP requests, file reads) that don't freeze other ProperTee threads. Use `registerExternalAsync()` instead of `registerExternal()`:
+
+```java
+// Java host — async function with 5-second timeout
+interpreter.builtins.registerExternalAsync("DB_QUERY", new BuiltinFunction() {
+    public Object call(List<Object> args) {
+        String sql = (String) args.get(0);
+        // This runs on a background thread — blocking is OK
+        return Result.ok(database.execute(sql));
+    }
+}, 5000);
+```
+
+```javascript
+// JavaScript host — async function (no timeout)
+visitor.registerExternalAsync("HTTP_GET", (url) => {
+    const response = await fetch(url);
+    return Result.ok(response.json());
+});
+```
+
+From the script side, async functions look identical to sync external functions:
+
+```
+// Script doesn't know (or care) whether GET_BALANCE is sync or async
+res = GET_BALANCE("alice")
+if res.ok == true then
+    PRINT("Balance:", res.value)
+end
+```
+
+**Behavior:**
+- The calling thread **blocks** until the async operation completes (or times out)
+- Other threads in a `multi` block **continue executing** — only the calling thread is paused
+- Outside a `multi` block, the script simply waits (no other threads to run)
+- Results use the same Result pattern: `{ok: true, value: ...}` on success, `{ok: false, value: "error message"}` on failure
+- Thrown exceptions inside async functions are automatically wrapped as `Result.error(message)`
+
+**Timeout:** The optional timeout parameter (milliseconds) limits how long the thread will wait. If the operation exceeds the timeout, the function returns `{status: "error", ok: false, value: "timeout"}`:
+
+```
+// Host registers with 100ms timeout
+// registerExternalAsync("FAST_LOOKUP", func, 100)
+
+res = FAST_LOOKUP("key")
+if res.ok == true then
+    PRINT(res.value)
+else
+    PRINT("Timed out or error:", res.value)   // "timeout"
+end
+```
+
+**Restrictions:**
+- Async functions cannot be called inside `monitor` blocks (runtime error)
+- Multiple async calls in the same statement are not supported — use separate statements
+- The async function receives deep-copied arguments (thread-safe)
 
 ## Comments
 
