@@ -786,6 +786,8 @@ Result objects have three fields:
 
 For external function results, `ok` is sufficient — check `res.ok == true`. The `status` field exists primarily for multi block thread results, where it distinguishes between `"running"` (not yet finished) and `"error"` (finished with failure) — both have `ok: false`.
 
+Host applications can also register **async external functions** that perform blocking I/O without freezing other ProperTee threads. When an async function is called, the current thread blocks while other threads in a multi block continue executing. The async result is cached and the statement is replayed when the I/O completes. See the Java implementation's README for the `registerExternalAsync()` API.
+
 ## Comments
 
 ```

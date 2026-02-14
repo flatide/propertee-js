@@ -1,0 +1,28 @@
+// Test 1: Basic async call
+result = SLOW_FETCH("test")
+PRINT(result.ok, result.value)
+
+// Test 2: Async with error
+result2 = SLOW_FETCH("error")
+PRINT(result2.ok, result2.value)
+
+// Test 3: Multiple sequential async calls
+r1 = SLOW_COMPUTE(5)
+r2 = SLOW_COMPUTE(10)
+PRINT(r1.ok, r1.value, r2.ok, r2.value)
+
+// Test 4: Async inside multi block — other threads continue
+function worker(name) do
+    result = SLOW_FETCH(name)
+    return result.value
+end
+
+multi r do
+    thread a: worker("A")
+    thread b: worker("B")
+end
+PRINT(r.a.value, r.b.value)
+
+// Test 5: Async with timeout
+result3 = SLOW_TIMEOUT("x")
+PRINT(result3.ok, result3.value)

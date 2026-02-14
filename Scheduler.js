@@ -96,6 +96,28 @@ export default class Scheduler {
         }
     }
 
+    // Poll BLOCKED threads for completed async operations
+    pollAsyncFutures() {
+        const now = Date.now();
+        for (const thread of this.threads.values()) {
+            if (thread.state === ThreadState.BLOCKED) {
+                // Check timeout
+                if (thread.asyncTimeoutMs > 0 && (now - thread.asyncSubmitTime) > thread.asyncTimeoutMs) {
+                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout" };
+                    thread.clearAsyncState();
+                    thread.markReady();
+                    continue;
+                }
+                // Check if promise resolved
+                if (thread.asyncResolved) {
+                    thread.asyncResultCache[thread.asyncCacheKey] = thread.asyncResolvedValue;
+                    thread.clearAsyncState();
+                    thread.markReady();
+                }
+            }
+        }
+    }
+
     // Check if any threads are still active (not COMPLETED/ERROR)
     hasActiveThreads() {
         for (const thread of this.threads.values()) {
@@ -138,6 +160,11 @@ export default class Scheduler {
 
                 case 'SPAWN_THREADS': {
                     this.handleSpawnThreads(thread, yieldValue);
+                    return;
+                }
+
+                case 'AWAIT_ASYNC': {
+                    thread.markBlocked();
                     return;
                 }
 
@@ -333,6 +360,9 @@ export default class Scheduler {
             // Wake sleeping threads
             this.wakeThreads(now);
 
+            // Poll async futures
+            this.pollAsyncFutures();
+
             // Run monitors
             this.runMonitors();
 
@@ -348,15 +378,15 @@ export default class Scheduler {
                     continue;
                 }
 
-                // Check for WAITING threads (they'll be woken by child completion)
-                let hasWaiting = false;
+                // Check for WAITING or BLOCKED threads
+                let hasWaitingOrBlocked = false;
                 for (const t of this.threads.values()) {
-                    if (t.state === ThreadState.WAITING) {
-                        hasWaiting = true;
+                    if (t.state === ThreadState.WAITING || t.state === ThreadState.BLOCKED) {
+                        hasWaitingOrBlocked = true;
                         break;
                     }
                 }
-                if (hasWaiting) {
+                if (hasWaitingOrBlocked) {
                     // Small delay to prevent busy-waiting
                     await new Promise(resolve => setTimeout(resolve, 1));
                     continue;

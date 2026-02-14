@@ -50,6 +50,9 @@ run_test() {
         41_result_pattern)
             actual=$(node "$SCRIPT_DIR/run_test41.js" 2>&1)
             ;;
+        71_async_external)
+            actual=$(node "$SCRIPT_DIR/run_test71.js" 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;

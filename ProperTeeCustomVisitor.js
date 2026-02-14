@@ -324,6 +324,85 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         };
     }
 
+    // Register an async external function that executes on a background Promise.
+    // Used for blocking I/O (DB queries, HTTP calls) so other ProperTee threads aren't frozen.
+    // The function can be synchronous or return a Promise for truly async operations.
+    registerExternalAsync(name, func, timeoutMs = 0) {
+        const self = this;
+        this.functions[name] = (...args) => {
+            if (!self.activeThread) {
+                throw new Error("Runtime Error: Async function '" + name + "' can only be called within the scheduler");
+            }
+            const thread = self.activeThread;
+            if (thread.inMonitorContext) {
+                throw new Error("Runtime Error: Async function '" + name + "' cannot be called in monitor blocks");
+            }
+
+            // Build cache key
+            const formatJsonValue = (value) => {
+                if (value === null || value === undefined) return 'null';
+                if (typeof value === 'string') return "'" + value + "'";
+                if (typeof value === 'boolean') return String(value);
+                if (typeof value === 'number') return String(value);
+                if (Array.isArray(value)) return '[ ' + value.map(v => formatJsonValue(v)).join(', ') + ' ]';
+                if (typeof value === 'object') {
+                    const keys = Object.keys(value);
+                    return '{ ' + keys.map(k => '"' + k + '": ' + formatJsonValue(value[k])).join(', ') + ' }';
+                }
+                return String(value);
+            };
+            const cacheKey = name + "|" + formatJsonValue(args);
+
+            // Check cache first (result from completed async operation)
+            if (cacheKey in thread.asyncResultCache) {
+                return thread.asyncResultCache[cacheKey];
+            }
+
+            // Deep-copy args for safety
+            const safeCopyArgs = args.map(a => self.deepCopy(a));
+            const currentCacheKey = cacheKey;
+
+            // Execute function asynchronously via setTimeout to yield to event loop.
+            // Supports both sync functions and functions that return Promises.
+            const promise = new Promise((resolve) => {
+                setTimeout(() => {
+                    try {
+                        const result = func(...safeCopyArgs);
+                        if (result && typeof result.then === 'function') {
+                            result.then(
+                                (val) => resolve(val),
+                                (err) => resolve({ status: "error", ok: false, value: err.message })
+                            );
+                        } else {
+                            resolve(result);
+                        }
+                    } catch (e) {
+                        resolve({ status: "error", ok: false, value: e.message });
+                    }
+                }, 0);
+            });
+
+            // When promise resolves, store result on thread (only if still waiting for same key)
+            promise.then((result) => {
+                if (thread.asyncCacheKey === currentCacheKey) {
+                    thread.asyncResolved = true;
+                    thread.asyncResolvedValue = result;
+                }
+            });
+
+            // Store async state on thread
+            thread.asyncCacheKey = cacheKey;
+            thread.asyncTimeoutMs = timeoutMs;
+            thread.asyncSubmitTime = Date.now();
+
+            // Throw to unwind expression evaluation
+            throw new AsyncPendingError();
+        };
+    }
+
+    // No-op in JS (Promises self-clean, no executor to shut down)
+    shutdown() {}
+
     // Result helper for external functions
     static ok(value) {
         return { status: "done", ok: true, value: value };
@@ -400,11 +479,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitRoot(ctx) {
         let result = null;
         const statements = ctx.statement();
+        let i = 0;
 
         try {
-            for (const stmt of statements) {
-                yield stmt.start.line; // Statement boundary yield (before execution)
-                result = yield* this.visit(stmt);
+            while (i < statements.length) {
+                try {
+                    yield statements[i].start.line;
+                    result = yield* this.visit(statements[i]);
+                    if (this.activeThread) this.activeThread.asyncResultCache = {};
+                    i++;
+                } catch (inner) {
+                    if (inner instanceof AsyncPendingError) {
+                        yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                        continue; // retry same statement
+                    }
+                    throw inner;
+                }
             }
             return result;
         } catch (e) {
@@ -417,9 +507,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitBlock(ctx) {
         let result = null;
-        for (const stmt of ctx.statement()) {
-            yield stmt.start.line; // Statement boundary yield (before execution)
-            result = yield* this.visit(stmt);
+        const statements = ctx.statement();
+        let i = 0;
+
+        while (i < statements.length) {
+            try {
+                yield statements[i].start.line;
+                result = yield* this.visit(statements[i]);
+                if (this.activeThread) this.activeThread.asyncResultCache = {};
+                i++;
+            } catch (inner) {
+                if (inner instanceof AsyncPendingError) {
+                    yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                    continue;
+                }
+                throw inner;
+            }
         }
         return result;
     }
@@ -1414,9 +1517,21 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         try {
             if (body.statement()) {
-                for (const stmtCtx of body.statement()) {
-                    yield stmtCtx.start.line; // Statement boundary (before execution)
-                    yield* this.visit(stmtCtx);
+                const stmts = body.statement();
+                let si = 0;
+                while (si < stmts.length) {
+                    try {
+                        yield stmts[si].start.line;
+                        yield* this.visit(stmts[si]);
+                        if (this.activeThread) this.activeThread.asyncResultCache = {};
+                        si++;
+                    } catch (inner) {
+                        if (inner instanceof AsyncPendingError) {
+                            yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                            continue;
+                        }
+                        throw inner;
+                    }
                 }
             }
 
@@ -1604,9 +1719,21 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         try {
             if (body.statement()) {
-                for (const stmtCtx of body.statement()) {
-                    yield stmtCtx.start.line; // Statement boundary (before execution)
-                    yield* this.visit(stmtCtx);
+                const stmts = body.statement();
+                let si = 0;
+                while (si < stmts.length) {
+                    try {
+                        yield stmts[si].start.line;
+                        yield* this.visit(stmts[si]);
+                        if (this.activeThread) this.activeThread.asyncResultCache = {};
+                        si++;
+                    } catch (inner) {
+                        if (inner instanceof AsyncPendingError) {
+                            yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                            continue;
+                        }
+                        throw inner;
+                    }
                 }
             }
 
@@ -1644,5 +1771,12 @@ class ReturnException extends Error {
         super('return');
         this.name = 'ReturnException';
         this.value = value;
+    }
+}
+
+class AsyncPendingError extends Error {
+    constructor() {
+        super('async pending');
+        this.name = 'AsyncPendingError';
     }
 }

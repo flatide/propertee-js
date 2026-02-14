@@ -4,6 +4,7 @@ const ThreadState = {
     RUNNING: 'RUNNING',
     SLEEPING: 'SLEEPING',
     WAITING: 'WAITING',      // Waiting for child threads (SPAWN_THREADS)
+    BLOCKED: 'BLOCKED',      // Waiting for async external function
     COMPLETED: 'COMPLETED',
     ERROR: 'ERROR'
 };
@@ -46,6 +47,14 @@ class ThreadContext {
 
         // Child thread tracking
         this.waitingForChildren = null;  // Set of child thread IDs when WAITING
+
+        // Async external function state
+        this.asyncResultCache = {};
+        this.asyncResolved = false;
+        this.asyncResolvedValue = null;
+        this.asyncCacheKey = null;
+        this.asyncTimeoutMs = 0;
+        this.asyncSubmitTime = 0;
     }
 
     // --- Scope management ---
@@ -109,6 +118,18 @@ class ThreadContext {
     markSleeping(until) {
         this.state = ThreadState.SLEEPING;
         this.sleepUntil = until;
+    }
+
+    markBlocked() {
+        this.state = ThreadState.BLOCKED;
+    }
+
+    clearAsyncState() {
+        this.asyncResolved = false;
+        this.asyncResolvedValue = null;
+        this.asyncCacheKey = null;
+        this.asyncTimeoutMs = 0;
+        this.asyncSubmitTime = 0;
     }
 
     markWaiting(childIds) {
