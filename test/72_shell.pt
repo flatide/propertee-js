@@ -1,0 +1,88 @@
+// Test 72: SHELL and SHELL_CTX built-in functions
+
+// 1. One-off command
+r = SHELL("echo hello")
+if r.ok == true then
+    PRINT("PASS one-off:", r.value)
+else
+    PRINT("FAIL one-off")
+end
+
+// 2. Pipe command
+r = SHELL("echo 'c b a' | tr ' ' '\n' | sort")
+if r.ok == true then
+    PRINT("PASS pipe:", r.value)
+else
+    PRINT("FAIL pipe")
+end
+
+// 3. Non-zero exit
+r = SHELL("exit 1")
+if r.ok == false then
+    PRINT("PASS error exit")
+else
+    PRINT("FAIL error exit")
+end
+
+// 4. Context with cwd — use / which is never a symlink
+ctx = SHELL_CTX("/")
+if ctx.ok == true then
+    r = SHELL(ctx, "pwd")
+    if r.ok == true then
+        PRINT("PASS cwd:", r.value)
+    else
+        PRINT("FAIL cwd cmd")
+    end
+else
+    PRINT("FAIL ctx")
+end
+
+// 5. Context with env vars
+ctx = SHELL_CTX("/", {"PT_TEST_VAR": "yes"})
+if ctx.ok == true then
+    r = SHELL(ctx, "echo $PT_TEST_VAR")
+    if r.ok == true then
+        PRINT("PASS env:", r.value)
+    else
+        PRINT("FAIL env cmd")
+    end
+else
+    PRINT("FAIL ctx env")
+end
+
+// 6. Invalid cwd
+ctx = SHELL_CTX("/nonexistent_xyz_dir_12345")
+if ctx.ok == false then
+    PRINT("PASS invalid cwd")
+else
+    PRINT("FAIL invalid cwd")
+end
+
+// 7. Parallel SHELL in multi block
+function shellA() do
+    return SHELL("echo thread_a")
+end
+
+function shellB() do
+    return SHELL("echo thread_b")
+end
+
+multi result do
+    thread a: shellA()
+    thread b: shellB()
+end
+
+// result.a = {status: "done", ok: true, value: {status: "done", ok: true, value: "thread_a"}}
+if result.a.ok == true then
+    aVal = result.a.value.value
+else
+    aVal = "error"
+end
+
+if result.b.ok == true then
+    bVal = result.b.value.value
+else
+    bVal = "error"
+end
+
+PRINT("PASS multi:", aVal, bVal)

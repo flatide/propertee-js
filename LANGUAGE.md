@@ -748,6 +748,35 @@ All built-in function names are UPPERCASE.
 | `DATE()` | Current date as `"YYYY-MM-DD"` string |
 | `TIME()` | Current time of day as `"HH:MM:SS"` string |
 
+### Shell
+
+| Function | Description |
+|---|---|
+| `SHELL(cmd)` | Execute a shell command. Returns Result: `ok` with stdout on exit 0, `error` with output on non-zero exit. |
+| `SHELL(ctx, cmd)` | Execute a shell command using a context from `SHELL_CTX()`. Pass the Result directly — `SHELL` auto-unwraps it. |
+| `SHELL_CTX(cwd)` | Create a shell context with working directory `cwd`. Returns Result: `ok` with context object, `error` if directory doesn't exist. |
+| `SHELL_CTX(cwd, env)` | Create a shell context with working directory and environment variables. `env` is an object of key-value pairs. |
+
+Each `SHELL()` call creates a fresh process via `/bin/sh -c <cmd>`. There are no persistent sessions. The context from `SHELL_CTX()` is just a configuration object — it doesn't hold any process state. When passing a context to `SHELL()`, pass the Result from `SHELL_CTX()` directly — `SHELL` auto-unwraps the Result to extract the context.
+
+```
+// One-off command
+result = SHELL("echo hello")
+PRINT(result.value)              // "hello"
+
+// With context (working directory + env)
+ctx = SHELL_CTX("/data/project", {"ENV": "prod"})
+result = SHELL(ctx, "./build.sh")
+
+// Error handling
+result = SHELL("exit 1")
+if result.ok == false then
+    PRINT("Command failed")
+end
+```
+
+`SHELL()` is async — in multi blocks, other threads continue while a shell command runs. Outside multi blocks, the script simply waits.
+
 ## Built-in Properties
 
 The host application can inject read-only properties accessible as global variables:
@@ -925,6 +954,7 @@ Common error conditions:
 
 ### v0.3.0
 
+- **`SHELL()` and `SHELL_CTX()` built-ins**: Execute shell commands from scripts. `SHELL(cmd)` for one-off commands, `SHELL(ctx, cmd)` with a context from `SHELL_CTX(cwd[, env])` for working directory and environment variable control. Async execution — other threads in multi blocks continue while shell commands run.
 - **No bare identifier keys**: Object keys must be quoted strings or integers. `{"name": "Alice"}` is valid; `{name: "Alice"}` is now a parse error.
 - **`debug` statement**: New keyword for explicit breakpoints in the playground debugger. No-op in normal execution.
 - **Deep-copy value semantics**: All assignments (variables, properties, function args, thread args, loop variables) produce independent deep copies. No shared mutable state between variables.

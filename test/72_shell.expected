@@ -1,0 +1,9 @@
+PASS one-off: hello
+PASS pipe: a
+b
+c
+PASS error exit
+PASS cwd: /
+PASS env: yes
+PASS invalid cwd
+PASS multi: thread_a thread_b

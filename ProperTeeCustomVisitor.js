@@ -1,4 +1,6 @@
 import ProperTeeVisitor from './ProperTeeVisitor.js';
+import { statSync } from 'fs';
+import { execSync } from 'child_process';
 
 export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
@@ -278,6 +280,101 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         };
 
         this.functions = { ...defaultFunctions, ...builtInFunctions };
+
+        // SHELL_CTX — sync, creates a context config object
+        this.registerExternal('SHELL_CTX', (...args) => {
+            if (args.length === 0) {
+                return { status: "error", ok: false, value: "SHELL_CTX() requires at least 1 argument (cwd)" };
+            }
+            const cwd = args[0];
+            if (typeof cwd !== 'string') {
+                return { status: "error", ok: false, value: "SHELL_CTX() first argument must be a string (directory path)" };
+            }
+            try {
+                const stat = statSync(cwd);
+                if (!stat.isDirectory()) {
+                    return { status: "error", ok: false, value: "Directory does not exist: " + cwd };
+                }
+            } catch (e) {
+                return { status: "error", ok: false, value: "Directory does not exist: " + cwd };
+            }
+
+            const env = {};
+            if (args.length >= 2) {
+                const envArg = args[1];
+                if (typeof envArg !== 'object' || Array.isArray(envArg)) {
+                    return { status: "error", ok: false, value: "SHELL_CTX() second argument must be an object (environment variables)" };
+                }
+                for (const key of Object.keys(envArg)) {
+                    env[key] = String(envArg[key]);
+                }
+            }
+
+            return { status: "done", ok: true, value: { cwd: cwd, env: env } };
+        });
+
+        // SHELL — async, executes shell commands
+        this.registerExternalAsync('SHELL', (...args) => {
+            if (args.length === 0) {
+                return { status: "error", ok: false, value: "SHELL() requires at least 1 argument" };
+            }
+
+            let cmd;
+            let options = {};
+
+            if (args.length === 1) {
+                // One-off: SHELL(cmd)
+                if (typeof args[0] !== 'string') {
+                    return { status: "error", ok: false, value: "SHELL() argument must be a string command" };
+                }
+                cmd = args[0];
+            } else {
+                // Contextual: SHELL(ctx, cmd)
+                let ctx = args[0];
+                if (typeof ctx !== 'object' || Array.isArray(ctx)) {
+                    return { status: "error", ok: false, value: "SHELL() first argument must be a context object from SHELL_CTX()" };
+                }
+                // Auto-unwrap Result from SHELL_CTX: {ok, value: {cwd, env}}
+                if ('ok' in ctx && 'value' in ctx) {
+                    if (ctx.ok === false) {
+                        return { status: "error", ok: false, value: "SHELL() received a failed context: " + ctx.value };
+                    }
+                    if (typeof ctx.value === 'object' && !Array.isArray(ctx.value)) {
+                        ctx = ctx.value;
+                    }
+                }
+                if (typeof args[1] !== 'string') {
+                    return { status: "error", ok: false, value: "SHELL() second argument must be a string command" };
+                }
+                cmd = args[1];
+
+                if (typeof ctx.cwd === 'string') {
+                    options.cwd = ctx.cwd;
+                }
+                if (ctx.env && typeof ctx.env === 'object') {
+                    options.env = { ...process.env, ...ctx.env };
+                }
+            }
+
+            try {
+                const output = execSync(cmd, {
+                    shell: '/bin/sh',
+                    encoding: 'utf-8',
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    ...options
+                });
+                // Trim trailing newline
+                const trimmed = output.endsWith('\n') ? output.slice(0, -1) : output;
+                return { status: "done", ok: true, value: trimmed };
+            } catch (e) {
+                // execSync throws on non-zero exit
+                let output = '';
+                if (e.stdout) output = e.stdout;
+                if (e.stderr) output += e.stderr;
+                if (output.endsWith('\n')) output = output.slice(0, -1);
+                return { status: "error", ok: false, value: output };
+            }
+        });
     }
 
     // --- Helper methods (non-generators) ---
