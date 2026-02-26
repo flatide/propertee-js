@@ -283,6 +283,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // SHELL_CTX — sync, creates a context config object
         this.registerExternal('SHELL_CTX', (...args) => {
+            if (typeof globalThis.window !== 'undefined') {
+                return { status: "error", ok: false, value: "SHELL_CTX() is not available in the browser" };
+            }
             if (args.length === 0) {
                 return { status: "error", ok: false, value: "SHELL_CTX() requires at least 1 argument (cwd)" };
             }
@@ -315,6 +318,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // SHELL — async, executes shell commands
         this.registerExternalAsync('SHELL', (...args) => {
+            if (typeof globalThis.window !== 'undefined') {
+                return { status: "error", ok: false, value: "SHELL() is not available in the browser" };
+            }
             if (args.length === 0) {
                 return { status: "error", ok: false, value: "SHELL() requires at least 1 argument" };
             }

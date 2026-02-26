@@ -4226,6 +4226,7 @@ const ThreadState = {
     RUNNING: 'RUNNING',
     SLEEPING: 'SLEEPING',
     WAITING: 'WAITING',      // Waiting for child threads (SPAWN_THREADS)
+    BLOCKED: 'BLOCKED',      // Waiting for async external function
     COMPLETED: 'COMPLETED',
     ERROR: 'ERROR'
 };
@@ -4268,6 +4269,14 @@ class ThreadContext {
 
         // Child thread tracking
         this.waitingForChildren = null;  // Set of child thread IDs when WAITING
+
+        // Async external function state
+        this.asyncResultCache = {};
+        this.asyncResolved = false;
+        this.asyncResolvedValue = null;
+        this.asyncCacheKey = null;
+        this.asyncTimeoutMs = 0;
+        this.asyncSubmitTime = 0;
     }
 
     // --- Scope management ---
@@ -4331,6 +4340,18 @@ class ThreadContext {
     markSleeping(until) {
         this.state = ThreadState.SLEEPING;
         this.sleepUntil = until;
+    }
+
+    markBlocked() {
+        this.state = ThreadState.BLOCKED;
+    }
+
+    clearAsyncState() {
+        this.asyncResolved = false;
+        this.asyncResolvedValue = null;
+        this.asyncCacheKey = null;
+        this.asyncTimeoutMs = 0;
+        this.asyncSubmitTime = 0;
     }
 
     markWaiting(childIds) {
@@ -4477,6 +4498,28 @@ class Scheduler {
         }
     }
 
+    // Poll BLOCKED threads for completed async operations
+    pollAsyncFutures() {
+        const now = Date.now();
+        for (const thread of this.threads.values()) {
+            if (thread.state === ThreadState.BLOCKED) {
+                // Check timeout
+                if (thread.asyncTimeoutMs > 0 && (now - thread.asyncSubmitTime) > thread.asyncTimeoutMs) {
+                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout" };
+                    thread.clearAsyncState();
+                    thread.markReady();
+                    continue;
+                }
+                // Check if promise resolved
+                if (thread.asyncResolved) {
+                    thread.asyncResultCache[thread.asyncCacheKey] = thread.asyncResolvedValue;
+                    thread.clearAsyncState();
+                    thread.markReady();
+                }
+            }
+        }
+    }
+
     // Check if any threads are still active (not COMPLETED/ERROR)
     hasActiveThreads() {
         for (const thread of this.threads.values()) {
@@ -4519,6 +4562,11 @@ class Scheduler {
 
                 case 'SPAWN_THREADS': {
                     this.handleSpawnThreads(thread, yieldValue);
+                    return;
+                }
+
+                case 'AWAIT_ASYNC': {
+                    thread.markBlocked();
                     return;
                 }
 
@@ -4714,6 +4762,9 @@ class Scheduler {
             // Wake sleeping threads
             this.wakeThreads(now);
 
+            // Poll async futures
+            this.pollAsyncFutures();
+
             // Run monitors
             this.runMonitors();
 
@@ -4729,15 +4780,15 @@ class Scheduler {
                     continue;
                 }
 
-                // Check for WAITING threads (they'll be woken by child completion)
-                let hasWaiting = false;
+                // Check for WAITING or BLOCKED threads
+                let hasWaitingOrBlocked = false;
                 for (const t of this.threads.values()) {
-                    if (t.state === ThreadState.WAITING) {
-                        hasWaiting = true;
+                    if (t.state === ThreadState.WAITING || t.state === ThreadState.BLOCKED) {
+                        hasWaitingOrBlocked = true;
                         break;
                     }
                 }
-                if (hasWaiting) {
+                if (hasWaitingOrBlocked) {
                     // Small delay to prevent busy-waiting
                     await new Promise(resolve => setTimeout(resolve, 1));
                     continue;
@@ -5122,6 +5173,107 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         };
 
         this.functions = { ...defaultFunctions, ...builtInFunctions };
+
+        // SHELL_CTX — sync, creates a context config object
+        this.registerExternal('SHELL_CTX', (...args) => {
+            if (typeof globalThis.window !== 'undefined') {
+                return { status: "error", ok: false, value: "SHELL_CTX() is not available in the browser" };
+            }
+            if (args.length === 0) {
+                return { status: "error", ok: false, value: "SHELL_CTX() requires at least 1 argument (cwd)" };
+            }
+            const cwd = args[0];
+            if (typeof cwd !== 'string') {
+                return { status: "error", ok: false, value: "SHELL_CTX() first argument must be a string (directory path)" };
+            }
+            try {
+                const stat = statSync(cwd);
+                if (!stat.isDirectory()) {
+                    return { status: "error", ok: false, value: "Directory does not exist: " + cwd };
+                }
+            } catch (e) {
+                return { status: "error", ok: false, value: "Directory does not exist: " + cwd };
+            }
+
+            const env = {};
+            if (args.length >= 2) {
+                const envArg = args[1];
+                if (typeof envArg !== 'object' || Array.isArray(envArg)) {
+                    return { status: "error", ok: false, value: "SHELL_CTX() second argument must be an object (environment variables)" };
+                }
+                for (const key of Object.keys(envArg)) {
+                    env[key] = String(envArg[key]);
+                }
+            }
+
+            return { status: "done", ok: true, value: { cwd: cwd, env: env } };
+        });
+
+        // SHELL — async, executes shell commands
+        this.registerExternalAsync('SHELL', (...args) => {
+            if (typeof globalThis.window !== 'undefined') {
+                return { status: "error", ok: false, value: "SHELL() is not available in the browser" };
+            }
+            if (args.length === 0) {
+                return { status: "error", ok: false, value: "SHELL() requires at least 1 argument" };
+            }
+
+            let cmd;
+            let options = {};
+
+            if (args.length === 1) {
+                // One-off: SHELL(cmd)
+                if (typeof args[0] !== 'string') {
+                    return { status: "error", ok: false, value: "SHELL() argument must be a string command" };
+                }
+                cmd = args[0];
+            } else {
+                // Contextual: SHELL(ctx, cmd)
+                let ctx = args[0];
+                if (typeof ctx !== 'object' || Array.isArray(ctx)) {
+                    return { status: "error", ok: false, value: "SHELL() first argument must be a context object from SHELL_CTX()" };
+                }
+                // Auto-unwrap Result from SHELL_CTX: {ok, value: {cwd, env}}
+                if ('ok' in ctx && 'value' in ctx) {
+                    if (ctx.ok === false) {
+                        return { status: "error", ok: false, value: "SHELL() received a failed context: " + ctx.value };
+                    }
+                    if (typeof ctx.value === 'object' && !Array.isArray(ctx.value)) {
+                        ctx = ctx.value;
+                    }
+                }
+                if (typeof args[1] !== 'string') {
+                    return { status: "error", ok: false, value: "SHELL() second argument must be a string command" };
+                }
+                cmd = args[1];
+
+                if (typeof ctx.cwd === 'string') {
+                    options.cwd = ctx.cwd;
+                }
+                if (ctx.env && typeof ctx.env === 'object') {
+                    options.env = { ...process.env, ...ctx.env };
+                }
+            }
+
+            try {
+                const output = execSync(cmd, {
+                    shell: '/bin/sh',
+                    encoding: 'utf-8',
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    ...options
+                });
+                // Trim trailing newline
+                const trimmed = output.endsWith('\n') ? output.slice(0, -1) : output;
+                return { status: "done", ok: true, value: trimmed };
+            } catch (e) {
+                // execSync throws on non-zero exit
+                let output = '';
+                if (e.stdout) output = e.stdout;
+                if (e.stderr) output += e.stderr;
+                if (output.endsWith('\n')) output = output.slice(0, -1);
+                return { status: "error", ok: false, value: output };
+            }
+        });
     }
 
     // --- Helper methods (non-generators) ---
@@ -5167,6 +5319,85 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         };
     }
+
+    // Register an async external function that executes on a background Promise.
+    // Used for blocking I/O (DB queries, HTTP calls) so other ProperTee threads aren't frozen.
+    // The function can be synchronous or return a Promise for truly async operations.
+    registerExternalAsync(name, func, timeoutMs = 0) {
+        const self = this;
+        this.functions[name] = (...args) => {
+            if (!self.activeThread) {
+                throw new Error("Runtime Error: Async function '" + name + "' can only be called within the scheduler");
+            }
+            const thread = self.activeThread;
+            if (thread.inMonitorContext) {
+                throw new Error("Runtime Error: Async function '" + name + "' cannot be called in monitor blocks");
+            }
+
+            // Build cache key
+            const formatJsonValue = (value) => {
+                if (value === null || value === undefined) return 'null';
+                if (typeof value === 'string') return "'" + value + "'";
+                if (typeof value === 'boolean') return String(value);
+                if (typeof value === 'number') return String(value);
+                if (Array.isArray(value)) return '[ ' + value.map(v => formatJsonValue(v)).join(', ') + ' ]';
+                if (typeof value === 'object') {
+                    const keys = Object.keys(value);
+                    return '{ ' + keys.map(k => '"' + k + '": ' + formatJsonValue(value[k])).join(', ') + ' }';
+                }
+                return String(value);
+            };
+            const cacheKey = name + "|" + formatJsonValue(args);
+
+            // Check cache first (result from completed async operation)
+            if (cacheKey in thread.asyncResultCache) {
+                return thread.asyncResultCache[cacheKey];
+            }
+
+            // Deep-copy args for safety
+            const safeCopyArgs = args.map(a => self.deepCopy(a));
+            const currentCacheKey = cacheKey;
+
+            // Execute function asynchronously via setTimeout to yield to event loop.
+            // Supports both sync functions and functions that return Promises.
+            const promise = new Promise((resolve) => {
+                setTimeout(() => {
+                    try {
+                        const result = func(...safeCopyArgs);
+                        if (result && typeof result.then === 'function') {
+                            result.then(
+                                (val) => resolve(val),
+                                (err) => resolve({ status: "error", ok: false, value: err.message })
+                            );
+                        } else {
+                            resolve(result);
+                        }
+                    } catch (e) {
+                        resolve({ status: "error", ok: false, value: e.message });
+                    }
+                }, 0);
+            });
+
+            // When promise resolves, store result on thread (only if still waiting for same key)
+            promise.then((result) => {
+                if (thread.asyncCacheKey === currentCacheKey) {
+                    thread.asyncResolved = true;
+                    thread.asyncResolvedValue = result;
+                }
+            });
+
+            // Store async state on thread
+            thread.asyncCacheKey = cacheKey;
+            thread.asyncTimeoutMs = timeoutMs;
+            thread.asyncSubmitTime = Date.now();
+
+            // Throw to unwind expression evaluation
+            throw new AsyncPendingError();
+        };
+    }
+
+    // No-op in JS (Promises self-clean, no executor to shut down)
+    shutdown() {}
 
     // Result helper for external functions
     static ok(value) {
@@ -5244,11 +5475,22 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitRoot(ctx) {
         let result = null;
         const statements = ctx.statement();
+        let i = 0;
 
         try {
-            for (const stmt of statements) {
-                yield stmt.start.line; // Statement boundary yield (before execution)
-                result = yield* this.visit(stmt);
+            while (i < statements.length) {
+                try {
+                    yield statements[i].start.line;
+                    result = yield* this.visit(statements[i]);
+                    if (this.activeThread) this.activeThread.asyncResultCache = {};
+                    i++;
+                } catch (inner) {
+                    if (inner instanceof AsyncPendingError) {
+                        yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                        continue; // retry same statement
+                    }
+                    throw inner;
+                }
             }
             return result;
         } catch (e) {
@@ -5261,9 +5503,22 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitBlock(ctx) {
         let result = null;
-        for (const stmt of ctx.statement()) {
-            yield stmt.start.line; // Statement boundary yield (before execution)
-            result = yield* this.visit(stmt);
+        const statements = ctx.statement();
+        let i = 0;
+
+        while (i < statements.length) {
+            try {
+                yield statements[i].start.line;
+                result = yield* this.visit(statements[i]);
+                if (this.activeThread) this.activeThread.asyncResultCache = {};
+                i++;
+            } catch (inner) {
+                if (inner instanceof AsyncPendingError) {
+                    yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                    continue;
+                }
+                throw inner;
+            }
         }
         return result;
     }
@@ -6258,9 +6513,21 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         try {
             if (body.statement()) {
-                for (const stmtCtx of body.statement()) {
-                    yield stmtCtx.start.line; // Statement boundary (before execution)
-                    yield* this.visit(stmtCtx);
+                const stmts = body.statement();
+                let si = 0;
+                while (si < stmts.length) {
+                    try {
+                        yield stmts[si].start.line;
+                        yield* this.visit(stmts[si]);
+                        if (this.activeThread) this.activeThread.asyncResultCache = {};
+                        si++;
+                    } catch (inner) {
+                        if (inner instanceof AsyncPendingError) {
+                            yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                            continue;
+                        }
+                        throw inner;
+                    }
                 }
             }
 
@@ -6448,9 +6715,21 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         try {
             if (body.statement()) {
-                for (const stmtCtx of body.statement()) {
-                    yield stmtCtx.start.line; // Statement boundary (before execution)
-                    yield* this.visit(stmtCtx);
+                const stmts = body.statement();
+                let si = 0;
+                while (si < stmts.length) {
+                    try {
+                        yield stmts[si].start.line;
+                        yield* this.visit(stmts[si]);
+                        if (this.activeThread) this.activeThread.asyncResultCache = {};
+                        si++;
+                    } catch (inner) {
+                        if (inner instanceof AsyncPendingError) {
+                            yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
+                            continue;
+                        }
+                        throw inner;
+                    }
                 }
             }
 
@@ -6488,6 +6767,13 @@ class ReturnException extends Error {
         super('return');
         this.name = 'ReturnException';
         this.value = value;
+    }
+}
+
+class AsyncPendingError extends Error {
+    constructor() {
+        super('async pending');
+        this.name = 'AsyncPendingError';
     }
 }
 
