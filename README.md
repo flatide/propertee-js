@@ -88,7 +88,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 69 tests
+# Run all 73 tests
 npm test
 
 # Run a single test
@@ -127,6 +127,20 @@ const result = await scheduler.run(mainGenerator);
 ```
 
 Full example: [scratch.html](https://github.com/flatide/propertee-js/blob/main/docs/dist/scratch.html)
+
+## Restricting Language Features
+
+Hide keywords and block functions to create sandboxed environments:
+
+```javascript
+// Hide language keywords — scripts using them get a runtime error
+visitor.setHiddenKeywords(["multi", "loop"]);
+
+// Block specific functions
+visitor.setIgnoredFunctions(["SHELL", "SLEEP"]);
+```
+
+Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`. Both built-in and external functions can be blocked. Using a hidden keyword or blocked function produces a runtime error: `'X' is not available in this environment`.
 
 ## Project Structure
 
