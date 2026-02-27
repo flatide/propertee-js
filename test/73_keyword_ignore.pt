@@ -1,0 +1,5 @@
+// Test: hidden keyword produces runtime error
+x = 10
+if x == 10 then
+    PRINT("should not reach")
+end

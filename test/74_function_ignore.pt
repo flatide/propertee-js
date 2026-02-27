@@ -1,0 +1,3 @@
+// Test: ignored function produces runtime error
+x = SHELL("echo hello")
+PRINT(x)

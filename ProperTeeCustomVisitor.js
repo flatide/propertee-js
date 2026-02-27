@@ -23,6 +23,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Active thread context (set by scheduler)
         this.activeThread = null;
 
+        // Host environment restrictions
+        this.hiddenKeywords = new Set();
+        this.ignoredFunctions = new Set();
+
         this.properties = builtInProperties;
 
         this.stdin = ioStreams.stdin || null;
@@ -506,6 +510,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // No-op in JS (Promises self-clean, no executor to shut down)
     shutdown() {}
 
+    setHiddenKeywords(keywords) { this.hiddenKeywords = new Set(keywords || []); }
+    setIgnoredFunctions(functions) { this.ignoredFunctions = new Set(functions || []); }
+
+    _checkKeywordAllowed(keyword, ctx) {
+        if (this.hiddenKeywords.has(keyword))
+            throw this.createError(`'${keyword}' is not available in this environment`, ctx);
+    }
+
     // Result helper for external functions
     static ok(value) {
         return { status: "done", ok: true, value: value };
@@ -794,6 +806,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitIfStmt(ctx) {
+        this._checkKeywordAllowed('if', ctx);
         return yield* this.visit(ctx.ifStatement());
     }
 
@@ -816,6 +829,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitConditionLoop(ctx) {
+        this._checkKeywordAllowed('loop', ctx);
         let result = null;
         const isInfinite = ctx.K_INFINITE() !== null;
         const maxIterations = isInfinite ? Infinity : this.maxIterations;
@@ -857,6 +871,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitValueLoop(ctx) {
+        this._checkKeywordAllowed('loop', ctx);
         const iterable = yield* this.visit(ctx.expression());
         const isInfinite = ctx.K_INFINITE() !== null;
         const maxIterations = isInfinite ? Infinity : this.maxIterations;
@@ -939,6 +954,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitKeyValueLoop(ctx) {
+        this._checkKeywordAllowed('loop', ctx);
         const iterable = yield* this.visit(ctx.expression());
         const isInfinite = ctx.K_INFINITE() !== null;
         const maxIterations = isInfinite ? Infinity : this.maxIterations;
@@ -1042,12 +1058,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitDebugStmt(ctx) {
+        this._checkKeywordAllowed('debug', ctx);
         yield { __debugBreak: true, line: ctx.start.line };
     }
 
     // --- Function Definition ---
 
     *visitFuncDefStmt(ctx) {
+        this._checkKeywordAllowed('function', ctx);
         return yield* this.visit(ctx.functionDef());
     }
 
@@ -1109,6 +1127,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitSpawnKeyStmt(ctx) {
+        this._checkKeywordAllowed('thread', ctx);
         if (!this._inMultiSetup) {
             throw this.createError('thread can only be used inside multi blocks', ctx);
         }
@@ -1562,6 +1581,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitFunctionCall(ctx) {
         const funcName = ctx.funcName.text;
 
+        if (this.ignoredFunctions.has(funcName))
+            throw this.createError(`'${funcName}' is not available in this environment`, ctx);
+
         // Evaluate arguments (expressions are atomic via yield*)
         const args = [];
         if (ctx.expression()) {
@@ -1659,6 +1681,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitParallelStmt(ctx) {
+        this._checkKeywordAllowed('multi', ctx);
         const variables = this._getVariables();
         const scopeStack = this._getScopeStack();
 
@@ -1726,6 +1749,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         for (let i = 0; i < this._collectedSpawns.length; i++) {
             const spawn = this._collectedSpawns[i];
             resultKeyNames.push(spawn.resultKey);
+
+            if (this.ignoredFunctions.has(spawn.funcName)) {
+                throw this.createError(`'${spawn.funcName}' is not available in this environment`, spawn.ctx);
+            }
 
             if (this.userDefinedFunctions[spawn.funcName]) {
                 const funcDef = this.userDefinedFunctions[spawn.funcName];

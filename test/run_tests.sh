@@ -53,6 +53,12 @@ run_test() {
         71_async_external)
             actual=$(node "$SCRIPT_DIR/run_test71.js" 2>&1)
             ;;
+        73_keyword_ignore)
+            actual=$(node "$SCRIPT_DIR/run_test73.js" 2>&1)
+            ;;
+        74_function_ignore)
+            actual=$(node "$SCRIPT_DIR/run_test74.js" 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;
