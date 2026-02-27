@@ -874,6 +874,47 @@ end
 - Multiple async calls in the same statement are not supported — use separate statements
 - The async function receives deep-copied arguments (thread-safe)
 
+### Host Environment Restrictions
+
+Host applications can restrict which language keywords and built-in functions are available:
+
+```
+// Java host
+Set<String> hidden = new HashSet<String>();
+hidden.add("multi");
+hidden.add("loop");
+interpreter.setHiddenKeywords(hidden);
+
+Set<String> ignored = new HashSet<String>();
+ignored.add("SHELL");
+interpreter.setIgnoredFunctions(ignored);
+
+// JavaScript host
+visitor.setHiddenKeywords(["multi", "loop"]);
+visitor.setIgnoredFunctions(["SHELL"]);
+```
+
+**Hidden keywords** produce a runtime error when the corresponding statement is encountered:
+
+```
+// With "if" hidden:
+x = 10
+if x == 10 then    // Runtime error: 'if' is not available in this environment
+    PRINT(x)
+end
+```
+
+Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`.
+
+**Ignored functions** produce a runtime error when called:
+
+```
+// With "SHELL" ignored:
+x = SHELL("echo hello")   // Runtime error: 'SHELL' is not available in this environment
+```
+
+Both built-in and external functions can be ignored. The check applies to normal function calls and to function calls inside multi block `thread` spawns.
+
 ## Comments
 
 ```
@@ -954,6 +995,7 @@ Common error conditions:
 
 ### v0.3.0
 
+- **Host environment restrictions**: `setHiddenKeywords()` hides language keywords (`if`, `loop`, `function`, `multi`, `thread`, `debug`). `setIgnoredFunctions()` blocks built-in or external function calls. Both produce runtime errors when used.
 - **`SHELL()` and `SHELL_CTX()` built-ins**: Execute shell commands from scripts. `SHELL(cmd)` for one-off commands, `SHELL(ctx, cmd)` with a context from `SHELL_CTX(cwd[, env])` for working directory and environment variable control. Async execution — other threads in multi blocks continue while shell commands run.
 - **No bare identifier keys**: Object keys must be quoted strings or integers. `{"name": "Alice"}` is valid; `{name: "Alice"}` is now a parse error.
 - **`debug` statement**: New keyword for explicit breakpoints in the playground debugger. No-op in normal execution.
