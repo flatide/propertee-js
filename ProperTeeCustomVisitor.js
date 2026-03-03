@@ -704,7 +704,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (typeof targetObj !== 'object' || targetObj === null) {
                 throw this.createError(`Cannot set property '${key}' on non-object`, ctx);
             }
-            if (typeof key === 'number' && Array.isArray(targetObj)) {
+            if (Array.isArray(targetObj)) {
+                if (typeof key !== 'number') {
+                    throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+                }
                 const idx = key - 1; // 1-based to 0-based
                 if (idx < 0 || idx >= targetObj.length) {
                     throw this.createError('Array index out of bounds', ctx);
@@ -799,6 +802,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const key = yield* this.visit(ctx.access());
 
         if (targetObj === null) throw new Error(`Runtime Error: Cannot access property '${key}' of null`);
+        if (Array.isArray(targetObj) && typeof key !== 'number') {
+            throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+        }
+        if (typeof targetObj === 'string' && typeof key !== 'number') {
+            throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
+        }
         if (typeof targetObj === 'object' && !(key in targetObj)) {
             throw new Error(`Runtime Error: Property '${key}' does not exist`);
         }
@@ -1408,7 +1417,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         // Array access: convert 1-based to 0-based
-        if (typeof key === 'number' && Array.isArray(targetObj)) {
+        if (Array.isArray(targetObj)) {
+            if (typeof key !== 'number') {
+                throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+            }
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('Array index out of bounds', ctx);
@@ -1417,7 +1429,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         // String character access: convert 1-based to 0-based
-        if (typeof key === 'number' && typeof targetObj === 'string') {
+        if (typeof targetObj === 'string') {
+            if (typeof key !== 'number') {
+                throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
+            }
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('String index out of bounds', ctx);
