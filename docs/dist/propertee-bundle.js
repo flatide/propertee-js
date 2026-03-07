@@ -5597,7 +5597,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (typeof targetObj !== 'object' || targetObj === null) {
                 throw this.createError(`Cannot set property '${key}' on non-object`, ctx);
             }
-            if (typeof key === 'number' && Array.isArray(targetObj)) {
+            if (Array.isArray(targetObj)) {
+                if (typeof key !== 'number') {
+                    throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+                }
                 const idx = key - 1; // 1-based to 0-based
                 if (idx < 0 || idx >= targetObj.length) {
                     throw this.createError('Array index out of bounds', ctx);
@@ -5692,6 +5695,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const key = yield* this.visit(ctx.access());
 
         if (targetObj === null) throw new Error(`Runtime Error: Cannot access property '${key}' of null`);
+        if (Array.isArray(targetObj) && typeof key !== 'number') {
+            throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+        }
+        if (typeof targetObj === 'string' && typeof key !== 'number') {
+            throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
+        }
         if (typeof targetObj === 'object' && !(key in targetObj)) {
             throw new Error(`Runtime Error: Property '${key}' does not exist`);
         }
@@ -6238,48 +6247,106 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError('Range bounds must be numbers', ctx);
         }
 
-        let step;
+        let stepVal = 1;
         if (ctx.rangeStep) {
-            const stepVal = yield* this.visit(ctx.rangeStep);
+            stepVal = yield* this.visit(ctx.rangeStep);
             if (typeof stepVal !== 'number') {
                 throw this.createError('Range step must be a number', ctx);
             }
-            step = stepVal;
-            if (step <= 0) {
+            if (stepVal <= 0) {
                 throw this.createError('Range step must be positive', ctx);
             }
-        } else {
-            step = 1;
         }
 
-        // Negate step when descending
-        if (startVal > endVal) {
-            step = -step;
-        }
-
+        const { scale, start, end, step } = this.scaleRangeNumbers(startVal, endVal, stepVal);
+        const increment = start > end ? -step : step;
         const arr = [];
-        if (Number.isInteger(startVal) && Number.isInteger(endVal) && (ctx.rangeStep == null || Number.isInteger(step))) {
-            if (step > 0) {
-                for (let i = startVal; i <= endVal; i += step) arr.push(i);
-            } else {
-                for (let i = startVal; i >= endVal; i += step) arr.push(i);
+
+        if (increment > 0n) {
+            for (let value = start; value <= end; value += increment) {
+                arr.push(this.unscaleRangeNumber(value, scale));
             }
         } else {
-            if (step > 0) {
-                for (let v = startVal; v <= endVal + 1e-9; v += step) {
-                    v = Math.round(v * 1e12) / 1e12;
-                    if (v > endVal + 1e-9) break;
-                    arr.push(v);
-                }
-            } else {
-                for (let v = startVal; v >= endVal - 1e-9; v += step) {
-                    v = Math.round(v * 1e12) / 1e12;
-                    if (v < endVal - 1e-9) break;
-                    arr.push(v);
-                }
+            for (let value = start; value >= end; value += increment) {
+                arr.push(this.unscaleRangeNumber(value, scale));
             }
         }
         return arr;
+    }
+
+    scaleRangeNumbers(startVal, endVal, stepVal) {
+        const startText = this.toPlainNumberString(startVal);
+        const endText = this.toPlainNumberString(endVal);
+        const stepText = this.toPlainNumberString(stepVal);
+        const scale = Math.max(
+            this.getRangeScale(startText),
+            this.getRangeScale(endText),
+            this.getRangeScale(stepText)
+        );
+
+        return {
+            scale,
+            start: this.scaleRangeNumber(startText, scale),
+            end: this.scaleRangeNumber(endText, scale),
+            step: this.scaleRangeNumber(stepText, scale)
+        };
+    }
+
+    toPlainNumberString(value) {
+        const text = String(value);
+        if (!/[eE]/.test(text)) return text;
+
+        const negative = text.startsWith('-');
+        const unsigned = negative ? text.slice(1) : text;
+        const [mantissa, exponentText] = unsigned.split(/[eE]/);
+        const exponent = Number(exponentText);
+        const [wholePart, fractionPart = ''] = mantissa.split('.');
+        const digits = wholePart + fractionPart;
+        const decimalIndex = wholePart.length + exponent;
+        let plain;
+
+        if (decimalIndex <= 0) {
+            plain = '0.' + '0'.repeat(-decimalIndex) + digits;
+        } else if (decimalIndex >= digits.length) {
+            plain = digits + '0'.repeat(decimalIndex - digits.length);
+        } else {
+            plain = digits.slice(0, decimalIndex) + '.' + digits.slice(decimalIndex);
+        }
+
+        if (plain.startsWith('.')) {
+            plain = '0' + plain;
+        }
+
+        return negative && plain !== '0' ? '-' + plain : plain;
+    }
+
+    getRangeScale(valueText) {
+        const parts = valueText.split('.');
+        return parts.length === 2 ? parts[1].length : 0;
+    }
+
+    scaleRangeNumber(valueText, scale) {
+        const negative = valueText.startsWith('-');
+        const unsigned = negative ? valueText.slice(1) : valueText;
+        const [wholePart, fractionPart = ''] = unsigned.split('.');
+        const digits = (wholePart || '0') + fractionPart.padEnd(scale, '0');
+        const scaled = BigInt(digits);
+        return negative ? -scaled : scaled;
+    }
+
+    unscaleRangeNumber(value, scale) {
+        if (scale === 0) return Number(value);
+
+        const negative = value < 0n;
+        let digits = (negative ? -value : value).toString();
+        if (digits.length <= scale) {
+            digits = '0'.repeat(scale - digits.length + 1) + digits;
+        }
+
+        const wholePart = digits.slice(0, digits.length - scale);
+        const fractionPart = digits.slice(digits.length - scale).replace(/0+$/, '');
+        const text = fractionPart.length === 0 ? wholePart : wholePart + '.' + fractionPart;
+        return Number(negative ? '-' + text : text);
     }
 
     // Member access
@@ -6301,7 +6368,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         // Array access: convert 1-based to 0-based
-        if (typeof key === 'number' && Array.isArray(targetObj)) {
+        if (Array.isArray(targetObj)) {
+            if (typeof key !== 'number') {
+                throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
+            }
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('Array index out of bounds', ctx);
@@ -6310,7 +6380,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         // String character access: convert 1-based to 0-based
-        if (typeof key === 'number' && typeof targetObj === 'string') {
+        if (typeof targetObj === 'string') {
+            if (typeof key !== 'number') {
+                throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
+            }
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('String index out of bounds', ctx);
