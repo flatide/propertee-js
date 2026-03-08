@@ -42,11 +42,12 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ./test/run_tests.sh test/09_functions.pt
 ```
 
-There are 71 test pairs in `test/` (numbered 01-72, test 31 skipped). Each `NN_name.pt` file has a matching `.expected` file. Special test cases:
+There are 77 test pairs in `test/` (numbered 01-78, test 31 skipped). Each `NN_name.pt` file has a matching `.expected` file. Special test cases:
 - Test 34 (`builtin_properties`) — requires `-p` properties flag
 - Test 41 (`result_pattern`) — uses `test/run_test41.js` to register external functions via `registerExternal()`
 - Test 71 (`async_external`) — uses `test/run_test71.js` to register async external functions via `registerExternalAsync()`
-- Test 72 (`shell`) — tests `SHELL()` and `SHELL_CTX()` built-in functions (one-off commands, pipes, error exit, cwd context, env vars, invalid cwd, parallel in multi blocks)
+- Test 72 (`shell`) — verifies `SHELL()` and `SHELL_CTX()` stubs return `{ok: false}` Result objects
+- Test 78 (`task_stub`) — verifies `START_TASK()`, `TASK_STATUS()`, `TASK_RESULT()`, `WAIT_TASK()`, `CANCEL_TASK()` stubs return `{ok: false}` Result objects
 
 The test runner (`test/run_tests.sh`) routes these special cases to their custom harnesses via a `case` statement. All other tests run via `node pt.js <file>`.
 
@@ -85,7 +86,7 @@ Every visitor method is a generator function (`function*`):
 | File | Role |
 |---|---|
 | `ProperTee.g4` | ANTLR4 grammar — defines all syntax. Semicolons are whitespace (part of WS rule). `thread` keyword for spawning in multi blocks. `multi resultVar do ... end` syntax with optional result collection. Thread spawn keys reuse the `access` rule (same as property access): `thread key:`, `thread "key":`, `thread 42:`, `thread $var:`, `thread $::var:`, `thread $(expr):`, `thread :` (unnamed). `arrayLiteral` has two alternatives: `RangeArray` (`[start..end]` or `[start..end, step]`) and `ListArray` (`[1, 2, 3]`). Object keys must be quoted strings or integers — bare identifiers are not allowed (`{"name": "Alice"}`, not `{name: "Alice"}`). |
-| `ProperTeeCustomVisitor.js` | Main visitor (~1860 lines). 36 built-in functions. All `*visit*` generator methods. `registerExternal()` for sync I/O, `registerExternalAsync()` for async I/O. `SHELL_CTX(cwd[, env])` creates a context config (sync via `registerExternal`). `SHELL(cmd)` or `SHELL(ctx, cmd)` executes shell commands (async via `registerExternalAsync`, uses `execSync` internally). `SHELL` auto-unwraps Result from `SHELL_CTX` — pass the Result directly, not `.value`. Imports `statSync` from `fs` and `execSync` from `child_process` at top level (ESM). `_resolveAndValidateDynamicKey()` auto-coerces dynamic keys to string via `TO_STRING()`. `deepCopy()` at all sharing boundaries. `AsyncPendingError` class for async control flow. |
+| `ProperTeeCustomVisitor.js` | Main visitor (~1800 lines). 41 built-in functions. All `*visit*` generator methods. `registerExternal()` for sync I/O, `registerExternalAsync()` for async I/O. Process-related functions (`SHELL`, `SHELL_CTX`, `START_TASK`, `TASK_STATUS`, `TASK_RESULT`, `WAIT_TASK`, `CANCEL_TASK`) are stubs that return `{ok: false, value: "... is not available in this environment"}` — JS runtime is for web mockup and property evaluation only. `_resolveAndValidateDynamicKey()` auto-coerces dynamic keys to string via `TO_STRING()`. `deepCopy()` at all sharing boundaries. `AsyncPendingError` class for async control flow. |
 | `Scheduler.js` | Round-robin scheduler (~485 lines). Manages thread state, SLEEP timers, MULTI block spawning, async polling. Pre-builds result collection with `{status: "running", ok: false, value: {}}` entries at spawn time, updates in-place as threads complete, injects into monitor scope for live status reads. `pollAsyncFutures()` checks BLOCKED threads for resolved promises and timeouts. Debug mode support for playground stepping/breakpoints. |
 | `ThreadContext.js` | Per-thread state (~170 lines): scope stack, global snapshot, sleep tracking, parent/child relationships, async state (`asyncResultCache`, `asyncResolved`, `asyncResolvedValue`, `asyncCacheKey`, `asyncTimeoutMs`, `asyncSubmitTime`). States: READY, RUNNING, SLEEPING, WAITING, BLOCKED, COMPLETED, ERROR. |
 | `pt.js` | CLI entry point and interactive REPL. Parses CLI args, runs scripts or starts REPL. |
@@ -249,10 +250,19 @@ loop x in [1..10] do ... end  // range in loop
 
 // Access patterns: obj.prop, arr.1, obj."key", obj.$var, obj.$::var, obj.$(expr)
 
-// Shell commands
-result = SHELL("echo hello")             // one-off
+// Shell commands (stubs in JS — return {ok: false} with error message)
+// Real execution only in Java runtime
+result = SHELL("echo hello")
 ctx = SHELL_CTX("/data", {"ENV": "prod"})
-result = SHELL(ctx, "./build.sh")        // with context (auto-unwraps Result)
+result = SHELL(ctx, "./build.sh")
+
+// Task engine (stubs in JS — return {ok: false} with error message)
+// Real execution only in Java runtime
+r = START_TASK("long-running-cmd")
+s = TASK_STATUS(taskId)
+r = TASK_RESULT(taskId)
+r = WAIT_TASK(taskId, 5000)
+r = CANCEL_TASK(taskId)
 ```
 
 ## External Functions & Result Pattern

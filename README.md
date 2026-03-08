@@ -88,7 +88,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 73 tests
+# Run all 77 tests
 npm test
 
 # Run a single test

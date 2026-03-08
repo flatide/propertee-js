@@ -1,0 +1,41 @@
+// Test 78: Task engine functions are stubs in JS runtime
+
+// 1. START_TASK
+r = START_TASK("echo hello")
+if r.ok == false then
+    PRINT("PASS start_task stub")
+else
+    PRINT("FAIL start_task stub")
+end
+
+// 2. TASK_STATUS
+r = TASK_STATUS("fake-id")
+if r.ok == false then
+    PRINT("PASS task_status stub")
+else
+    PRINT("FAIL task_status stub")
+end
+
+// 3. TASK_RESULT
+r = TASK_RESULT("fake-id")
+if r.ok == false then
+    PRINT("PASS task_result stub")
+else
+    PRINT("FAIL task_result stub")
+end
+
+// 4. WAIT_TASK
+r = WAIT_TASK("fake-id", 1000)
+if r.ok == false then
+    PRINT("PASS wait_task stub")
+else
+    PRINT("FAIL wait_task stub")
+end
+
+// 5. CANCEL_TASK
+r = CANCEL_TASK("fake-id")
+if r.ok == false then
+    PRINT("PASS cancel_task stub")
+else
+    PRINT("FAIL cancel_task stub")
+end
