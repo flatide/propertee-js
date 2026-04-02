@@ -153,7 +153,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     const rl = createInterface({
         input: process.stdin,
         output: process.stdout,
-        prompt: 'pt> '
+        prompt: 'tee> '
     });
 
     // Single persistent visitor so state carries across lines
@@ -229,7 +229,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         depth = 0;
         const text = buffer;
         buffer = '';
-        rl.setPrompt('pt> ');
+        rl.setPrompt('tee> ');
 
         if (text.trim() === '') {
             rl.prompt();
