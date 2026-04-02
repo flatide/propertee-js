@@ -270,6 +270,114 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     return min + Math.floor(Math.random() * (max - min + 1));
                 }
             },
+            // --- String matching ---
+            'CONTAINS': (str, sub) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: CONTAINS() first argument must be a string');
+                if (typeof sub !== 'string') throw new Error('Runtime Error: CONTAINS() second argument must be a string');
+                return str.includes(sub);
+            },
+            'STARTS_WITH': (str, prefix) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: STARTS_WITH() first argument must be a string');
+                if (typeof prefix !== 'string') throw new Error('Runtime Error: STARTS_WITH() second argument must be a string');
+                return str.startsWith(prefix);
+            },
+            'ENDS_WITH': (str, suffix) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: ENDS_WITH() first argument must be a string');
+                if (typeof suffix !== 'string') throw new Error('Runtime Error: ENDS_WITH() second argument must be a string');
+                return str.endsWith(suffix);
+            },
+            'MATCHES': (str, pattern) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: MATCHES() first argument must be a string');
+                if (typeof pattern !== 'string') throw new Error('Runtime Error: MATCHES() second argument must be a string');
+                try {
+                    return new RegExp(pattern).test(str);
+                } catch (e) {
+                    throw new Error('Runtime Error: MATCHES() invalid regex pattern: ' + e.message);
+                }
+            },
+            'REGEX_FIND': (str, pattern) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: REGEX_FIND() first argument must be a string');
+                if (typeof pattern !== 'string') throw new Error('Runtime Error: REGEX_FIND() second argument must be a string');
+                try {
+                    const match = new RegExp(pattern).exec(str);
+                    if (!match) return {};
+                    const groups = [];
+                    for (let i = 0; i <= match.length - 1; i++) {
+                        groups.push(match[i] !== undefined && match[i] !== null ? match[i] : {});
+                    }
+                    return groups;
+                } catch (e) {
+                    throw new Error('Runtime Error: REGEX_FIND() invalid regex pattern: ' + e.message);
+                }
+            },
+            'REPLACE': (str, target, replacement) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: REPLACE() first argument must be a string');
+                if (typeof target !== 'string') throw new Error('Runtime Error: REPLACE() second argument must be a string');
+                if (typeof replacement !== 'string') throw new Error('Runtime Error: REPLACE() third argument must be a string');
+                return str.split(target).join(replacement);
+            },
+            // --- Map extensions ---
+            'VALUES': (obj) => {
+                if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+                    throw new Error('Runtime Error: VALUES() argument must be an object');
+                return Object.values(obj);
+            },
+            'ENTRIES': (obj) => {
+                if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+                    throw new Error('Runtime Error: ENTRIES() argument must be an object');
+                return Object.entries(obj).map(([key, value]) => ({ key, value }));
+            },
+            'MERGE': (obj1, obj2) => {
+                if (typeof obj1 !== 'object' || obj1 === null || Array.isArray(obj1))
+                    throw new Error('Runtime Error: MERGE() first argument must be an object');
+                if (typeof obj2 !== 'object' || obj2 === null || Array.isArray(obj2))
+                    throw new Error('Runtime Error: MERGE() second argument must be an object');
+                return { ...obj1, ...obj2 };
+            },
+            'REMOVE_KEY': (obj, key) => {
+                if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+                    throw new Error('Runtime Error: REMOVE_KEY() first argument must be an object');
+                if (typeof key !== 'string')
+                    throw new Error('Runtime Error: REMOVE_KEY() second argument must be a string');
+                const result = { ...obj };
+                delete result[key];
+                return result;
+            },
+            // --- Type ---
+            'TYPE_OF': (value) => {
+                if (typeof value === 'boolean') return 'boolean';
+                if (typeof value === 'number') return 'number';
+                if (typeof value === 'string') return 'string';
+                if (Array.isArray(value)) return 'array';
+                if (typeof value === 'object' && value !== null) return 'object';
+                return 'object';
+            },
+            // --- JSON ---
+            'JSON_PARSE': (str) => {
+                if (typeof str !== 'string')
+                    return { status: "error", ok: false, value: "JSON_PARSE() requires a string argument" };
+                try {
+                    const parsed = JSON.parse(str);
+                    const convert = (v) => {
+                        if (v === null || v === undefined) return {};
+                        if (Array.isArray(v)) return v.map(convert);
+                        if (typeof v === 'object') {
+                            const result = {};
+                            for (const [k, val] of Object.entries(v)) {
+                                result[k] = convert(val);
+                            }
+                            return result;
+                        }
+                        return v;
+                    };
+                    return { status: "done", ok: true, value: convert(parsed) };
+                } catch (e) {
+                    return { status: "error", ok: false, value: "Invalid JSON: " + e.message };
+                }
+            },
+            'JSON_FORMAT': (value) => {
+                return JSON.stringify(value);
+            },
             'MILTIME': () => {
                 return Date.now();
             },
@@ -313,6 +421,19 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.registerExternal('CANCEL_TASK', (...args) => {
             return { status: "error", ok: false, value: "CANCEL_TASK() is not available in this environment" };
         });
+
+        // ENV — stub (no OS environment access in JS runtime)
+        this.registerExternal('ENV', (...args) => {
+            return { status: "error", ok: false, value: "ENV() is not available in this environment" };
+        });
+
+        // File I/O — stubs (no filesystem access in JS runtime)
+        const fileStub = (name) => (...args) => {
+            return { status: "error", ok: false, value: name + "() is not available in this environment" };
+        };
+        for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_LINES', 'WRITE_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'DELETE_FILE']) {
+            this.registerExternal(name, fileStub(name));
+        }
     }
 
     // --- Helper methods (non-generators) ---
@@ -1223,7 +1344,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitStringAtom(ctx) {
         const str = ctx.getText();
-        return str.substring(1, str.length - 1);
+        return this._processStringEscapes(str.substring(1, str.length - 1));
     }
 
     *visitBooleanAtom(ctx) {
@@ -1254,7 +1375,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     resolveObjectKey(ctx) {
         if (ctx.STRING()) {
             const str = ctx.STRING().getText();
-            return str.substring(1, str.length - 1);
+            return this._processStringEscapes(str.substring(1, str.length - 1));
         }
         if (ctx.INTEGER()) return ctx.INTEGER().getText();
         return null;
@@ -1471,7 +1592,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitStringKeyAccess(ctx) {
         const str = ctx.STRING().getText();
-        return str.substring(1, str.length - 1);
+        return this._processStringEscapes(str.substring(1, str.length - 1));
     }
 
     *visitEvalAccess(ctx) {

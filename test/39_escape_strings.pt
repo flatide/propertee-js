@@ -1,7 +1,29 @@
-// Test: String literals
-// Note: ProperTee does not process escape sequences (\n, \t, etc.)
-// The lexer allows \" inside strings for embedding quotes.
+// Test: String escape sequences
+
+// Basic strings (no escapes)
 PRINT("hello")
 PRINT("with spaces")
 PRINT("")
 PRINT("123")
+
+// Escape: quote and backslash
+PRINT("she said \"hi\"")
+PRINT("back\\slash")
+
+// Escape: newline and tab
+PRINT("line1\nline2")
+PRINT("col1\tcol2")
+
+// Unrecognized escape — preserved as-is
+PRINT("\d")
+
+// Object key with escape
+obj = {"key\twith\ttab": 42}
+PRINT(obj."key\twith\ttab")
+
+// LEN verifies single character after escape
+PRINT(LEN("\\"))
+PRINT(LEN("\""))
+PRINT(LEN("\n"))
+PRINT(LEN("\t"))
+PRINT(LEN("\r"))

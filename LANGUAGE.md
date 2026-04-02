@@ -158,10 +158,16 @@ Strings are double-quoted. Supported escape sequences:
 |---|---|
 | `\"` | double quote |
 | `\\` | backslash |
+| `\n` | newline |
+| `\t` | tab |
+| `\r` | carriage return |
+
+Unrecognized escapes (e.g., `\d`) are preserved as-is (literal backslash + character).
 
 ```
 msg = "She said \"hello\""
 path = "C:\\Users\\file"
+multiline = "line1\nline2"
 ```
 
 Strings are **not** mutable. String operations return new strings.
@@ -705,6 +711,12 @@ All built-in function names are UPPERCASE.
 | `TO_NUMBER(s)` | Convert string to number. Error if not valid numeric string. |
 | `TO_STRING(v)` | Convert any value to its string representation |
 
+### Type
+
+| Function | Description |
+|---|---|
+| `TYPE_OF(v)` | Returns type name: `"number"`, `"string"`, `"boolean"`, `"array"`, `"object"` |
+
 ### String Functions
 
 | Function | Description |
@@ -717,6 +729,12 @@ All built-in function names are UPPERCASE.
 | `SPLIT(s, delimiter)` | Split string into array. Preserves trailing empty strings. |
 | `JOIN(arr, [separator])` | Join array elements into string. Default separator is `""`. |
 | `CHARS(s)` | Split string into array of single characters |
+| `CONTAINS(s, sub)` | Returns `true` if `s` contains `sub` |
+| `STARTS_WITH(s, prefix)` | Returns `true` if `s` starts with `prefix` |
+| `ENDS_WITH(s, suffix)` | Returns `true` if `s` ends with `suffix` |
+| `MATCHES(s, pattern)` | Returns `true` if regex `pattern` matches anywhere in `s` |
+| `REGEX_FIND(s, pattern)` | Returns array of [fullMatch, group1, group2, ...] or `{}` if no match. 1-based array. |
+| `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
 
 ### Array Functions
 
@@ -738,6 +756,67 @@ All built-in function names are UPPERCASE.
 |---|---|
 | `HAS_KEY(obj, key)` | Returns `true` if `obj` contains `key`, `false` otherwise. Both arguments required: `obj` must be an object, `key` must be a string. |
 | `KEYS(obj)` | Returns an array of the object's keys in insertion order. `obj` must be an object. |
+| `VALUES(obj)` | Returns an array of the object's values in insertion order. |
+| `ENTRIES(obj)` | Returns array of `{"key": k, "value": v}` objects in insertion order. |
+| `MERGE(obj1, obj2)` | Returns new object with all entries from both. `obj2` values override `obj1` on key conflict. |
+| `REMOVE_KEY(obj, key)` | Returns new object without the specified key. No error if key absent. |
+
+### Environment
+
+| Function | Description |
+|---|---|
+| `ENV(name)` | Read environment variable. Returns `{}` if not set. |
+| `ENV(name, default)` | Read environment variable with fallback. Returns `default` if not set. |
+
+### JSON
+
+| Function | Description |
+|---|---|
+| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON. JSON `null` becomes `{}`. |
+| `JSON_FORMAT(v)` | Convert any value to JSON string. |
+
+### File I/O
+
+| Function | Description |
+|---|---|
+| `FILE_EXISTS(path)` | Returns `true` if file or directory exists. |
+| `FILE_INFO(path)` | Returns Result: `ok` with `{type, size, modified}`, `error` if not found. |
+| `READ_LINES(path, [start], [count])` | Read lines from file. `start` is 1-based (default 1). `count` limits lines read. Returns Result with string array. |
+| `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
+| `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
+| `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
+| `MKDIR(path)` | Create directory (including parents). Returns Result. |
+| `LIST_DIR(path)` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. |
+| `DELETE_FILE(path)` | Delete a single file. Directories are rejected. Returns Result. |
+
+```
+// Write and read lines
+WRITE_LINES("/data/output.csv", ["name,age", "Alice,30", "Bob,25"])
+res = READ_LINES("/data/output.csv", 2, 1)    // skip header, read 1 line
+PRINT(res.value.1)                              // "Alice,30"
+
+// Large file iteration
+offset = 1
+loop true infinite do
+    res = READ_LINES("/data/big.log", offset, 500)
+    if res.ok == false then break end
+    lines = res.value
+    if LEN(lines) == 0 then break end
+    loop line in lines do
+        if CONTAINS(line, "ERROR") == true then
+            PRINT(line)
+        end
+    end
+    offset = offset + LEN(lines)
+end
+
+// Directory operations
+MKDIR("/data/reports/2024")
+res = LIST_DIR("/data/reports")
+loop entry in res.value do
+    PRINT(entry.name, entry.type)
+end
+```
 
 ### Timing
 
@@ -1025,11 +1104,21 @@ Common error conditions:
 
 ## Changelog
 
+### v0.4.0
+
+- **File I/O built-ins**: `FILE_EXISTS()`, `FILE_INFO()`, `READ_LINES()`, `WRITE_FILE()`, `WRITE_LINES()`, `APPEND_FILE()`, `MKDIR()`, `LIST_DIR()`, `DELETE_FILE()` for file system operations. `READ_LINES` uses 1-based offset with count limit to avoid loading entire files into memory. All I/O functions return Result pattern for error handling.
+- **String matching built-ins**: `CONTAINS()`, `STARTS_WITH()`, `ENDS_WITH()` for simple checks. `MATCHES()` and `REGEX_FIND()` for regex. `REPLACE()` for string substitution.
+- **Object extensions**: `VALUES()`, `ENTRIES()`, `MERGE()`, `REMOVE_KEY()` for richer object manipulation.
+- **JSON built-ins**: `JSON_PARSE()` converts JSON string to ProperTee values (JSON `null` → `{}`). `JSON_FORMAT()` converts any value to JSON string.
+- **Environment**: `ENV(name, [default])` reads environment variables. Returns `{}` if not set and no default provided.
+- **Type introspection**: `TYPE_OF()` returns type name as string.
+- **String escape processing**: String literals now process escape sequences (`\"`, `\\`, `\n`, `\t`, `\r`) in all contexts — expressions, object keys, and property access. Previously, only thread spawn keys processed escapes.
+
 ### v0.3.0
 
 - **Host environment restrictions**: `setHiddenKeywords()` hides language keywords (`if`, `loop`, `function`, `multi`, `thread`, `debug`). `setIgnoredFunctions()` blocks built-in or external function calls. Both produce runtime errors when used.
-- **`SHELL()` and `SHELL_CTX()` built-ins**: Execute shell commands from scripts. `SHELL(cmd)` for one-off commands, `SHELL(ctx, cmd)` with a context from `SHELL_CTX(cwd[, env])` for working directory and environment variable control. Async execution — other threads in multi blocks continue while shell commands run. (Java runtime only; stubs in JS runtime.)
-- **Task engine built-ins**: `START_TASK()`, `TASK_STATUS()`, `TASK_RESULT()`, `WAIT_TASK()`, `CANCEL_TASK()` for detached external process management with file-based persistence. (Java runtime only; stubs in JS runtime.)
+- **`SHELL()` and `SHELL_CTX()` built-ins**: Execute shell commands from scripts. `SHELL(cmd)` for one-off commands, `SHELL(ctx, cmd)` with a context from `SHELL_CTX(cwd[, env])` for working directory and environment variable control. Async execution — other threads in multi blocks continue while shell commands run.
+- **Task engine built-ins**: `START_TASK()`, `TASK_STATUS()`, `TASK_RESULT()`, `WAIT_TASK()`, `CANCEL_TASK()` for detached external process management with file-based persistence. Tasks survive host restarts and can be observed or killed from separate engine instances. (Java runtime only; stubs in JS runtime.)
 - **No bare identifier keys**: Object keys must be quoted strings or integers. `{"name": "Alice"}` is valid; `{name: "Alice"}` is now a parse error.
 - **`debug` statement**: New keyword for explicit breakpoints in the playground debugger. No-op in normal execution.
 - **Deep-copy value semantics**: All assignments (variables, properties, function args, thread args, loop variables) produce independent deep copies. No shared mutable state between variables.

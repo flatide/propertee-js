@@ -1,0 +1,47 @@
+// Test TYPE_OF and JSON functions
+
+// TYPE_OF
+PRINT(TYPE_OF(42))
+PRINT(TYPE_OF(3.14))
+PRINT(TYPE_OF("hello"))
+PRINT(TYPE_OF(true))
+PRINT(TYPE_OF(false))
+PRINT(TYPE_OF([1, 2, 3]))
+PRINT(TYPE_OF({"a": 1}))
+PRINT(TYPE_OF({}))
+
+// JSON_PARSE - array
+res = JSON_PARSE("[1,2,3]")
+PRINT(res.ok)
+PRINT(res.value)
+
+// JSON_PARSE - number
+res = JSON_PARSE("42")
+PRINT(res.value)
+
+// JSON_PARSE - boolean
+res = JSON_PARSE("true")
+PRINT(res.value)
+
+// JSON_PARSE - null → {}
+res = JSON_PARSE("null")
+PRINT(res.value == {})
+
+// JSON_PARSE - error
+res = JSON_PARSE("{invalid}")
+PRINT(res.ok)
+
+// JSON_FORMAT
+PRINT(JSON_FORMAT([1, 2, 3]))
+PRINT(JSON_FORMAT(42))
+PRINT(JSON_FORMAT(true))
+PRINT(JSON_FORMAT({}))
+
+// Round-trip
+original = {"name": "Alice", "age": 30, "active": true}
+json = JSON_FORMAT(original)
+parsed = JSON_PARSE(json)
+PRINT(parsed.ok)
+PRINT(parsed.value.name)
+PRINT(parsed.value.age)
+PRINT(parsed.value.active)

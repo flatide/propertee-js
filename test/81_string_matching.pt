@@ -1,0 +1,47 @@
+// Test string matching functions
+
+// CONTAINS
+PRINT(CONTAINS("hello world", "world"))
+PRINT(CONTAINS("hello world", "xyz"))
+PRINT(CONTAINS("", ""))
+PRINT(CONTAINS("abc", ""))
+
+// STARTS_WITH
+PRINT(STARTS_WITH("hello world", "hello"))
+PRINT(STARTS_WITH("hello world", "world"))
+PRINT(STARTS_WITH("", ""))
+
+// ENDS_WITH
+PRINT(ENDS_WITH("hello world", "world"))
+PRINT(ENDS_WITH("hello world", "hello"))
+PRINT(ENDS_WITH("file.csv", ".csv"))
+
+// MATCHES (with proper \d escape now)
+PRINT(MATCHES("error: timeout at line 5", "error.*timeout"))
+PRINT(MATCHES("info: all ok", "error.*timeout"))
+PRINT(MATCHES("report_20240101.csv", "^report_\\d{8}\\.csv$"))
+PRINT(MATCHES("abc123", "^[a-z]+\\d+$"))
+
+// REGEX_FIND
+parts = REGEX_FIND("status=200 time=45ms", "status=(\\d+)")
+PRINT(parts.1)
+PRINT(parts.2)
+
+noMatch = REGEX_FIND("hello world", "xyz(\\d+)")
+PRINT(noMatch == {})
+
+groups = REGEX_FIND("2024-01-15", "(\\d{4})-(\\d{2})-(\\d{2})")
+PRINT(groups.1)
+PRINT(groups.2)
+PRINT(groups.3)
+PRINT(groups.4)
+
+// REGEX_FIND - optional group not matched → {} (not "")
+opt = REGEX_FIND("b", "(a)?b")
+PRINT(opt.1)
+PRINT(opt.2 == {})
+
+// REPLACE
+PRINT(REPLACE("hello world", "world", "ProperTee"))
+PRINT(REPLACE("a-b-c", "-", "_"))
+PRINT(REPLACE("aaa", "a", "bb"))

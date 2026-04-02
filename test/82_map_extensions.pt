@@ -1,0 +1,37 @@
+// Test map extension functions
+
+obj = {"a": 1, "b": 2, "c": 3}
+
+// VALUES
+vals = VALUES(obj)
+PRINT(vals)
+
+// ENTRIES
+entries = ENTRIES(obj)
+loop e in entries do
+    PRINT(e.key, e.value)
+end
+
+// MERGE
+m1 = {"x": 1, "y": 2}
+m2 = {"y": 99, "z": 3}
+merged = MERGE(m1, m2)
+PRINT(merged)
+// originals unchanged
+PRINT(m1)
+PRINT(m2)
+
+// REMOVE_KEY
+reduced = REMOVE_KEY(obj, "b")
+PRINT(reduced)
+// original unchanged
+PRINT(obj)
+// remove non-existent key
+same = REMOVE_KEY(obj, "xyz")
+PRINT(same)
+
+// empty map operations
+PRINT(VALUES({}))
+PRINT(ENTRIES({}))
+PRINT(MERGE({}, {"a": 1}))
+PRINT(REMOVE_KEY({}, "x"))
