@@ -856,37 +856,7 @@ end
 
 `SHELL()` is async — in multi blocks, other threads continue while a shell command runs. Outside multi blocks, the script simply waits.
 
-### Task Engine
-
-| Function | Description |
-|---|---|
-| `START_TASK(cmd)` | Start a detached external process. Returns task ID string. |
-| `TASK_STATUS(taskId)` | Get current status of a task. Returns observation map with `status`, `alive`, `elapsedMs`, etc. |
-| `TASK_RESULT(taskId)` | Get the result of a completed task. Returns Result with `stdout`, `exitCode`. |
-| `WAIT_TASK(taskId, timeoutMs)` | Wait for task completion. Returns Result on completion or `error("timeout")`. |
-| `CANCEL_TASK(taskId)` | Kill a running task and its descendant processes. Returns `true`/`false`. |
-
-Task engine functions manage long-running external processes with file-based persistence. Tasks survive host restarts and can be observed or killed from separate engine instances.
-
-```
-// Start a background task
-taskId = START_TASK("long-running-job.sh")
-
-// Check status
-status = TASK_STATUS(taskId)
-PRINT(status.status)             // "running", "completed", "failed", "killed", "lost"
-
-// Wait for completion (5 second timeout)
-result = WAIT_TASK(taskId, 5000)
-if result.ok == true then
-    PRINT("Output:", result.value.stdout)
-end
-
-// Cancel a running task
-CANCEL_TASK(taskId)
-```
-
-> **Runtime availability:** Shell and task engine functions require the Java runtime. In the JavaScript runtime (browser/Node.js), these functions are stubs that return `{ok: false, value: "... is not available in this environment"}`.
+> **Runtime availability:** Shell functions require a host-provided `TaskRunner`. File I/O and ENV require a `PlatformProvider`. In the JavaScript runtime (browser/Node.js), these functions are stubs that return `{ok: false, value: "... is not available in this environment"}`.
 
 ## Built-in Properties
 
@@ -1118,7 +1088,6 @@ Common error conditions:
 
 - **Host environment restrictions**: `setHiddenKeywords()` hides language keywords (`if`, `loop`, `function`, `multi`, `thread`, `debug`). `setIgnoredFunctions()` blocks built-in or external function calls. Both produce runtime errors when used.
 - **`SHELL()` and `SHELL_CTX()` built-ins**: Execute shell commands from scripts. `SHELL(cmd)` for one-off commands, `SHELL(ctx, cmd)` with a context from `SHELL_CTX(cwd[, env])` for working directory and environment variable control. Async execution — other threads in multi blocks continue while shell commands run.
-- **Task engine built-ins**: `START_TASK()`, `TASK_STATUS()`, `TASK_RESULT()`, `WAIT_TASK()`, `CANCEL_TASK()` for detached external process management with file-based persistence. Tasks survive host restarts and can be observed or killed from separate engine instances. (Java runtime only; stubs in JS runtime.)
 - **No bare identifier keys**: Object keys must be quoted strings or integers. `{"name": "Alice"}` is valid; `{name: "Alice"}` is now a parse error.
 - **`debug` statement**: New keyword for explicit breakpoints in the playground debugger. No-op in normal execution.
 - **Deep-copy value semantics**: All assignments (variables, properties, function args, thread args, loop variables) produce independent deep copies. No shared mutable state between variables.

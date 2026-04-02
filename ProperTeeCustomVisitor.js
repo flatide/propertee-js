@@ -401,27 +401,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return { status: "error", ok: false, value: "SHELL() is not available in this environment" };
         });
 
-        // Task engine — stubs (no process management in JS runtime)
-        this.registerExternalAsync('START_TASK', (...args) => {
-            return { status: "error", ok: false, value: "START_TASK() is not available in this environment" };
-        });
-
-        this.registerExternal('TASK_STATUS', (...args) => {
-            return { status: "error", ok: false, value: "TASK_STATUS() is not available in this environment" };
-        });
-
-        this.registerExternal('TASK_RESULT', (...args) => {
-            return { status: "error", ok: false, value: "TASK_RESULT() is not available in this environment" };
-        });
-
-        this.registerExternalAsync('WAIT_TASK', (...args) => {
-            return { status: "error", ok: false, value: "WAIT_TASK() is not available in this environment" };
-        });
-
-        this.registerExternal('CANCEL_TASK', (...args) => {
-            return { status: "error", ok: false, value: "CANCEL_TASK() is not available in this environment" };
-        });
-
         // ENV — stub (no OS environment access in JS runtime)
         this.registerExternal('ENV', (...args) => {
             return { status: "error", ok: false, value: "ENV() is not available in this environment" };

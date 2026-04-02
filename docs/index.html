@@ -611,11 +611,6 @@
                 <button class="ref-chip fn" onclick="insertText('TIME()')">TIME</button>
                 <button class="ref-chip fn" onclick="insertText('SHELL()')">SHELL</button>
                 <button class="ref-chip fn" onclick="insertText('SHELL_CTX()')">SHELL_CTX</button>
-                <button class="ref-chip fn" onclick="insertText('START_TASK()')">START_TASK</button>
-                <button class="ref-chip fn" onclick="insertText('TASK_STATUS()')">TASK_STATUS</button>
-                <button class="ref-chip fn" onclick="insertText('TASK_RESULT()')">TASK_RESULT</button>
-                <button class="ref-chip fn" onclick="insertText('WAIT_TASK()')">WAIT_TASK</button>
-                <button class="ref-chip fn" onclick="insertText('CANCEL_TASK()')">CANCEL_TASK</button>
             </div>
             <div class="editor-wrapper">
                 <div class="line-numbers" id="lineNumbers">1</div>
@@ -1616,7 +1611,7 @@ PRINT("x =", x)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|SHELL|SHELL_CTX|START_TASK|TASK_STATUS|TASK_RESULT|WAIT_TASK|CANCEL_TASK';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|SHELL|SHELL_CTX';
             var keywords = 'if|then|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments

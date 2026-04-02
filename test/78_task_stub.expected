@@ -1,5 +1,0 @@
-PASS start_task stub
-PASS task_status stub
-PASS task_result stub
-PASS wait_task stub
-PASS cancel_task stub
