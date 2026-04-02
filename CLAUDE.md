@@ -10,10 +10,10 @@ ProperTee JS is a JavaScript implementation of the [ProperTee](https://github.co
 
 ```bash
 # Run a script
-node pt.js script.pt
-node pt.js -p '{"width":100}' script.pt       # with built-in properties
-node pt.js -f props.json script.pt             # properties from file
-node pt.js --max-iterations 5000 script.pt     # custom loop limit
+node pt.js script.tee
+node pt.js -p '{"width":100}' script.tee       # with built-in properties
+node pt.js -f props.json script.tee             # properties from file
+node pt.js --max-iterations 5000 script.tee     # custom loop limit
 node pt.js                                     # interactive REPL
 
 # Regenerate parser from grammar (requires antlr4 CLI)
@@ -39,10 +39,10 @@ REPL commands: `.vars` (show variables), `.exit` (quit). Multi-line blocks are a
 ./test/run_tests.sh
 
 # Run a single test
-./test/run_tests.sh test/09_functions.pt
+./test/run_tests.sh test/09_functions.tee
 ```
 
-There are 77 test pairs in `test/` (numbered 01-78, test 31 skipped). Each `NN_name.pt` file has a matching `.expected` file. Special test cases:
+There are 77 test pairs in `test/` (numbered 01-78, test 31 skipped). Each `NN_name.tee` file has a matching `.expected` file. Special test cases:
 - Test 34 (`builtin_properties`) — requires `-p` properties flag
 - Test 41 (`result_pattern`) — uses `test/run_test41.js` to register external functions via `registerExternal()`
 - Test 71 (`async_external`) — uses `test/run_test71.js` to register async external functions via `registerExternalAsync()`
@@ -51,9 +51,9 @@ There are 77 test pairs in `test/` (numbered 01-78, test 31 skipped). Each `NN_n
 
 The test runner (`test/run_tests.sh`) routes these special cases to their custom harnesses via a `case` statement. All other tests run via `node pt.js <file>`.
 
-**Adding a new test:** Create `NN_name.pt` and `NN_name.expected` in `test/`. If the test needs external functions or special flags, add a case to `test/run_tests.sh`.
+**Adding a new test:** Create `NN_name.tee` and `NN_name.expected` in `test/`. If the test needs external functions or special flags, add a case to `test/run_tests.sh`.
 
-**Sample scripts:** `sample/01_hello.pt` through `sample/16_comments.pt` cover all language features.
+**Sample scripts:** `sample/01_hello.tee` through `sample/16_comments.tee` cover all language features.
 
 ## Architecture
 

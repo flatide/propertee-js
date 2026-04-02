@@ -1,8 +1,8 @@
 #!/bin/bash
 # ProperTee test runner
 # Usage: ./test/run_tests.sh [test_file]
-# Runs all test/*.pt files, or a single file if specified.
-# Each .pt file has a matching .expected file with expected output.
+# Runs all test/*.tee files, or a single file if specified.
+# Each .tee file has a matching .expected file with expected output.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -29,7 +29,7 @@ get_extra_flags() {
 
 run_test() {
     local pt_file="$1"
-    local base="${pt_file%.pt}"
+    local base="${pt_file%.tee}"
     local expected_file="${base}.expected"
     local test_name="$(basename "$base")"
 
@@ -83,7 +83,7 @@ run_test() {
 if [ -n "$1" ]; then
     run_test "$1"
 else
-    for pt_file in "$SCRIPT_DIR"/*.pt; do
+    for pt_file in "$SCRIPT_DIR"/*.tee; do
         [ -f "$pt_file" ] || continue
         run_test "$pt_file"
     done

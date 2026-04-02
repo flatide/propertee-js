@@ -19,7 +19,7 @@ if (args.includes('--version') || args.includes('-v')) {
 }
 
 if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: node pt.js [options] [script.pt]');
+    console.log('Usage: node pt.js [options] [script.tee]');
     console.log('');
     console.log('  If no script file is given (or the file does not exist),');
     console.log('  starts an interactive REPL.');

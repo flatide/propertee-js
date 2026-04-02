@@ -13,7 +13,7 @@ npm install
 ./build-all.sh
 
 # Run a script
-node pt.js script.pt
+node pt.js script.tee
 
 # Interactive REPL
 node pt.js
@@ -61,10 +61,10 @@ end
 ## CLI Usage
 
 ```bash
-node pt.js script.pt                          # run a script
-node pt.js -p '{"width":100}' script.pt       # with built-in properties
-node pt.js -f props.json script.pt             # properties from JSON file
-node pt.js --max-iterations 5000 script.pt     # custom loop limit
+node pt.js script.tee                          # run a script
+node pt.js -p '{"width":100}' script.tee       # with built-in properties
+node pt.js -f props.json script.tee             # properties from JSON file
+node pt.js --max-iterations 5000 script.tee     # custom loop limit
 node pt.js                                     # interactive REPL
 ```
 
@@ -92,10 +92,10 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 npm test
 
 # Run a single test
-./test/run_tests.sh test/16_thread_basic.pt
+./test/run_tests.sh test/16_thread_basic.tee
 ```
 
-Each `test/*.pt` file has a matching `.expected` file. Sample scripts in `sample/` cover all language features.
+Each `test/*.tee` file has a matching `.expected` file. Sample scripts in `sample/` cover all language features.
 
 ## Embedding in a Web Page
 

@@ -11,7 +11,7 @@ import ProperTeeCustomVisitor from '../ProperTeeCustomVisitor.js';
 import Scheduler from '../Scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptFile = resolve(__dirname, '71_async_external.pt');
+const scriptFile = resolve(__dirname, '71_async_external.tee');
 const scriptText = readFileSync(scriptFile, 'utf-8');
 
 // Parse

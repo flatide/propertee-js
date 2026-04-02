@@ -864,7 +864,7 @@ The host application can inject read-only properties accessible as global variab
 
 ```bash
 # Command line
-java -jar propertee.jar -p '{"width": 100, "height": 200}' script.pt
+java -jar propertee.jar -p '{"width": 100, "height": 200}' script.tee
 ```
 
 ```
