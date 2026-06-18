@@ -1,0 +1,8 @@
+// Test: reserved _PROPS exposes all inputs as one object,
+// while individual keys stay directly accessible (props {a:40, b:2}).
+PRINT(a)
+PRINT(b)
+PRINT(_PROPS.a)
+PRINT(_PROPS.b)
+PRINT(JSON_FORMAT(_PROPS))
+PRINT(HAS_KEY(_PROPS, "b"))

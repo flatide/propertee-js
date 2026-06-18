@@ -26,7 +26,11 @@ npm run build:browser   # or: node build-browser.js
 npm run build           # or: ./build-all.sh
 ```
 
+Each injected property (`-p`/`-f`) is accessible as an individual bare variable (`width`, ...), and the whole input set is also exposed as the reserved object **`_PROPS`** — `PRINT(_PROPS)`, `JSON_FORMAT(_PROPS)`, `KEYS(_PROPS)`, `_PROPS.width`, `return {"echo": _PROPS}`; use `::_PROPS` inside functions/`multi` setup. Injected in the `ProperTeeCustomVisitor` constructor as a snapshot that does not contain itself (no `JSON_FORMAT` cycle); a caller-supplied `_PROPS` is left as-is. Mirrors the Java implementation.
+
 **After any grammar change** (`ProperTee.g4`), run `npm run build:parser` to regenerate `ProperTeeLexer.js`, `ProperTeeParser.js`, and `ProperTeeVisitor.js`.
+
+**After any change to `ProperTeeCustomVisitor.js`** (or other bundled JS), rebuild the browser bundle (`npm run build:browser`) and copy it to `docs/dist/` so the playground stays in sync.
 
 **Requirements:** Node.js (ES modules). ANTLR4 CLI for parser generation.
 

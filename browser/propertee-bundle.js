@@ -4920,7 +4920,18 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.hiddenKeywords = new Set();
         this.ignoredFunctions = new Set();
 
-        this.properties = builtInProperties;
+        // Reserved `_PROPS`: the full input set exposed as one object, so a script can print, iterate,
+        // or pass along ALL inputs at once (PRINT(_PROPS), JSON_FORMAT(_PROPS), KEYS(_PROPS), _PROPS.a ...)
+        // while each key also stays directly accessible as a bare variable (a, b, ...). The visitor keeps
+        // its own props view so the caller's object is never mutated, and `_PROPS` holds a (shallow)
+        // snapshot that does not contain itself (so JSON_FORMAT(_PROPS) cannot recurse). A caller-supplied
+        // `_PROPS` key is left as-is.
+        if (builtInProperties && Object.prototype.hasOwnProperty.call(builtInProperties, '_PROPS')) {
+            this.properties = builtInProperties;
+        } else {
+            const incoming = builtInProperties || {};
+            this.properties = { ...incoming, _PROPS: { ...incoming } };
+        }
 
         this.stdin = ioStreams.stdin || null;
         this.stdout = ioStreams.stdout || ((...args) => console.log(...args));

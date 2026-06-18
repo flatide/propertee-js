@@ -21,6 +21,9 @@ get_extra_flags() {
         34_builtin_properties)
             echo '-p {"width":100,"height":200,"name":"test"}'
             ;;
+        84_props_object)
+            echo '-p {"a":40,"b":2}'
+            ;;
         *)
             echo ""
             ;;
@@ -46,6 +49,9 @@ run_test() {
     case "$test_name" in
         34_builtin_properties)
             actual=$(node "$PROJECT_DIR/pt.js" -p '{"width":100,"height":200,"name":"test"}' "$pt_file" 2>&1)
+            ;;
+        84_props_object)
+            actual=$(node "$PROJECT_DIR/pt.js" -p '{"a":40,"b":2}' "$pt_file" 2>&1)
             ;;
         41_result_pattern)
             actual=$(node "$SCRIPT_DIR/run_test41.js" 2>&1)
