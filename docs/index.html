@@ -685,6 +685,7 @@
             <option value="16_comments">16 Comments</option>
             <option value="17_file_io">17 File I/O</option>
             <option value="18_env">18 Environment</option>
+            <option value="19_json_file">19 JSON File</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
     </div>
@@ -1680,7 +1681,38 @@ PRINT("missing type:", TYPE_OF(missing))
 // Use it in a path
 logDir = ENV("HOME") + "/logs"
 MKDIR(logDir)
-PRINT("created:", FILE_EXISTS(logDir))`
+PRINT("created:", FILE_EXISTS(logDir))`,
+
+            '19_json_file': `// 19 - JSON File Round-Trip
+// Build an object, write it to a file as JSON, read it back, parse it,
+// print the contents, and RETURN the parsed object as the script result.
+// (The playground uses an in-memory filesystem.)
+
+// 1) Build an object
+config = {
+    "service": "teebox",
+    "port": 18080,
+    "tags": ["prod", "api"]
+}
+
+// 2) Serialize to JSON and write it to a file
+json = JSON_FORMAT(config)
+WRITE_FILE("/data/config.json", json)
+PRINT("wrote:", json)
+
+// 3) Read the file back (rejoin lines into the full text)
+res = READ_LINES("/data/config.json")
+text = JOIN(res.value, "\\n")
+PRINT("read:", text)
+
+// 4) Parse the JSON text back into an object (JSON_PARSE returns a Result)
+parsed = JSON_PARSE(text)
+PRINT("service:", parsed.value.service)
+PRINT("port:", parsed.value.port)
+PRINT("first tag:", parsed.value.tags.1)
+
+// 5) Return the parsed object — shown as the script's result
+return parsed.value`
         };
 
         let currentExample = '01_hello';
