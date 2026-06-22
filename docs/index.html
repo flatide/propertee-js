@@ -316,6 +316,7 @@
             margin-bottom: 8px;
         }
 
+        .fn-detail .fn-field-label,
         .fn-detail .fn-sample-label {
             font-size: 0.62em;
             font-weight: 700;
@@ -323,6 +324,17 @@
             letter-spacing: 0.06em;
             color: #585b70;
             margin-bottom: 4px;
+        }
+
+        .fn-detail .fn-field {
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: #bac2de;
+            margin-bottom: 8px;
+        }
+
+        .fn-detail .fn-field-fail {
+            color: #f0b8c0;
         }
 
         .fn-detail pre.fn-sample {
@@ -874,87 +886,94 @@ PRINT("Hello, World!")</textarea>
 
         // --- Built-in function reference (right panel) --------------------------------------------
         // Each entry: name, sig (signature), desc (one-line description), sample (runnable snippet).
+        // Two failure models:
+        //  - "Result" builtins (File I/O, JSON, SHELL) NEVER abort the script. They return a Result
+        //    object: on success .ok is true and .value holds the data; on failure .ok is false and
+        //    .value is an error message string. Always check res.ok.
+        //  - All other builtins THROW a runtime error on bad input, which stops the whole script
+        //    (shown in red in the Output). Pass correct argument types/counts to avoid it.
+        const RESULT_NOTE = 'A Result object: .ok=true with .value as below. On failure .ok=false and .value is an error message (the script keeps running — check res.ok).';
         const BUILTIN_DOCS = [
             { cat: 'I/O', fns: [
-                { name: 'PRINT', sig: 'PRINT(args...)', desc: 'Print values separated by spaces. Returns {}.', sample: 'PRINT("x =", 1 + 2)' },
+                { name: 'PRINT', sig: 'PRINT(args...)', desc: 'Print values separated by spaces.', returns: 'The empty object {} (PRINT is used for its side effect).', fails: 'Does not fail.', sample: 'PRINT("x =", 1 + 2)' },
             ]},
             { cat: 'Math', fns: [
-                { name: 'SUM', sig: 'SUM(args...)', desc: 'Sum of all numeric arguments.', sample: 'PRINT(SUM(1, 2, 3))' },
-                { name: 'MAX', sig: 'MAX(args...)', desc: 'Maximum of all numeric arguments.', sample: 'PRINT(MAX(4, 9, 2))' },
-                { name: 'MIN', sig: 'MIN(args...)', desc: 'Minimum of all numeric arguments.', sample: 'PRINT(MIN(4, 9, 2))' },
-                { name: 'ABS', sig: 'ABS(n)', desc: 'Absolute value.', sample: 'PRINT(ABS(-7))' },
-                { name: 'FLOOR', sig: 'FLOOR(n)', desc: 'Round down to an integer.', sample: 'PRINT(FLOOR(3.8))' },
-                { name: 'CEIL', sig: 'CEIL(n)', desc: 'Round up to an integer.', sample: 'PRINT(CEIL(3.2))' },
-                { name: 'ROUND', sig: 'ROUND(n)', desc: 'Round to the nearest integer.', sample: 'PRINT(ROUND(3.5))' },
-                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(max) | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in a range.', sample: 'PRINT(RANDOM(1, 6))' },
+                { name: 'SUM', sig: 'SUM(args...)', desc: 'Sum of all numeric arguments.', returns: 'A number (0 with no arguments).', fails: 'Runtime error (stops the script) if any argument is not a number.', sample: 'PRINT(SUM(1, 2, 3))' },
+                { name: 'MAX', sig: 'MAX(args...)', desc: 'Maximum of all numeric arguments.', returns: 'A number.', fails: 'Runtime error if no arguments are given, or any argument is not a number.', sample: 'PRINT(MAX(4, 9, 2))' },
+                { name: 'MIN', sig: 'MIN(args...)', desc: 'Minimum of all numeric arguments.', returns: 'A number.', fails: 'Runtime error if no arguments are given, or any argument is not a number.', sample: 'PRINT(MIN(4, 9, 2))' },
+                { name: 'ABS', sig: 'ABS(n)', desc: 'Absolute value.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(ABS(-7))' },
+                { name: 'FLOOR', sig: 'FLOOR(n)', desc: 'Round down to an integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(FLOOR(3.8))' },
+                { name: 'CEIL', sig: 'CEIL(n)', desc: 'Round up to an integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(CEIL(3.2))' },
+                { name: 'ROUND', sig: 'ROUND(n)', desc: 'Round to the nearest integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(ROUND(3.5))' },
+                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(max) | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in a range.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if arguments are not numbers, or max is not positive, or min > max.', sample: 'PRINT(RANDOM(1, 6))' },
             ]},
             { cat: 'Conversion', fns: [
-                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number (error if invalid).', sample: 'PRINT(TO_NUMBER("42") + 1)' },
-                { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', sample: 'PRINT(TO_STRING(true))' },
-                { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name: "number"/"string"/"boolean"/"array"/"object".', sample: 'PRINT(TYPE_OF([1, 2]))' },
+                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number.', returns: 'A number.', fails: 'Runtime error if s is not a string, is empty, or is not a valid numeric string.', sample: 'PRINT(TO_NUMBER("42") + 1)' },
+                { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', returns: 'A string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TO_STRING(true))' },
+                { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", or "object".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))' },
             ]},
             { cat: 'String', fns: [
-                { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', sample: 'PRINT(LEN("hello"))' },
-                { name: 'UPPERCASE', sig: 'UPPERCASE(s)', desc: 'Convert to uppercase.', sample: 'PRINT(UPPERCASE("hi"))' },
-                { name: 'LOWERCASE', sig: 'LOWERCASE(s)', desc: 'Convert to lowercase.', sample: 'PRINT(LOWERCASE("HI"))' },
-                { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace.', sample: 'PRINT(TRIM("  hi  "))' },
-                { name: 'SUBSTRING', sig: 'SUBSTRING(s, start, [length])', desc: 'Extract a substring (start is 1-based).', sample: 'PRINT(SUBSTRING("ProperTee", 1, 6))' },
-                { name: 'SPLIT', sig: 'SPLIT(s, delimiter)', desc: 'Split a string into an array.', sample: 'PRINT(SPLIT("a,b,c", ","))' },
-                { name: 'JOIN', sig: 'JOIN(arr, [separator])', desc: 'Join array elements into a string.', sample: 'PRINT(JOIN(["a", "b"], "-"))' },
-                { name: 'CHARS', sig: 'CHARS(s)', desc: 'Split a string into an array of characters.', sample: 'PRINT(CHARS("hi"))' },
-                { name: 'CONTAINS', sig: 'CONTAINS(s, sub)', desc: 'True if s contains sub.', sample: 'PRINT(CONTAINS("hello", "ell"))' },
-                { name: 'STARTS_WITH', sig: 'STARTS_WITH(s, prefix)', desc: 'True if s starts with prefix.', sample: 'PRINT(STARTS_WITH("hello", "he"))' },
-                { name: 'ENDS_WITH', sig: 'ENDS_WITH(s, suffix)', desc: 'True if s ends with suffix.', sample: 'PRINT(ENDS_WITH("hello", "lo"))' },
-                { name: 'MATCHES', sig: 'MATCHES(s, pattern)', desc: 'True if regex pattern matches anywhere in s.', sample: 'PRINT(MATCHES("abc123", "[0-9]+"))' },
-                { name: 'REGEX_FIND', sig: 'REGEX_FIND(s, pattern)', desc: 'Array [fullMatch, group1, ...] or {} if no match.', sample: 'res = REGEX_FIND("id=42", "id=([0-9]+)")\nPRINT(res.2)' },
-                { name: 'REPLACE', sig: 'REPLACE(s, target, replacement)', desc: 'Replace all literal occurrences of target.', sample: 'PRINT(REPLACE("a.b.c", ".", "-"))' },
+                { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', returns: 'A number (0 for other types).', fails: 'Does not fail (returns 0 for unsupported types).', sample: 'PRINT(LEN("hello"))' },
+                { name: 'UPPERCASE', sig: 'UPPERCASE(s)', desc: 'Convert to uppercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(UPPERCASE("hi"))' },
+                { name: 'LOWERCASE', sig: 'LOWERCASE(s)', desc: 'Convert to lowercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(LOWERCASE("HI"))' },
+                { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(TRIM("  hi  "))' },
+                { name: 'SUBSTRING', sig: 'SUBSTRING(s, start, [length])', desc: 'Extract a substring (start is 1-based).', returns: 'A string (clamped to the string bounds).', fails: 'Runtime error if s is not a string or start/length are not numbers.', sample: 'PRINT(SUBSTRING("ProperTee", 1, 6))' },
+                { name: 'SPLIT', sig: 'SPLIT(s, delimiter)', desc: 'Split a string into an array.', returns: 'An array of strings (trailing empty parts kept).', fails: 'Runtime error if either argument is not a string.', sample: 'PRINT(SPLIT("a,b,c", ","))' },
+                { name: 'JOIN', sig: 'JOIN(arr, [separator])', desc: 'Join array elements into a string.', returns: 'A string (default separator is "").', fails: 'Runtime error if arr is not an array or separator is not a string.', sample: 'PRINT(JOIN(["a", "b"], "-"))' },
+                { name: 'CHARS', sig: 'CHARS(s)', desc: 'Split a string into characters.', returns: 'An array of single-character strings.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(CHARS("hi"))' },
+                { name: 'CONTAINS', sig: 'CONTAINS(s, sub)', desc: 'Substring test.', returns: 'A boolean.', fails: 'Runtime error if either argument is not a string.', sample: 'PRINT(CONTAINS("hello", "ell"))' },
+                { name: 'STARTS_WITH', sig: 'STARTS_WITH(s, prefix)', desc: 'Prefix test.', returns: 'A boolean.', fails: 'Runtime error if either argument is not a string.', sample: 'PRINT(STARTS_WITH("hello", "he"))' },
+                { name: 'ENDS_WITH', sig: 'ENDS_WITH(s, suffix)', desc: 'Suffix test.', returns: 'A boolean.', fails: 'Runtime error if either argument is not a string.', sample: 'PRINT(ENDS_WITH("hello", "lo"))' },
+                { name: 'MATCHES', sig: 'MATCHES(s, pattern)', desc: 'Regex match test.', returns: 'A boolean (true if pattern matches anywhere in s).', fails: 'Runtime error if arguments are not strings or pattern is an invalid regex.', sample: 'PRINT(MATCHES("abc123", "[0-9]+"))' },
+                { name: 'REGEX_FIND', sig: 'REGEX_FIND(s, pattern)', desc: 'Find the first regex match and its groups.', returns: 'An array [fullMatch, group1, ...] (1-based), or {} if there is no match.', fails: 'Runtime error if arguments are not strings or pattern is an invalid regex. NOTE: "no match" is not a failure — it returns {}.', sample: 'res = REGEX_FIND("id=42", "id=([0-9]+)")\nPRINT(res.2)' },
+                { name: 'REPLACE', sig: 'REPLACE(s, target, replacement)', desc: 'Replace all literal occurrences of target.', returns: 'A string (literal match, not regex).', fails: 'Runtime error if any argument is not a string.', sample: 'PRINT(REPLACE("a.b.c", ".", "-"))' },
             ]},
             { cat: 'Array', fns: [
-                { name: 'PUSH', sig: 'PUSH(arr, values...)', desc: 'New array with values appended (original unchanged).', sample: 'PRINT(PUSH([1, 2], 3))' },
-                { name: 'POP', sig: 'POP(arr)', desc: 'New array with the last element removed.', sample: 'PRINT(POP([1, 2, 3]))' },
-                { name: 'CONCAT', sig: 'CONCAT(arrs...)', desc: 'New array concatenating all input arrays.', sample: 'PRINT(CONCAT([1], [2, 3]))' },
-                { name: 'SLICE', sig: 'SLICE(arr, start, [end])', desc: 'Sub-array; start 1-based, end exclusive.', sample: 'PRINT(SLICE([1, 2, 3, 4], 2, 4))' },
-                { name: 'SORT', sig: 'SORT(arr)', desc: 'New array sorted ascending (same-type elements).', sample: 'PRINT(SORT([3, 1, 2]))' },
-                { name: 'SORT_DESC', sig: 'SORT_DESC(arr)', desc: 'New array sorted descending.', sample: 'PRINT(SORT_DESC([3, 1, 2]))' },
-                { name: 'SORT_BY', sig: 'SORT_BY(arr, key)', desc: 'Sort an array of objects ascending by key.', sample: 'PRINT(SORT_BY([{"n": 2}, {"n": 1}], "n"))' },
-                { name: 'SORT_BY_DESC', sig: 'SORT_BY_DESC(arr, key)', desc: 'Sort an array of objects descending by key.', sample: 'PRINT(SORT_BY_DESC([{"n": 1}, {"n": 2}], "n"))' },
-                { name: 'REVERSE', sig: 'REVERSE(arr)', desc: 'New array with elements reversed.', sample: 'PRINT(REVERSE([1, 2, 3]))' },
+                { name: 'PUSH', sig: 'PUSH(arr, values...)', desc: 'Append values (original unchanged).', returns: 'A new array.', fails: 'Runtime error if the first argument is not an array.', sample: 'PRINT(PUSH([1, 2], 3))' },
+                { name: 'POP', sig: 'POP(arr)', desc: 'Remove the last element (original unchanged).', returns: 'A new array (empty stays empty).', fails: 'Runtime error if the argument is not an array.', sample: 'PRINT(POP([1, 2, 3]))' },
+                { name: 'CONCAT', sig: 'CONCAT(arrs...)', desc: 'Concatenate arrays.', returns: 'A new array.', fails: 'Runtime error if any argument is not an array.', sample: 'PRINT(CONCAT([1], [2, 3]))' },
+                { name: 'SLICE', sig: 'SLICE(arr, start, [end])', desc: 'Sub-array; start 1-based, end exclusive.', returns: 'A new array (indices clamped to bounds).', fails: 'Runtime error if arr is not an array or start/end are not numbers.', sample: 'PRINT(SLICE([1, 2, 3, 4], 2, 4))' },
+                { name: 'SORT', sig: 'SORT(arr)', desc: 'Sort ascending.', returns: 'A new array.', fails: 'Runtime error if arr is not an array, or elements are mixed types (must be all numbers or all strings).', sample: 'PRINT(SORT([3, 1, 2]))' },
+                { name: 'SORT_DESC', sig: 'SORT_DESC(arr)', desc: 'Sort descending.', returns: 'A new array.', fails: 'Runtime error if arr is not an array, or elements are mixed types.', sample: 'PRINT(SORT_DESC([3, 1, 2]))' },
+                { name: 'SORT_BY', sig: 'SORT_BY(arr, key)', desc: 'Sort objects ascending by a key.', returns: 'A new array of objects.', fails: 'Runtime error if arr is not an array of objects, or the key values are not comparable.', sample: 'PRINT(SORT_BY([{"n": 2}, {"n": 1}], "n"))' },
+                { name: 'SORT_BY_DESC', sig: 'SORT_BY_DESC(arr, key)', desc: 'Sort objects descending by a key.', returns: 'A new array of objects.', fails: 'Runtime error if arr is not an array of objects, or the key values are not comparable.', sample: 'PRINT(SORT_BY_DESC([{"n": 1}, {"n": 2}], "n"))' },
+                { name: 'REVERSE', sig: 'REVERSE(arr)', desc: 'Reverse element order.', returns: 'A new array (any element types).', fails: 'Runtime error if the argument is not an array.', sample: 'PRINT(REVERSE([1, 2, 3]))' },
             ]},
             { cat: 'Object', fns: [
-                { name: 'HAS_KEY', sig: 'HAS_KEY(obj, key)', desc: 'True if obj contains key.', sample: 'PRINT(HAS_KEY({"a": 1}, "a"))' },
-                { name: 'KEYS', sig: 'KEYS(obj)', desc: 'Array of keys in insertion order.', sample: 'PRINT(KEYS({"a": 1, "b": 2}))' },
-                { name: 'VALUES', sig: 'VALUES(obj)', desc: 'Array of values in insertion order.', sample: 'PRINT(VALUES({"a": 1, "b": 2}))' },
-                { name: 'ENTRIES', sig: 'ENTRIES(obj)', desc: 'Array of {"key": k, "value": v} objects.', sample: 'PRINT(ENTRIES({"a": 1}))' },
-                { name: 'MERGE', sig: 'MERGE(obj1, obj2)', desc: 'New object combining both (obj2 wins conflicts).', sample: 'PRINT(MERGE({"a": 1}, {"b": 2}))' },
-                { name: 'REMOVE_KEY', sig: 'REMOVE_KEY(obj, key)', desc: 'New object without the given key.', sample: 'PRINT(REMOVE_KEY({"a": 1, "b": 2}, "a"))' },
+                { name: 'HAS_KEY', sig: 'HAS_KEY(obj, key)', desc: 'Key-presence test.', returns: 'A boolean.', fails: 'Runtime error if obj is not an object or key is not a string.', sample: 'PRINT(HAS_KEY({"a": 1}, "a"))' },
+                { name: 'KEYS', sig: 'KEYS(obj)', desc: 'Keys in insertion order.', returns: 'An array of strings.', fails: 'Runtime error if obj is not an object.', sample: 'PRINT(KEYS({"a": 1, "b": 2}))' },
+                { name: 'VALUES', sig: 'VALUES(obj)', desc: 'Values in insertion order.', returns: 'An array.', fails: 'Runtime error if obj is not an object.', sample: 'PRINT(VALUES({"a": 1, "b": 2}))' },
+                { name: 'ENTRIES', sig: 'ENTRIES(obj)', desc: 'Key/value pairs in insertion order.', returns: 'An array of {"key": k, "value": v} objects.', fails: 'Runtime error if obj is not an object.', sample: 'PRINT(ENTRIES({"a": 1}))' },
+                { name: 'MERGE', sig: 'MERGE(obj1, obj2)', desc: 'Combine two objects.', returns: 'A new object (obj2 wins on key conflicts).', fails: 'Runtime error if either argument is not an object.', sample: 'PRINT(MERGE({"a": 1}, {"b": 2}))' },
+                { name: 'REMOVE_KEY', sig: 'REMOVE_KEY(obj, key)', desc: 'Drop a key.', returns: 'A new object (no error if the key is absent).', fails: 'Runtime error if obj is not an object or key is not a string.', sample: 'PRINT(REMOVE_KEY({"a": 1, "b": 2}, "a"))' },
             ]},
             { cat: 'JSON', fns: [
-                { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string. Returns a Result (.ok/.value).', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.value.a)' },
-                { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Convert any value to a JSON string.', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))' },
+                { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string.', returns: RESULT_NOTE + ' .value = the parsed value (JSON null becomes {}).', fails: 'Returns a Result with .ok=false and .value = an error message if s is not a string or is invalid JSON. Does NOT stop the script.', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.ok, res.value.a)' },
+                { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))' },
             ]},
             { cat: 'Time', fns: [
-                { name: 'SLEEP', sig: 'SLEEP(ms)', desc: 'Pause the current thread for ms milliseconds.', sample: 'PRINT("before")\nSLEEP(300)\nPRINT("after")' },
-                { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current time as epoch milliseconds (number).', sample: 'PRINT(MILTIME())' },
-                { name: 'DATE', sig: 'DATE()', desc: 'Current date as "YYYY-MM-DD".', sample: 'PRINT(DATE())' },
-                { name: 'TIME', sig: 'TIME()', desc: 'Current time of day as "HH:MM:SS".', sample: 'PRINT(TIME())' },
+                { name: 'SLEEP', sig: 'SLEEP(ms)', desc: 'Pause the current thread for ms milliseconds.', returns: 'The empty object {}.', fails: 'Runtime error if ms is not a number.', sample: 'PRINT("before")\nSLEEP(300)\nPRINT("after")' },
+                { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current epoch time.', returns: 'A number (epoch milliseconds).', fails: 'Does not fail.', sample: 'PRINT(MILTIME())' },
+                { name: 'DATE', sig: 'DATE()', desc: 'Current date.', returns: 'A string "YYYY-MM-DD".', fails: 'Does not fail.', sample: 'PRINT(DATE())' },
+                { name: 'TIME', sig: 'TIME()', desc: 'Current time of day.', returns: 'A string "HH:MM:SS".', fails: 'Does not fail.', sample: 'PRINT(TIME())' },
             ]},
             { cat: 'Environment', fns: [
-                { name: 'ENV', sig: 'ENV(name, [default])', desc: 'Read an env variable; default or {} if unset. (Playground seeds USER/HOME/LANG.)', sample: 'PRINT(ENV("USER"))\nPRINT(ENV("REGION", "us-east-1"))' },
+                { name: 'ENV', sig: 'ENV(name, [default])', desc: 'Read an environment variable. (Playground seeds USER/HOME/LANG/PT_ENV.)', returns: 'The variable value (string); else default; else {} when unset and no default.', fails: 'A missing variable is NOT a failure (returns default or {}). Runtime error only if name is not a string.', sample: 'PRINT(ENV("USER"))\nPRINT(ENV("REGION", "us-east-1"))' },
             ]},
             { cat: 'File I/O', fns: [
-                { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'True if a file or directory exists. (Playground uses an in-memory FS.)', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))' },
-                { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Result with {type, size, modified}.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)' },
-                { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit). Result with a string array.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.value.1)' },
-                { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite). Returns a Result.', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)' },
-                { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines. Returns a Result.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
-                { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file. Returns a Result.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
-                { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents). Returns a Result.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
-                { name: 'LIST_DIR', sig: 'LIST_DIR(path)', desc: 'Result with array of {name, type, size}, sorted by name.', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = LIST_DIR("/d")\nPRINT(res.value.1.name)' },
-                { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file. Returns a Result.', sample: 'WRITE_FILE("/d/a.txt", "x")\nDELETE_FILE("/d/a.txt")\nPRINT(FILE_EXISTS("/d/a.txt"))' },
+                { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'Existence test. (Playground uses an in-memory FS.)', returns: 'A boolean (true if a file or directory exists at path).', fails: 'Returns a Result with .ok=false if path is not a string. Missing path is not a failure — it returns false.', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))' },
+                { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Metadata for a path.', returns: RESULT_NOTE + ' .value = {type: "file"|"dir", size, modified}.', fails: 'Returns .ok=false with an error message if path is not a string or does not exist.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)' },
+                { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit).', returns: RESULT_NOTE + ' .value = an array of line strings.', fails: 'Returns .ok=false if path is missing, or start/count are non-integers or < 1.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.ok, res.value.1)' },
+                { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false with an error message if path is not a string, or the write fails (e.g. bad path / permission on a real host).', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)' },
+                { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string or lines is not an array, or the write fails.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nres = READ_LINES("/d/a.txt")\nPRINT(LEN(res.value))' },
+                { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the append fails.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
+                { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or creation fails on a real host.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
+                { name: 'LIST_DIR', sig: 'LIST_DIR(path)', desc: 'List directory entries.', returns: RESULT_NOTE + ' .value = an array of {name, type, size}, sorted by name.', fails: 'Returns .ok=false if path is not a string or is not an existing directory.', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = LIST_DIR("/d")\nPRINT(res.ok, res.value.1.name)' },
+                { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, does not exist, or is a directory (directories are rejected).', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = DELETE_FILE("/d/a.txt")\nPRINT(res.ok, FILE_EXISTS("/d/a.txt"))' },
             ]},
             { cat: 'Shell', fns: [
-                { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command (host runtime only; stubbed in this playground).', sample: 'res = SHELL("echo hi")\nPRINT(res.ok)' },
-                { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (cwd + env). Stubbed in this playground.', sample: 'ctx = SHELL_CTX("/tmp")\nPRINT(ctx.ok)' },
+                { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command. Host runtime only — STUBBED in this browser playground.', returns: RESULT_NOTE + ' On a real host: .value = stdout on exit code 0.', fails: 'On a real host, a non-zero exit returns .ok=false with the output in .value. In this playground it is always .ok=false ("not available in this environment").', sample: 'res = SHELL("echo hi")\nPRINT(res.ok, res.value)' },
+                { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (cwd + env). Host runtime only — STUBBED here.', returns: RESULT_NOTE + ' On a real host: .value = a context object to pass to SHELL.', fails: 'On a real host, returns .ok=false if the directory does not exist. In this playground it is always .ok=false.', sample: 'ctx = SHELL_CTX("/tmp")\nPRINT(ctx.ok)' },
             ]},
         ];
 
@@ -980,9 +999,17 @@ PRINT("Hello, World!")</textarea>
             if (!f) return;
             activeFn = name;
             const detail = document.getElementById('fnDetail');
+            const returnsHtml = f.returns
+                ? '<div class="fn-field-label">Returns</div><div class="fn-field">' + escapeHtml(f.returns) + '</div>'
+                : '';
+            const failsHtml = f.fails
+                ? '<div class="fn-field-label">On failure</div><div class="fn-field fn-field-fail">' + escapeHtml(f.fails) + '</div>'
+                : '';
             detail.innerHTML =
                 '<div class="fn-sig">' + escapeHtml(f.sig) + '</div>' +
                 '<div class="fn-desc">' + escapeHtml(f.desc) + '</div>' +
+                returnsHtml +
+                failsHtml +
                 '<div class="fn-sample-label">Sample</div>' +
                 '<pre class="fn-sample">' + escapeHtml(f.sample) + '</pre>' +
                 '<button class="fn-insert" onclick="insertText(\'' + f.name + '()\')">Insert ' + f.name + '()</button>';
