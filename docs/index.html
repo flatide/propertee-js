@@ -209,12 +209,148 @@
             word-break: break-word;
         }
 
-        /* Editor wrapper */
-        .editor-wrapper {
+        /* Editor row: editor + function panel, split vertically (side by side) */
+        .editor-row {
             flex: 2;
             display: flex;
             overflow: hidden;
+            min-height: 120px;
+        }
+
+        /* Editor wrapper */
+        .editor-wrapper {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
             position: relative;
+            min-width: 0;
+        }
+
+        /* Built-in function panel (right of editor) */
+        .fn-panel {
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            background: #181825;
+            border-left: 1px solid #313244;
+            overflow: hidden;
+        }
+
+        .fn-panel .section-label {
+            background: #181825;
+            color: #9ca3af;
+        }
+
+        .fn-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 8px 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-content: flex-start;
+        }
+
+        .fn-cat {
+            width: 100%;
+            font-size: 0.62em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #585b70;
+            padding: 8px 2px 2px;
+        }
+
+        .fn-item {
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 11.5px;
+            background: #313244;
+            color: #f9e2af;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 3px 8px;
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+
+        .fn-item:hover {
+            background: #45475a;
+            color: #fff;
+        }
+
+        .fn-item.active {
+            background: #f9e2af;
+            color: #181825;
+            border-color: #f9e2af;
+        }
+
+        .fn-detail {
+            flex-shrink: 0;
+            max-height: 46%;
+            overflow-y: auto;
+            border-top: 1px solid #313244;
+            background: #1e1e2e;
+            padding: 10px 12px;
+        }
+
+        .fn-detail-empty {
+            color: #6c7086;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .fn-detail .fn-sig {
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            color: #89b4fa;
+            font-weight: 600;
+            word-break: break-word;
+            margin-bottom: 6px;
+        }
+
+        .fn-detail .fn-desc {
+            font-size: 12px;
+            color: #cdd6f4;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .fn-detail .fn-sample-label {
+            font-size: 0.62em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #585b70;
+            margin-bottom: 4px;
+        }
+
+        .fn-detail pre.fn-sample {
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 11.5px;
+            line-height: 1.6;
+            color: #a6e3a1;
+            background: #11111b;
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 0 0 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .fn-detail .fn-insert {
+            font-size: 11px;
+            background: #585b70;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+
+        .fn-detail .fn-insert:hover {
+            background: #6c7086;
         }
 
         .line-numbers {
@@ -577,74 +713,24 @@
                 <button class="ref-chip kw" onclick="insertText('not')">not</button>
                 <button class="ref-chip kw" onclick="insertText('true')">true</button>
                 <button class="ref-chip kw" onclick="insertText('false')">false</button>
-                <button class="ref-chip fn" onclick="insertText('PRINT()')">PRINT</button>
-                <button class="ref-chip fn" onclick="insertText('SUM()')">SUM</button>
-                <button class="ref-chip fn" onclick="insertText('MAX()')">MAX</button>
-                <button class="ref-chip fn" onclick="insertText('MIN()')">MIN</button>
-                <button class="ref-chip fn" onclick="insertText('ABS()')">ABS</button>
-                <button class="ref-chip fn" onclick="insertText('FLOOR()')">FLOOR</button>
-                <button class="ref-chip fn" onclick="insertText('CEIL()')">CEIL</button>
-                <button class="ref-chip fn" onclick="insertText('ROUND()')">ROUND</button>
-                <button class="ref-chip fn" onclick="insertText('LEN()')">LEN</button>
-                <button class="ref-chip fn" onclick="insertText('TO_NUMBER()')">TO_NUMBER</button>
-                <button class="ref-chip fn" onclick="insertText('TO_STRING()')">TO_STRING</button>
-                <button class="ref-chip fn" onclick="insertText('SLEEP()')">SLEEP</button>
-                <button class="ref-chip fn" onclick="insertText('PUSH()')">PUSH</button>
-                <button class="ref-chip fn" onclick="insertText('POP()')">POP</button>
-                <button class="ref-chip fn" onclick="insertText('CONCAT()')">CONCAT</button>
-                <button class="ref-chip fn" onclick="insertText('SLICE()')">SLICE</button>
-                <button class="ref-chip fn" onclick="insertText('CHARS()')">CHARS</button>
-                <button class="ref-chip fn" onclick="insertText('SPLIT()')">SPLIT</button>
-                <button class="ref-chip fn" onclick="insertText('JOIN()')">JOIN</button>
-                <button class="ref-chip fn" onclick="insertText('SUBSTRING()')">SUBSTRING</button>
-                <button class="ref-chip fn" onclick="insertText('UPPERCASE()')">UPPERCASE</button>
-                <button class="ref-chip fn" onclick="insertText('LOWERCASE()')">LOWERCASE</button>
-                <button class="ref-chip fn" onclick="insertText('TRIM()')">TRIM</button>
-                <button class="ref-chip fn" onclick="insertText('CONTAINS()')">CONTAINS</button>
-                <button class="ref-chip fn" onclick="insertText('STARTS_WITH()')">STARTS_WITH</button>
-                <button class="ref-chip fn" onclick="insertText('ENDS_WITH()')">ENDS_WITH</button>
-                <button class="ref-chip fn" onclick="insertText('MATCHES()')">MATCHES</button>
-                <button class="ref-chip fn" onclick="insertText('REGEX_FIND()')">REGEX_FIND</button>
-                <button class="ref-chip fn" onclick="insertText('REPLACE()')">REPLACE</button>
-                <button class="ref-chip fn" onclick="insertText('HAS_KEY()')">HAS_KEY</button>
-                <button class="ref-chip fn" onclick="insertText('KEYS()')">KEYS</button>
-                <button class="ref-chip fn" onclick="insertText('VALUES()')">VALUES</button>
-                <button class="ref-chip fn" onclick="insertText('ENTRIES()')">ENTRIES</button>
-                <button class="ref-chip fn" onclick="insertText('MERGE()')">MERGE</button>
-                <button class="ref-chip fn" onclick="insertText('REMOVE_KEY()')">REMOVE_KEY</button>
-                <button class="ref-chip fn" onclick="insertText('SORT()')">SORT</button>
-                <button class="ref-chip fn" onclick="insertText('SORT_DESC()')">SORT_DESC</button>
-                <button class="ref-chip fn" onclick="insertText('SORT_BY()')">SORT_BY</button>
-                <button class="ref-chip fn" onclick="insertText('SORT_BY_DESC()')">SORT_BY_DESC</button>
-                <button class="ref-chip fn" onclick="insertText('REVERSE()')">REVERSE</button>
-                <button class="ref-chip fn" onclick="insertText('RANDOM()')">RANDOM</button>
-                <button class="ref-chip fn" onclick="insertText('MILTIME()')">MILTIME</button>
-                <button class="ref-chip fn" onclick="insertText('DATE()')">DATE</button>
-                <button class="ref-chip fn" onclick="insertText('TIME()')">TIME</button>
-                <button class="ref-chip fn" onclick="insertText('TYPE_OF()')">TYPE_OF</button>
-                <button class="ref-chip fn" onclick="insertText('JSON_PARSE()')">JSON_PARSE</button>
-                <button class="ref-chip fn" onclick="insertText('JSON_FORMAT()')">JSON_FORMAT</button>
-                <button class="ref-chip fn" onclick="insertText('SHELL()')">SHELL</button>
-                <button class="ref-chip fn" onclick="insertText('SHELL_CTX()')">SHELL_CTX</button>
-                <button class="ref-chip fn" onclick="insertText('ENV()')">ENV</button>
-                <button class="ref-chip fn" onclick="insertText('FILE_EXISTS()')">FILE_EXISTS</button>
-                <button class="ref-chip fn" onclick="insertText('FILE_INFO()')">FILE_INFO</button>
-                <button class="ref-chip fn" onclick="insertText('READ_LINES()')">READ_LINES</button>
-                <button class="ref-chip fn" onclick="insertText('WRITE_FILE()')">WRITE_FILE</button>
-                <button class="ref-chip fn" onclick="insertText('WRITE_LINES()')">WRITE_LINES</button>
-                <button class="ref-chip fn" onclick="insertText('APPEND_FILE()')">APPEND_FILE</button>
-                <button class="ref-chip fn" onclick="insertText('MKDIR()')">MKDIR</button>
-                <button class="ref-chip fn" onclick="insertText('LIST_DIR()')">LIST_DIR</button>
-                <button class="ref-chip fn" onclick="insertText('DELETE_FILE()')">DELETE_FILE</button>
             </div>
-            <div class="editor-wrapper">
-                <div class="line-numbers" id="lineNumbers">1</div>
-                <div class="editor-highlight" id="editorHighlight"><div class="editor-highlight-inner" id="editorHighlightInner"></div></div>
-                <pre class="editor-syntax" id="editorSyntax" aria-hidden="true"></pre>
-                <textarea id="script" placeholder="// Enter ProperTee code..." spellcheck="false">// 01 - Hello World
+            <div class="editor-row">
+                <div class="editor-wrapper">
+                    <div class="line-numbers" id="lineNumbers">1</div>
+                    <div class="editor-highlight" id="editorHighlight"><div class="editor-highlight-inner" id="editorHighlightInner"></div></div>
+                    <pre class="editor-syntax" id="editorSyntax" aria-hidden="true"></pre>
+                    <textarea id="script" placeholder="// Enter ProperTee code..." spellcheck="false">// 01 - Hello World
 // The simplest ProperTee program. PRINT is a built-in function.
 
 PRINT("Hello, World!")</textarea>
+                </div>
+                <div class="fn-panel">
+                    <div class="section-label">Built-in Functions</div>
+                    <div class="fn-list" id="fnList"></div>
+                    <div class="fn-detail" id="fnDetail">
+                        <div class="fn-detail-empty">Select a function to see its definition and a sample.</div>
+                    </div>
+                </div>
             </div>
             <div class="output-section">
                 <div class="output-header">
@@ -783,6 +869,125 @@ PRINT("Hello, World!")</textarea>
             scriptArea.focus();
             updateLineNumbers();
             updateSyntaxHighlight();
+        }
+
+        // --- Built-in function reference (right panel) --------------------------------------------
+        // Each entry: name, sig (signature), desc (one-line description), sample (runnable snippet).
+        const BUILTIN_DOCS = [
+            { cat: 'I/O', fns: [
+                { name: 'PRINT', sig: 'PRINT(args...)', desc: 'Print values separated by spaces. Returns {}.', sample: 'PRINT("x =", 1 + 2)' },
+            ]},
+            { cat: 'Math', fns: [
+                { name: 'SUM', sig: 'SUM(args...)', desc: 'Sum of all numeric arguments.', sample: 'PRINT(SUM(1, 2, 3))' },
+                { name: 'MAX', sig: 'MAX(args...)', desc: 'Maximum of all numeric arguments.', sample: 'PRINT(MAX(4, 9, 2))' },
+                { name: 'MIN', sig: 'MIN(args...)', desc: 'Minimum of all numeric arguments.', sample: 'PRINT(MIN(4, 9, 2))' },
+                { name: 'ABS', sig: 'ABS(n)', desc: 'Absolute value.', sample: 'PRINT(ABS(-7))' },
+                { name: 'FLOOR', sig: 'FLOOR(n)', desc: 'Round down to an integer.', sample: 'PRINT(FLOOR(3.8))' },
+                { name: 'CEIL', sig: 'CEIL(n)', desc: 'Round up to an integer.', sample: 'PRINT(CEIL(3.2))' },
+                { name: 'ROUND', sig: 'ROUND(n)', desc: 'Round to the nearest integer.', sample: 'PRINT(ROUND(3.5))' },
+                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(max) | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in a range.', sample: 'PRINT(RANDOM(1, 6))' },
+            ]},
+            { cat: 'Conversion', fns: [
+                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number (error if invalid).', sample: 'PRINT(TO_NUMBER("42") + 1)' },
+                { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', sample: 'PRINT(TO_STRING(true))' },
+                { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name: "number"/"string"/"boolean"/"array"/"object".', sample: 'PRINT(TYPE_OF([1, 2]))' },
+            ]},
+            { cat: 'String', fns: [
+                { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', sample: 'PRINT(LEN("hello"))' },
+                { name: 'UPPERCASE', sig: 'UPPERCASE(s)', desc: 'Convert to uppercase.', sample: 'PRINT(UPPERCASE("hi"))' },
+                { name: 'LOWERCASE', sig: 'LOWERCASE(s)', desc: 'Convert to lowercase.', sample: 'PRINT(LOWERCASE("HI"))' },
+                { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace.', sample: 'PRINT(TRIM("  hi  "))' },
+                { name: 'SUBSTRING', sig: 'SUBSTRING(s, start, [length])', desc: 'Extract a substring (start is 1-based).', sample: 'PRINT(SUBSTRING("ProperTee", 1, 6))' },
+                { name: 'SPLIT', sig: 'SPLIT(s, delimiter)', desc: 'Split a string into an array.', sample: 'PRINT(SPLIT("a,b,c", ","))' },
+                { name: 'JOIN', sig: 'JOIN(arr, [separator])', desc: 'Join array elements into a string.', sample: 'PRINT(JOIN(["a", "b"], "-"))' },
+                { name: 'CHARS', sig: 'CHARS(s)', desc: 'Split a string into an array of characters.', sample: 'PRINT(CHARS("hi"))' },
+                { name: 'CONTAINS', sig: 'CONTAINS(s, sub)', desc: 'True if s contains sub.', sample: 'PRINT(CONTAINS("hello", "ell"))' },
+                { name: 'STARTS_WITH', sig: 'STARTS_WITH(s, prefix)', desc: 'True if s starts with prefix.', sample: 'PRINT(STARTS_WITH("hello", "he"))' },
+                { name: 'ENDS_WITH', sig: 'ENDS_WITH(s, suffix)', desc: 'True if s ends with suffix.', sample: 'PRINT(ENDS_WITH("hello", "lo"))' },
+                { name: 'MATCHES', sig: 'MATCHES(s, pattern)', desc: 'True if regex pattern matches anywhere in s.', sample: 'PRINT(MATCHES("abc123", "[0-9]+"))' },
+                { name: 'REGEX_FIND', sig: 'REGEX_FIND(s, pattern)', desc: 'Array [fullMatch, group1, ...] or {} if no match.', sample: 'res = REGEX_FIND("id=42", "id=([0-9]+)")\nPRINT(res.2)' },
+                { name: 'REPLACE', sig: 'REPLACE(s, target, replacement)', desc: 'Replace all literal occurrences of target.', sample: 'PRINT(REPLACE("a.b.c", ".", "-"))' },
+            ]},
+            { cat: 'Array', fns: [
+                { name: 'PUSH', sig: 'PUSH(arr, values...)', desc: 'New array with values appended (original unchanged).', sample: 'PRINT(PUSH([1, 2], 3))' },
+                { name: 'POP', sig: 'POP(arr)', desc: 'New array with the last element removed.', sample: 'PRINT(POP([1, 2, 3]))' },
+                { name: 'CONCAT', sig: 'CONCAT(arrs...)', desc: 'New array concatenating all input arrays.', sample: 'PRINT(CONCAT([1], [2, 3]))' },
+                { name: 'SLICE', sig: 'SLICE(arr, start, [end])', desc: 'Sub-array; start 1-based, end exclusive.', sample: 'PRINT(SLICE([1, 2, 3, 4], 2, 4))' },
+                { name: 'SORT', sig: 'SORT(arr)', desc: 'New array sorted ascending (same-type elements).', sample: 'PRINT(SORT([3, 1, 2]))' },
+                { name: 'SORT_DESC', sig: 'SORT_DESC(arr)', desc: 'New array sorted descending.', sample: 'PRINT(SORT_DESC([3, 1, 2]))' },
+                { name: 'SORT_BY', sig: 'SORT_BY(arr, key)', desc: 'Sort an array of objects ascending by key.', sample: 'PRINT(SORT_BY([{"n": 2}, {"n": 1}], "n"))' },
+                { name: 'SORT_BY_DESC', sig: 'SORT_BY_DESC(arr, key)', desc: 'Sort an array of objects descending by key.', sample: 'PRINT(SORT_BY_DESC([{"n": 1}, {"n": 2}], "n"))' },
+                { name: 'REVERSE', sig: 'REVERSE(arr)', desc: 'New array with elements reversed.', sample: 'PRINT(REVERSE([1, 2, 3]))' },
+            ]},
+            { cat: 'Object', fns: [
+                { name: 'HAS_KEY', sig: 'HAS_KEY(obj, key)', desc: 'True if obj contains key.', sample: 'PRINT(HAS_KEY({"a": 1}, "a"))' },
+                { name: 'KEYS', sig: 'KEYS(obj)', desc: 'Array of keys in insertion order.', sample: 'PRINT(KEYS({"a": 1, "b": 2}))' },
+                { name: 'VALUES', sig: 'VALUES(obj)', desc: 'Array of values in insertion order.', sample: 'PRINT(VALUES({"a": 1, "b": 2}))' },
+                { name: 'ENTRIES', sig: 'ENTRIES(obj)', desc: 'Array of {"key": k, "value": v} objects.', sample: 'PRINT(ENTRIES({"a": 1}))' },
+                { name: 'MERGE', sig: 'MERGE(obj1, obj2)', desc: 'New object combining both (obj2 wins conflicts).', sample: 'PRINT(MERGE({"a": 1}, {"b": 2}))' },
+                { name: 'REMOVE_KEY', sig: 'REMOVE_KEY(obj, key)', desc: 'New object without the given key.', sample: 'PRINT(REMOVE_KEY({"a": 1, "b": 2}, "a"))' },
+            ]},
+            { cat: 'JSON', fns: [
+                { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string. Returns a Result (.ok/.value).', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.value.a)' },
+                { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Convert any value to a JSON string.', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))' },
+            ]},
+            { cat: 'Time', fns: [
+                { name: 'SLEEP', sig: 'SLEEP(ms)', desc: 'Pause the current thread for ms milliseconds.', sample: 'PRINT("before")\nSLEEP(300)\nPRINT("after")' },
+                { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current time as epoch milliseconds (number).', sample: 'PRINT(MILTIME())' },
+                { name: 'DATE', sig: 'DATE()', desc: 'Current date as "YYYY-MM-DD".', sample: 'PRINT(DATE())' },
+                { name: 'TIME', sig: 'TIME()', desc: 'Current time of day as "HH:MM:SS".', sample: 'PRINT(TIME())' },
+            ]},
+            { cat: 'Environment', fns: [
+                { name: 'ENV', sig: 'ENV(name, [default])', desc: 'Read an env variable; default or {} if unset. (Playground seeds USER/HOME/LANG.)', sample: 'PRINT(ENV("USER"))\nPRINT(ENV("REGION", "us-east-1"))' },
+            ]},
+            { cat: 'File I/O', fns: [
+                { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'True if a file or directory exists. (Playground uses an in-memory FS.)', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))' },
+                { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Result with {type, size, modified}.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)' },
+                { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit). Result with a string array.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.value.1)' },
+                { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite). Returns a Result.', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)' },
+                { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines. Returns a Result.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
+                { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file. Returns a Result.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
+                { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents). Returns a Result.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
+                { name: 'LIST_DIR', sig: 'LIST_DIR(path)', desc: 'Result with array of {name, type, size}, sorted by name.', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = LIST_DIR("/d")\nPRINT(res.value.1.name)' },
+                { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file. Returns a Result.', sample: 'WRITE_FILE("/d/a.txt", "x")\nDELETE_FILE("/d/a.txt")\nPRINT(FILE_EXISTS("/d/a.txt"))' },
+            ]},
+            { cat: 'Shell', fns: [
+                { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command (host runtime only; stubbed in this playground).', sample: 'res = SHELL("echo hi")\nPRINT(res.ok)' },
+                { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (cwd + env). Stubbed in this playground.', sample: 'ctx = SHELL_CTX("/tmp")\nPRINT(ctx.ok)' },
+            ]},
+        ];
+
+        const FN_INDEX = {};
+        BUILTIN_DOCS.forEach(g => g.fns.forEach(f => { FN_INDEX[f.name] = f; }));
+        let activeFn = null;
+
+        function renderFnList() {
+            const list = document.getElementById('fnList');
+            if (!list) return;
+            let html = '';
+            for (const group of BUILTIN_DOCS) {
+                html += '<div class="fn-cat">' + escapeHtml(group.cat) + '</div>';
+                for (const f of group.fns) {
+                    html += '<button class="fn-item" data-fn="' + f.name + '" onclick="showFnDoc(\'' + f.name + '\')">' + f.name + '</button>';
+                }
+            }
+            list.innerHTML = html;
+        }
+
+        function showFnDoc(name) {
+            const f = FN_INDEX[name];
+            if (!f) return;
+            activeFn = name;
+            const detail = document.getElementById('fnDetail');
+            detail.innerHTML =
+                '<div class="fn-sig">' + escapeHtml(f.sig) + '</div>' +
+                '<div class="fn-desc">' + escapeHtml(f.desc) + '</div>' +
+                '<div class="fn-sample-label">Sample</div>' +
+                '<pre class="fn-sample">' + escapeHtml(f.sample) + '</pre>' +
+                '<button class="fn-insert" onclick="insertText(\'' + f.name + '()\')">Insert ' + f.name + '()</button>';
+            document.querySelectorAll('.fn-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('data-fn') === name);
+            });
         }
 
         // --- Playground in-memory platform (File I/O + ENV) ---------------------------------------
@@ -1988,6 +2193,8 @@ PRINT("created:", FILE_EXISTS(logDir))`
                     activeScheduler.setBreakpoints(breakpointSet);
                 }
             });
+
+            renderFnList();
 
             setTimeout(() => run(), 500);
         });
