@@ -698,6 +698,7 @@
             <option value="17_file_io">17 File I/O</option>
             <option value="18_env">18 Environment</option>
             <option value="19_json_file">19 JSON File</option>
+            <option value="20_shell">20 Shell</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
     </div>
@@ -972,8 +973,8 @@ PRINT("Hello, World!")</textarea>
                 { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, does not exist, or is a directory (directories are rejected).', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = DELETE_FILE("/d/a.txt")\nPRINT(res.ok, FILE_EXISTS("/d/a.txt"))' },
             ]},
             { cat: 'Shell', fns: [
-                { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command. Host runtime only — STUBBED in this browser playground.', returns: RESULT_NOTE + ' On a real host: .value = stdout on exit code 0.', fails: 'On a real host, a non-zero exit returns .ok=false with the output in .value. In this playground it is always .ok=false ("not available in this environment").', sample: 'res = SHELL("echo hi")\nPRINT(res.ok, res.value)' },
-                { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (cwd + env). Host runtime only — STUBBED here.', returns: RESULT_NOTE + ' On a real host: .value = a context object to pass to SHELL.', fails: 'On a real host, returns .ok=false if the directory does not exist. In this playground it is always .ok=false.', sample: 'ctx = SHELL_CTX("/tmp")\nPRINT(ctx.ok)' },
+                { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command. The playground mocks a tiny shell (echo, pwd, ls, cat, whoami, env, true, false) wired to the in-memory FS; a real host runs an actual shell.', returns: RESULT_NOTE + ' On exit code 0, .value = the command stdout.', fails: 'A non-zero exit returns .ok=false with the output in .value — e.g. cat on a missing file, false, or an unknown command ("... command not found").', sample: 'res = SHELL("echo hello")\nPRINT(res.ok, res.value)' },
+                { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (working dir + env) to pass to SHELL. Pass the Result directly — SHELL auto-unwraps it.', returns: RESULT_NOTE + ' .value = a context object {cwd, env}.', fails: 'Returns .ok=false if cwd is not a string or the directory does not exist.', sample: 'MKDIR("/work")\nWRITE_FILE("/work/a.txt", "hi\\n")\nctx = SHELL_CTX("/work")\nres = SHELL(ctx, "cat a.txt")\nPRINT(res.value)' },
             ]},
         ];
 
@@ -1131,6 +1132,81 @@ PRINT("Hello, World!")</textarea>
                 if (p in files) { delete files[p]; return ok({}); }
                 if (p in dirs) { delete dirs[p]; return ok({}); }
                 return err('DELETE_FILE() path not found: ' + p);
+            });
+
+            // --- Shell mock --------------------------------------------------------------------
+            // A real host runs an actual shell; the browser can't. This tiny emulator supports a few
+            // common commands (echo, pwd, ls, cat, whoami, env, true, false) wired to the same
+            // in-memory FS/ENV above, so SHELL is demonstrable and follows the core Result contract:
+            // exit 0 -> .ok=true with stdout in .value; non-zero -> .ok=false with output in .value.
+            const tokenize = (cmd) => {
+                const toks = []; let m;
+                const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+                while ((m = re.exec(cmd)) !== null) toks.push(m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : m[3]));
+                return toks;
+            };
+            const resolvePath = (cwd, p) => norm(p.startsWith('/') ? p : (cwd === '/' ? '/' + p : cwd + '/' + p));
+            const runShell = (ctx, cmd) => {
+                const cwd = (ctx && ctx.cwd) ? ctx.cwd : '/';
+                const cenv = (ctx && ctx.env) ? ctx.env : env;
+                const toks = tokenize(String(cmd).trim());
+                if (toks.length === 0) return ok('');
+                const c = toks[0], rest = toks.slice(1);
+                switch (c) {
+                    case 'echo': return ok(rest.join(' ') + '\n');
+                    case 'pwd': return ok(cwd + '\n');
+                    case 'whoami': return ok((cenv.USER || 'player') + '\n');
+                    case 'true': return ok('');
+                    case 'false': return err('');
+                    case 'env': return ok(Object.keys(cenv).map(k => k + '=' + cenv[k]).join('\n') + '\n');
+                    case 'cat': {
+                        if (rest.length === 0) return err('cat: missing file operand\n');
+                        const fp = resolvePath(cwd, rest[0]);
+                        if (!(fp in files)) return err('cat: ' + rest[0] + ': No such file or directory\n');
+                        return ok(files[fp]);
+                    }
+                    case 'ls': {
+                        const dp = resolvePath(cwd, rest[0] || '.');
+                        const target = (rest[0] === undefined || rest[0] === '.') ? cwd : dp;
+                        if (!(target in dirs)) return err('ls: ' + (rest[0] || '.') + ': No such directory\n');
+                        const names = [];
+                        for (const k of Object.keys(files)) if (parentOf(k) === target) names.push(baseOf(k));
+                        for (const k of Object.keys(dirs)) if (k !== target && k !== '/' && k !== '' && parentOf(k) === target) names.push(baseOf(k));
+                        names.sort();
+                        return ok(names.join('\n') + (names.length ? '\n' : ''));
+                    }
+                    default:
+                        return err(c + ': command not found\n');
+                }
+            };
+
+            visitor.registerExternal('SHELL_CTX', (cwd, envObj) => {
+                if (typeof cwd !== 'string') return err('SHELL_CTX() first argument must be a string (directory path)');
+                const d = norm(cwd);
+                if (!(d in dirs)) return err('SHELL_CTX() directory does not exist: ' + cwd);
+                const ctxEnv = {};
+                for (const k of Object.keys(env)) ctxEnv[k] = env[k];
+                if (envObj && typeof envObj === 'object' && !Array.isArray(envObj)) {
+                    for (const k of Object.keys(envObj)) ctxEnv[k] = envObj[k];
+                }
+                return ok({ cwd: d, env: ctxEnv });
+            });
+
+            visitor.registerExternal('SHELL', (a, b) => {
+                // SHELL(cmd) or SHELL(ctx, cmd). A ctx is the (auto-unwrapped) SHELL_CTX result, i.e.
+                // either {cwd, env} or a Result whose .value is {cwd, env}.
+                let ctx = null, cmd;
+                const asCtx = (v) => {
+                    if (!v || typeof v !== 'object') return null;
+                    if (typeof v.cwd === 'string') return v;
+                    if (v.value && typeof v.value === 'object' && typeof v.value.cwd === 'string') return v.value;
+                    return null;
+                };
+                const maybeCtx = asCtx(a);
+                if (maybeCtx && b !== undefined) { ctx = maybeCtx; cmd = b; }
+                else { cmd = a; }
+                if (typeof cmd !== 'string') return err('SHELL() command must be a string');
+                return runShell(ctx, cmd);
             });
         }
 
@@ -1739,7 +1815,40 @@ PRINT("port:", parsed.value.port)
 PRINT("first tag:", parsed.value.tags.1)
 
 // 5) Return the parsed object — shown as the script's result
-return parsed.value`
+return parsed.value`,
+
+            '20_shell': `// 20 - Shell Commands
+// SHELL runs a command and returns a Result: .ok=true with stdout in .value
+// on success, .ok=false with the output on a non-zero exit. The playground
+// mocks a tiny shell (echo, pwd, ls, cat, whoami, env, true, false) backed by
+// the in-memory filesystem. A real host runs an actual shell.
+
+// Simple command
+res = SHELL("echo hello world")
+PRINT("echo ok:", res.ok)
+PRINT("stdout:", TRIM(res.value))
+
+// Prepare some files, then list and read them
+MKDIR("/work")
+WRITE_FILE("/work/notes.txt", "alpha\\nbeta\\n")
+WRITE_FILE("/work/data.txt", "x")
+
+res = SHELL("ls /work")
+PRINT("ls:", SPLIT(TRIM(res.value), "\\n"))
+
+res = SHELL("cat /work/notes.txt")
+PRINT("cat ok:", res.ok, "lines:", LEN(SPLIT(TRIM(res.value), "\\n")))
+
+// A failing command: non-zero exit -> .ok is false (script keeps running)
+res = SHELL("cat /work/missing.txt")
+PRINT("missing ok:", res.ok)
+PRINT("error:", TRIM(res.value))
+
+// Use a context: working directory + relative paths
+ctx = SHELL_CTX("/work")
+PRINT("ctx ok:", ctx.ok)
+res = SHELL(ctx, "cat notes.txt")
+PRINT("first line:", SPLIT(TRIM(res.value), "\\n").1)`
         };
 
         let currentExample = '01_hello';
