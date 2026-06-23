@@ -337,6 +337,57 @@
             color: #f0b8c0;
         }
 
+        /* Hover tooltip over function names in the editor */
+        .fn-tooltip {
+            position: fixed;
+            display: none;
+            z-index: 1000;
+            max-width: 360px;
+            background: #11111b;
+            border: 1px solid #45475a;
+            border-radius: 6px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+            padding: 10px 12px;
+            pointer-events: none;
+        }
+
+        .fn-tooltip .fn-tt-sig {
+            font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #89b4fa;
+            word-break: break-word;
+            margin-bottom: 5px;
+        }
+
+        .fn-tooltip .fn-tt-desc {
+            font-size: 12px;
+            color: #cdd6f4;
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+
+        .fn-tooltip .fn-tt-label {
+            font-size: 0.6em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #585b70;
+            margin-bottom: 2px;
+        }
+
+        .fn-tooltip .fn-tt-row {
+            font-size: 11px;
+            line-height: 1.45;
+            color: #bac2de;
+            margin-bottom: 6px;
+        }
+
+        .fn-tooltip .fn-tt-row.fail {
+            color: #f0b8c0;
+            margin-bottom: 0;
+        }
+
         .fn-detail pre.fn-sample {
             font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
             font-size: 11.5px;
@@ -1017,6 +1068,45 @@ PRINT("Hello, World!")</textarea>
             document.querySelectorAll('.fn-item').forEach(el => {
                 el.classList.toggle('active', el.getAttribute('data-fn') === name);
             });
+        }
+
+        // --- Editor hover tooltip for built-in functions -----------------------------------------
+        let fnTooltipEl = null;
+        let fnTooltipCurrent = null;
+
+        function hideFnTooltip() {
+            if (fnTooltipEl) fnTooltipEl.style.display = 'none';
+            fnTooltipCurrent = null;
+        }
+
+        function showFnTooltipFor(span, name) {
+            const f = FN_INDEX[name];
+            if (!f) { hideFnTooltip(); return; }
+            if (!fnTooltipEl) {
+                fnTooltipEl = document.createElement('div');
+                fnTooltipEl.className = 'fn-tooltip';
+                document.body.appendChild(fnTooltipEl);
+            }
+            if (fnTooltipCurrent !== name) {
+                fnTooltipEl.innerHTML =
+                    '<div class="fn-tt-sig">' + escapeHtml(f.sig) + '</div>' +
+                    '<div class="fn-tt-desc">' + escapeHtml(f.desc) + '</div>' +
+                    (f.returns ? '<div class="fn-tt-label">Returns</div><div class="fn-tt-row">' + escapeHtml(f.returns) + '</div>' : '') +
+                    (f.fails ? '<div class="fn-tt-label">On failure</div><div class="fn-tt-row fail">' + escapeHtml(f.fails) + '</div>' : '');
+                fnTooltipCurrent = name;
+            }
+            fnTooltipEl.style.display = 'block';
+            // Position below the function name, flipping above / clamping to the viewport as needed.
+            const r = span.getBoundingClientRect();
+            const tw = fnTooltipEl.offsetWidth, th = fnTooltipEl.offsetHeight;
+            let left = r.left;
+            let top = r.bottom + 6;
+            if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
+            if (left < 8) left = 8;
+            if (top + th > window.innerHeight - 8) top = r.top - th - 6;
+            if (top < 8) top = 8;
+            fnTooltipEl.style.left = left + 'px';
+            fnTooltipEl.style.top = top + 'px';
         }
 
         // --- Playground in-memory platform (File I/O + ENV) ---------------------------------------
@@ -2343,6 +2433,35 @@ PRINT("first line:", SPLIT(TRIM(res.value), "\\n").1)`
                 lineNumbers.scrollTop = script.scrollTop;
                 editorHighlight.scrollTop = script.scrollTop;
                 editorSyntax.scrollTop = script.scrollTop;
+                hideFnTooltip();
+            });
+
+            // Hover a built-in function name in the editor -> balloon tooltip with its docs.
+            // The textarea is transparent and sits over the syntax-highlight <pre>; we hit-test the
+            // .syn-fn spans (which mirror the text exactly) against the mouse position.
+            script.addEventListener('mousemove', (e) => {
+                const spans = editorSyntax.querySelectorAll('.syn-fn');
+                let hit = null;
+                for (let i = 0; i < spans.length; i++) {
+                    const r = spans[i].getBoundingClientRect();
+                    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+                        hit = spans[i]; break;
+                    }
+                }
+                if (hit) {
+                    const name = hit.textContent.trim();
+                    if (FN_INDEX[name]) { showFnTooltipFor(hit, name); script.style.cursor = 'help'; return; }
+                }
+                hideFnTooltip();
+                script.style.cursor = '';
+            });
+            script.addEventListener('mouseleave', () => { hideFnTooltip(); script.style.cursor = ''; });
+            script.addEventListener('input', hideFnTooltip);
+
+            // Double-click a built-in function name -> pin its docs in the right panel.
+            script.addEventListener('dblclick', () => {
+                const sel = script.value.substring(script.selectionStart, script.selectionEnd).trim();
+                if (FN_INDEX[sel]) showFnDoc(sel);
             });
 
             // Breakpoint toggle via click on line numbers
