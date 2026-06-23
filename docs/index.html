@@ -240,6 +240,40 @@
         .fn-panel .section-label {
             background: #181825;
             color: #9ca3af;
+            padding-bottom: 6px;
+        }
+
+        .fn-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #181825;
+        }
+
+        .fn-lang-toggle {
+            display: flex;
+            gap: 2px;
+            padding: 6px 12px 0 0;
+        }
+
+        .fn-lang-btn {
+            font-size: 11px;
+            font-weight: 600;
+            background: #313244;
+            color: #9ca3af;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+
+        .fn-lang-btn:hover { color: #fff; }
+
+        .fn-lang-btn.active {
+            background: #89b4fa;
+            color: #11111b;
+            border-color: #89b4fa;
         }
 
         .fn-list {
@@ -790,7 +824,13 @@
 PRINT("Hello, World!")</textarea>
                 </div>
                 <div class="fn-panel">
-                    <div class="section-label">Built-in Functions</div>
+                    <div class="fn-panel-header">
+                        <div class="section-label" id="fnPanelLabel">Built-in Functions</div>
+                        <div class="fn-lang-toggle">
+                            <button class="fn-lang-btn active" id="fnLangEn" onclick="setFnLang('en')">EN</button>
+                            <button class="fn-lang-btn" id="fnLangKo" onclick="setFnLang('ko')">KR</button>
+                        </div>
+                    </div>
                     <div class="fn-list" id="fnList"></div>
                     <div class="fn-detail" id="fnDetail">
                         <div class="fn-detail-empty">Select a function to see its definition and a sample.</div>
@@ -1033,12 +1073,106 @@ PRINT("Hello, World!")</textarea>
         BUILTIN_DOCS.forEach(g => g.fns.forEach(f => { FN_INDEX[f.name] = f; }));
         let activeFn = null;
 
+        // --- Korean translations (EN/KR toggle). Signatures + samples stay in English (code). ------
+        const RESULT_NOTE_KO = 'Result 객체: 성공 시 .ok=true 이고 .value 는 아래 내용. 실패 시 .ok=false 이고 .value 는 에러 메시지(스크립트는 계속 실행 — res.ok 확인).';
+        const FN_DOCS_KO = {
+            PRINT: { desc: '값들을 공백으로 구분해 출력.', returns: '빈 객체 {} (PRINT는 출력 부수효과용).', fails: '실패하지 않음.' },
+            SUM: { desc: '모든 숫자 인자의 합.', returns: '숫자 (인자가 없으면 0).', fails: '인자 중 숫자가 아닌 것이 있으면 런타임 에러(스크립트 중단).' },
+            MAX: { desc: '모든 숫자 인자의 최댓값.', returns: '숫자.', fails: '인자가 없거나 숫자가 아닌 인자가 있으면 런타임 에러.' },
+            MIN: { desc: '모든 숫자 인자의 최솟값.', returns: '숫자.', fails: '인자가 없거나 숫자가 아닌 인자가 있으면 런타임 에러.' },
+            ABS: { desc: '절댓값.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
+            FLOOR: { desc: '내림하여 정수로.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
+            CEIL: { desc: '올림하여 정수로.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
+            ROUND: { desc: '반올림하여 정수로.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
+            RANDOM: { desc: '난수: [0,1) 소수 또는 범위 내 정수.', returns: '숫자: 인자 없으면 [0,1) 소수, 그 외 정수.', fails: '인자가 숫자가 아니거나 max가 양수가 아니거나 min > max이면 런타임 에러.' },
+            TO_NUMBER: { desc: '문자열을 숫자로 변환.', returns: '숫자.', fails: 's가 문자열이 아니거나 비어 있거나 올바른 숫자 문자열이 아니면 런타임 에러.' },
+            TO_STRING: { desc: '임의의 값을 문자열로 변환.', returns: '문자열.', fails: '실패하지 않음(모든 값 허용).' },
+            TYPE_OF: { desc: '값의 타입 이름.', returns: '문자열: "number", "string", "boolean", "array", "object".', fails: '실패하지 않음(모든 값 허용).' },
+            LEN: { desc: '문자열/배열/객체의 길이.', returns: '숫자(그 외 타입은 0).', fails: '실패하지 않음(미지원 타입은 0 반환).' },
+            UPPERCASE: { desc: '대문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
+            LOWERCASE: { desc: '소문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
+            TRIM: { desc: '앞뒤 공백 제거.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
+            SUBSTRING: { desc: '부분 문자열 추출(start는 1부터).', returns: '문자열(범위로 보정).', fails: 's가 문자열이 아니거나 start/length가 숫자가 아니면 런타임 에러.' },
+            SPLIT: { desc: '문자열을 배열로 분할.', returns: '문자열 배열(끝의 빈 부분 유지).', fails: '두 인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            JOIN: { desc: '배열 요소를 문자열로 결합.', returns: '문자열(기본 구분자는 "").', fails: 'arr가 배열이 아니거나 separator가 문자열이 아니면 런타임 에러.' },
+            CHARS: { desc: '문자열을 문자 배열로 분할.', returns: '한 글자 문자열의 배열.', fails: 's가 문자열이 아니면 런타임 에러.' },
+            CONTAINS: { desc: '부분 문자열 포함 여부.', returns: '불리언.', fails: '두 인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            STARTS_WITH: { desc: '접두사 여부.', returns: '불리언.', fails: '두 인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            ENDS_WITH: { desc: '접미사 여부.', returns: '불리언.', fails: '두 인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            MATCHES: { desc: '정규식 매치 여부.', returns: '불리언(s 안에서 pattern이 매치되면 true).', fails: '인자가 문자열이 아니거나 pattern이 잘못된 정규식이면 런타임 에러.' },
+            REGEX_FIND: { desc: '첫 정규식 매치와 그룹 찾기.', returns: '배열 [전체매치, 그룹1, ...](1부터), 매치 없으면 {}.', fails: '인자가 문자열이 아니거나 pattern이 잘못된 정규식이면 런타임 에러. 참고: "매치 없음"은 실패가 아니라 {} 반환.' },
+            REPLACE: { desc: 'target의 모든(리터럴) 출현을 치환.', returns: '문자열(정규식 아닌 리터럴 매치).', fails: '인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            PUSH: { desc: '값들을 뒤에 추가(원본 불변).', returns: '새 배열.', fails: '첫 인자가 배열이 아니면 런타임 에러.' },
+            POP: { desc: '마지막 요소 제거(원본 불변).', returns: '새 배열(빈 배열은 그대로).', fails: '인자가 배열이 아니면 런타임 에러.' },
+            CONCAT: { desc: '배열들을 이어붙임.', returns: '새 배열.', fails: '인자 중 배열이 아닌 것이 있으면 런타임 에러.' },
+            SLICE: { desc: '부분 배열; start 1부터, end 제외.', returns: '새 배열(인덱스는 범위로 보정).', fails: 'arr가 배열이 아니거나 start/end가 숫자가 아니면 런타임 에러.' },
+            SORT: { desc: '오름차순 정렬.', returns: '새 배열.', fails: 'arr가 배열이 아니거나 요소 타입이 섞이면(모두 숫자 또는 모두 문자열) 런타임 에러.' },
+            SORT_DESC: { desc: '내림차순 정렬.', returns: '새 배열.', fails: 'arr가 배열이 아니거나 요소 타입이 섞이면 런타임 에러.' },
+            SORT_BY: { desc: '키 기준 오름차순으로 객체 배열 정렬.', returns: '객체의 새 배열.', fails: 'arr가 객체 배열이 아니거나 키 값들이 비교 불가하면 런타임 에러.' },
+            SORT_BY_DESC: { desc: '키 기준 내림차순으로 객체 배열 정렬.', returns: '객체의 새 배열.', fails: 'arr가 객체 배열이 아니거나 키 값들이 비교 불가하면 런타임 에러.' },
+            REVERSE: { desc: '요소 순서 뒤집기.', returns: '새 배열(요소 타입 무관).', fails: '인자가 배열이 아니면 런타임 에러.' },
+            HAS_KEY: { desc: '키 존재 여부.', returns: '불리언.', fails: 'obj가 객체가 아니거나 key가 문자열이 아니면 런타임 에러.' },
+            KEYS: { desc: '삽입 순서의 키 목록.', returns: '문자열 배열.', fails: 'obj가 객체가 아니면 런타임 에러.' },
+            VALUES: { desc: '삽입 순서의 값 목록.', returns: '배열.', fails: 'obj가 객체가 아니면 런타임 에러.' },
+            ENTRIES: { desc: '삽입 순서의 키/값 쌍.', returns: '{"key": k, "value": v} 객체의 배열.', fails: 'obj가 객체가 아니면 런타임 에러.' },
+            MERGE: { desc: '두 객체 병합.', returns: '새 객체(키 충돌 시 obj2 우선).', fails: '인자 중 객체가 아닌 것이 있으면 런타임 에러.' },
+            REMOVE_KEY: { desc: '키 하나 제거.', returns: '새 객체(키가 없어도 에러 없음).', fails: 'obj가 객체가 아니거나 key가 문자열이 아니면 런타임 에러.' },
+            JSON_PARSE: { desc: 'JSON 문자열 파싱.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(JSON null은 {}).', fails: 's가 문자열이 아니거나 잘못된 JSON이면 .ok=false 와 에러 메시지 반환. 스크립트는 중단되지 않음.' },
+            JSON_FORMAT: { desc: '임의의 값을 JSON으로 직렬화.', returns: 'JSON 문자열.', fails: '실패하지 않음(모든 값 허용).' },
+            SLEEP: { desc: '현재 스레드를 ms 밀리초 동안 멈춤.', returns: '빈 객체 {}.', fails: 'ms가 숫자가 아니면 런타임 에러.' },
+            MILTIME: { desc: '현재 epoch 시간.', returns: '숫자(epoch 밀리초).', fails: '실패하지 않음.' },
+            DATE: { desc: '현재 날짜.', returns: '문자열 "YYYY-MM-DD".', fails: '실패하지 않음.' },
+            TIME: { desc: '현재 시각.', returns: '문자열 "HH:MM:SS".', fails: '실패하지 않음.' },
+            ENV: { desc: '환경 변수 읽기. (Playground는 USER/HOME/LANG/PT_ENV 기본 제공.)', returns: '변수 값(문자열); 없으면 default; default도 없으면 {}.', fails: '없는 변수는 실패가 아님(default 또는 {} 반환). name이 문자열이 아닐 때만 런타임 에러.' },
+            FILE_EXISTS: { desc: '존재 여부 확인. (Playground는 메모리 내 FS 사용.)', returns: '불리언(path에 파일/디렉토리가 있으면 true).', fails: 'path가 문자열이 아니면 .ok=false 인 Result 반환. 없는 경로는 실패가 아니라 false 반환.' },
+            FILE_INFO: { desc: '경로의 메타데이터.', returns: RESULT_NOTE_KO + ' .value = {type: "file"|"dir", size, modified}.', fails: 'path가 문자열이 아니거나 존재하지 않으면 .ok=false 와 에러 메시지.' },
+            READ_LINES: { desc: '줄 읽기(start 1부터, count 제한).', returns: RESULT_NOTE_KO + ' .value = 줄 문자열 배열.', fails: 'path가 없거나 start/count가 정수가 아니거나 < 1이면 .ok=false.' },
+            WRITE_FILE: { desc: '문자열을 파일에 쓰기(덮어쓰기).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 쓰기 실패 시(실제 호스트에서 잘못된 경로/권한 등) .ok=false 와 에러 메시지.' },
+            WRITE_LINES: { desc: '문자열 배열을 줄 단위로 쓰기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 lines가 배열이 아니거나 쓰기 실패 시 .ok=false.' },
+            APPEND_FILE: { desc: '문자열을 파일에 덧붙이기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 덧붙이기 실패 시 .ok=false.' },
+            MKDIR: { desc: '디렉토리 생성(상위 포함).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 실제 호스트에서 생성 실패 시 .ok=false.' },
+            LIST_DIR: { desc: '디렉토리 항목 나열.', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 {name, type, size} 배열.', fails: 'path가 문자열이 아니거나 존재하는 디렉토리가 아니면 .ok=false.' },
+            DELETE_FILE: { desc: '파일 하나 삭제.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 존재하지 않거나 디렉토리이면(디렉토리는 거부) .ok=false.' },
+            SHELL: { desc: '셸 명령 실행. Playground는 작은 셸을 흉내(echo, pwd, ls, cat, whoami, env, true, false)하며 메모리 FS와 연동; 실제 호스트는 진짜 셸 실행.', returns: RESULT_NOTE_KO + ' 종료 코드 0이면 .value = 명령의 stdout.', fails: '0이 아닌 종료는 .ok=false 와 출력 반환 — 예: 없는 파일 cat, false, 알 수 없는 명령("... command not found").' },
+            SHELL_CTX: { desc: 'SHELL에 넘길 셸 컨텍스트(작업 디렉토리 + env) 생성. Result를 그대로 넘기면 SHELL이 자동으로 풉니다.', returns: RESULT_NOTE_KO + ' .value = 컨텍스트 객체 {cwd, env}.', fails: 'cwd가 문자열이 아니거나 디렉토리가 없으면 .ok=false.' },
+        };
+        const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸' };
+        const UI_STR = {
+            en: { panel: 'Built-in Functions', returns: 'Returns', fails: 'On failure', sample: 'Sample', empty: 'Select a function to see its definition and a sample.', insert: 'Insert' },
+            ko: { panel: '내장 함수', returns: '반환값', fails: '실패 시', sample: '예제', empty: '함수를 선택하면 정의와 예제를 볼 수 있습니다.', insert: '삽입' }
+        };
+        let fnLang = 'en';
+
+        // Localized field accessor: Korean when fnLang==='ko' and a translation exists, else English.
+        function fnText(f, field) {
+            if (fnLang === 'ko' && FN_DOCS_KO[f.name] && FN_DOCS_KO[f.name][field]) return FN_DOCS_KO[f.name][field];
+            return f[field];
+        }
+        function catLabel(cat) { return fnLang === 'ko' && CAT_KO[cat] ? CAT_KO[cat] : cat; }
+        function uiStr(key) { return UI_STR[fnLang][key]; }
+
+        function setFnLang(lang) {
+            fnLang = (lang === 'ko') ? 'ko' : 'en';
+            const enBtn = document.getElementById('fnLangEn'), koBtn = document.getElementById('fnLangKo');
+            if (enBtn) enBtn.classList.toggle('active', fnLang === 'en');
+            if (koBtn) koBtn.classList.toggle('active', fnLang === 'ko');
+            const label = document.getElementById('fnPanelLabel');
+            if (label) label.textContent = uiStr('panel');
+            renderFnList();
+            hideFnTooltip();
+            if (activeFn) showFnDoc(activeFn);
+            else {
+                const detail = document.getElementById('fnDetail');
+                if (detail) detail.innerHTML = '<div class="fn-detail-empty">' + escapeHtml(uiStr('empty')) + '</div>';
+            }
+        }
+
         function renderFnList() {
             const list = document.getElementById('fnList');
             if (!list) return;
             let html = '';
             for (const group of BUILTIN_DOCS) {
-                html += '<div class="fn-cat">' + escapeHtml(group.cat) + '</div>';
+                html += '<div class="fn-cat">' + escapeHtml(catLabel(group.cat)) + '</div>';
                 for (const f of group.fns) {
                     html += '<button class="fn-item" data-fn="' + f.name + '" onclick="showFnDoc(\'' + f.name + '\')">' + f.name + '</button>';
                 }
@@ -1051,20 +1185,20 @@ PRINT("Hello, World!")</textarea>
             if (!f) return;
             activeFn = name;
             const detail = document.getElementById('fnDetail');
-            const returnsHtml = f.returns
-                ? '<div class="fn-field-label">Returns</div><div class="fn-field">' + escapeHtml(f.returns) + '</div>'
+            const returnsHtml = fnText(f, 'returns')
+                ? '<div class="fn-field-label">' + escapeHtml(uiStr('returns')) + '</div><div class="fn-field">' + escapeHtml(fnText(f, 'returns')) + '</div>'
                 : '';
-            const failsHtml = f.fails
-                ? '<div class="fn-field-label">On failure</div><div class="fn-field fn-field-fail">' + escapeHtml(f.fails) + '</div>'
+            const failsHtml = fnText(f, 'fails')
+                ? '<div class="fn-field-label">' + escapeHtml(uiStr('fails')) + '</div><div class="fn-field fn-field-fail">' + escapeHtml(fnText(f, 'fails')) + '</div>'
                 : '';
             detail.innerHTML =
                 '<div class="fn-sig">' + escapeHtml(f.sig) + '</div>' +
-                '<div class="fn-desc">' + escapeHtml(f.desc) + '</div>' +
+                '<div class="fn-desc">' + escapeHtml(fnText(f, 'desc')) + '</div>' +
                 returnsHtml +
                 failsHtml +
-                '<div class="fn-sample-label">Sample</div>' +
+                '<div class="fn-sample-label">' + escapeHtml(uiStr('sample')) + '</div>' +
                 '<pre class="fn-sample">' + escapeHtml(f.sample) + '</pre>' +
-                '<button class="fn-insert" onclick="insertText(\'' + f.name + '()\')">Insert ' + f.name + '()</button>';
+                '<button class="fn-insert" onclick="insertText(\'' + f.name + '()\')">' + escapeHtml(uiStr('insert')) + ' ' + f.name + '()</button>';
             let activeItem = null;
             document.querySelectorAll('.fn-item').forEach(el => {
                 const isActive = el.getAttribute('data-fn') === name;
@@ -1092,13 +1226,14 @@ PRINT("Hello, World!")</textarea>
                 fnTooltipEl.className = 'fn-tooltip';
                 document.body.appendChild(fnTooltipEl);
             }
-            if (fnTooltipCurrent !== name) {
+            const cacheKey = name + ':' + fnLang;
+            if (fnTooltipCurrent !== cacheKey) {
                 fnTooltipEl.innerHTML =
                     '<div class="fn-tt-sig">' + escapeHtml(f.sig) + '</div>' +
-                    '<div class="fn-tt-desc">' + escapeHtml(f.desc) + '</div>' +
-                    (f.returns ? '<div class="fn-tt-label">Returns</div><div class="fn-tt-row">' + escapeHtml(f.returns) + '</div>' : '') +
-                    (f.fails ? '<div class="fn-tt-label">On failure</div><div class="fn-tt-row fail">' + escapeHtml(f.fails) + '</div>' : '');
-                fnTooltipCurrent = name;
+                    '<div class="fn-tt-desc">' + escapeHtml(fnText(f, 'desc')) + '</div>' +
+                    (fnText(f, 'returns') ? '<div class="fn-tt-label">' + escapeHtml(uiStr('returns')) + '</div><div class="fn-tt-row">' + escapeHtml(fnText(f, 'returns')) + '</div>' : '') +
+                    (fnText(f, 'fails') ? '<div class="fn-tt-label">' + escapeHtml(uiStr('fails')) + '</div><div class="fn-tt-row fail">' + escapeHtml(fnText(f, 'fails')) + '</div>' : '');
+                fnTooltipCurrent = cacheKey;
             }
             fnTooltipEl.style.display = 'block';
             // Position below the function name, flipping above / clamping to the viewport as needed.
