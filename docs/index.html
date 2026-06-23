@@ -228,7 +228,7 @@
 
         /* Built-in function panel (right of editor) */
         .fn-panel {
-            width: 300px;
+            width: 600px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -1065,9 +1065,14 @@ PRINT("Hello, World!")</textarea>
                 '<div class="fn-sample-label">Sample</div>' +
                 '<pre class="fn-sample">' + escapeHtml(f.sample) + '</pre>' +
                 '<button class="fn-insert" onclick="insertText(\'' + f.name + '()\')">Insert ' + f.name + '()</button>';
+            let activeItem = null;
             document.querySelectorAll('.fn-item').forEach(el => {
-                el.classList.toggle('active', el.getAttribute('data-fn') === name);
+                const isActive = el.getAttribute('data-fn') === name;
+                el.classList.toggle('active', isActive);
+                if (isActive) activeItem = el;
             });
+            // Scroll the function list so the selected item is visible.
+            if (activeItem) activeItem.scrollIntoView({ block: 'nearest' });
         }
 
         // --- Editor hover tooltip for built-in functions -----------------------------------------
