@@ -226,6 +226,20 @@
             min-width: 0;
         }
 
+        /* Drag handle to resize the function panel */
+        .fn-resizer {
+            width: 6px;
+            flex-shrink: 0;
+            cursor: col-resize;
+            background: #313244;
+            transition: background 0.12s;
+        }
+
+        .fn-resizer:hover,
+        .fn-resizer.dragging {
+            background: #89b4fa;
+        }
+
         /* Built-in function panel (right of editor) */
         .fn-panel {
             width: 600px;
@@ -823,7 +837,8 @@
 
 PRINT("Hello, World!")</textarea>
                 </div>
-                <div class="fn-panel">
+                <div class="fn-resizer" id="fnResizer" title="Drag to resize"></div>
+                <div class="fn-panel" id="fnPanel">
                     <div class="fn-panel-header">
                         <div class="section-label" id="fnPanelLabel">Built-in Functions</div>
                         <div class="fn-lang-toggle">
@@ -2622,7 +2637,44 @@ PRINT("first line:", SPLIT(TRIM(res.value), "\\n").1)`
             });
 
             renderFnList();
+            initFnPanelResizer();
         });
+
+        // Drag the divider to resize the built-in function panel.
+        function initFnPanelResizer() {
+            const resizer = document.getElementById('fnResizer');
+            const panel = document.getElementById('fnPanel');
+            const row = document.querySelector('.editor-row');
+            if (!resizer || !panel || !row) return;
+            const MIN = 220;            // keep the panel usable
+            const EDITOR_MIN = 240;     // keep the editor usable
+            let dragging = false;
+
+            const onMove = (clientX) => {
+                const rowRect = row.getBoundingClientRect();
+                let width = rowRect.right - clientX;
+                const max = rowRect.width - EDITOR_MIN;
+                if (width < MIN) width = MIN;
+                if (width > max) width = Math.max(MIN, max);
+                panel.style.width = width + 'px';
+            };
+
+            resizer.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                dragging = true;
+                resizer.classList.add('dragging');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+            document.addEventListener('mousemove', (e) => { if (dragging) onMove(e.clientX); });
+            document.addEventListener('mouseup', () => {
+                if (!dragging) return;
+                dragging = false;
+                resizer.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            });
+        }
     </script>
 </body>
 </html>
