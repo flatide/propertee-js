@@ -424,6 +424,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_LINES', 'WRITE_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'DELETE_FILE']) {
             this.registerExternal(name, fileStub(name));
         }
+
+        // HTTP — stubs (no network access in the JS runtime; a host or the playground provides it)
+        for (const name of ['HTTP', 'HTTP_GET', 'HTTP_POST']) {
+            this.registerExternal(name, fileStub(name));
+        }
     }
 
     // --- Helper methods (non-generators) ---

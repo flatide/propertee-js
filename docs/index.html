@@ -798,6 +798,7 @@
             <option value="18_env">18 Environment</option>
             <option value="19_json_file">19 JSON File</option>
             <option value="20_shell">20 Shell</option>
+            <option value="21_http">21 HTTP</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
     </div>
@@ -1082,6 +1083,11 @@ PRINT("Hello, World!")</textarea>
                 { name: 'SHELL', sig: 'SHELL(cmd) | SHELL(ctx, cmd)', desc: 'Run a shell command. The playground mocks a tiny shell (echo, pwd, ls, cat, whoami, env, true, false) wired to the in-memory FS; a real host runs an actual shell.', returns: RESULT_NOTE + ' On exit code 0, .value = the command stdout.', fails: 'A non-zero exit returns .ok=false with the output in .value — e.g. cat on a missing file, false, or an unknown command ("... command not found").', sample: 'res = SHELL("echo hello")\nPRINT(res.ok, res.value)' },
                 { name: 'SHELL_CTX', sig: 'SHELL_CTX(cwd, [env])', desc: 'Create a shell context (working dir + env) to pass to SHELL. Pass the Result directly — SHELL auto-unwraps it.', returns: RESULT_NOTE + ' .value = a context object {cwd, env}.', fails: 'Returns .ok=false if cwd is not a string or the directory does not exist.', sample: 'MKDIR("/work")\nWRITE_FILE("/work/a.txt", "hi\\n")\nctx = SHELL_CTX("/work")\nres = SHELL(ctx, "cat a.txt")\nPRINT(res.value)' },
             ]},
+            { cat: 'HTTP', fns: [
+                { name: 'HTTP_GET', sig: 'HTTP_GET(url, [options])', desc: 'HTTP GET. options = {headers, timeout}. The playground mocks responses (a real host makes real requests).', returns: RESULT_NOTE + ' .value = {status, body, headers}. .ok is true only for a 2xx status.', fails: 'A 4xx/5xx keeps the full .value with .ok=false. A transport failure (bad URL/DNS/connect/timeout) gives .ok=false with .value = {status:0, body:<message>, headers:{}}.', sample: 'res = HTTP_GET("http://api/data")\nPRINT(res.ok, res.value.status)\nPRINT(res.value.body)' },
+                { name: 'HTTP_POST', sig: 'HTTP_POST(url, body, [options])', desc: 'HTTP POST with a string body. options = {headers, timeout}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Non-2xx -> .ok=false (value retained). Transport failure -> .ok=false, .value.status=0.', sample: 'res = HTTP_POST("http://api/submit", "payload42")\nPRINT(res.ok, res.value.status)\nPRINT(res.value.body)' },
+                { name: 'HTTP', sig: 'HTTP(method, url, [options])', desc: 'General request for any method (PUT/DELETE/PATCH/...). options = {headers, timeout, body}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Same as HTTP_GET: non-2xx -> .ok=false; transport failure -> .value.status=0.', sample: 'opts = {"headers": {"X-Token": "abc"}}\nres = HTTP("GET", "http://api/me", opts)\nPRINT(res.value.status)' },
+            ]},
         ];
 
         const FN_INDEX = {};
@@ -1150,8 +1156,11 @@ PRINT("Hello, World!")</textarea>
             DELETE_FILE: { desc: '파일 하나 삭제.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 존재하지 않거나 디렉토리이면(디렉토리는 거부) .ok=false.' },
             SHELL: { desc: '셸 명령 실행. Playground는 작은 셸을 흉내(echo, pwd, ls, cat, whoami, env, true, false)하며 메모리 FS와 연동; 실제 호스트는 진짜 셸 실행.', returns: RESULT_NOTE_KO + ' 종료 코드 0이면 .value = 명령의 stdout.', fails: '0이 아닌 종료는 .ok=false 와 출력 반환 — 예: 없는 파일 cat, false, 알 수 없는 명령("... command not found").' },
             SHELL_CTX: { desc: 'SHELL에 넘길 셸 컨텍스트(작업 디렉토리 + env) 생성. Result를 그대로 넘기면 SHELL이 자동으로 풉니다.', returns: RESULT_NOTE_KO + ' .value = 컨텍스트 객체 {cwd, env}.', fails: 'cwd가 문자열이 아니거나 디렉토리가 없으면 .ok=false.' },
+            HTTP_GET: { desc: 'HTTP GET. options = {headers, timeout}. Playground는 응답을 흉내냅니다(실제 호스트는 실제 요청).', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}. .ok는 2xx일 때만 true.', fails: '4xx/5xx는 .value를 유지한 채 .ok=false. 전송 실패(잘못된 URL/DNS/연결/타임아웃)는 .ok=false, .value = {status:0, body:<메시지>, headers:{}}.' },
+            HTTP_POST: { desc: '문자열 body로 HTTP POST. options = {headers, timeout}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: '2xx 아니면 .ok=false(value 유지). 전송 실패는 .ok=false, .value.status=0.' },
+            HTTP: { desc: '임의 메서드(PUT/DELETE/PATCH/...)용 범용 요청. options = {headers, timeout, body}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'HTTP_GET과 동일: 2xx 아니면 .ok=false, 전송 실패는 .value.status=0.' },
         };
-        const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸' };
+        const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸', 'HTTP': 'HTTP' };
         const UI_STR = {
             en: { panel: 'Built-in Functions', returns: 'Returns', fails: 'On failure', sample: 'Sample', empty: 'Select a function to see its definition and a sample.', insert: 'Insert' },
             ko: { panel: '내장 함수', returns: '반환값', fails: '실패 시', sample: '예제', empty: '함수를 선택하면 정의와 예제를 볼 수 있습니다.', insert: '삽입' }
@@ -1453,6 +1462,33 @@ PRINT("Hello, World!")</textarea>
                 if (typeof cmd !== 'string') return err('SHELL() command must be a string');
                 return runShell(ctx, cmd);
             });
+
+            // --- HTTP mock ---------------------------------------------------------------------
+            // The browser can't make arbitrary cross-origin requests, so the playground mocks HTTP
+            // deterministically: any URL containing "/notfound" -> 404; "/error" -> 500; otherwise
+            // 200 with a small JSON body echoing the request. Follows the core Result contract:
+            // value = {status, body, headers}, ok = 2xx; a "bad" URL (no http) -> transport error.
+            const httpEnvelope = (ok, value) => ({ status: ok ? 'done' : 'error', ok: ok, value: value });
+            const runHttp = (method, url, headers, body) => {
+                if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
+                    return httpEnvelope(false, { status: 0, body: 'HTTP request failed: invalid URL: ' + url, headers: {} });
+                }
+                let status = 200;
+                if (url.indexOf('/notfound') >= 0) status = 404;
+                else if (url.indexOf('/error') >= 0) status = 500;
+                const payload = { method: method, url: url };
+                if (body !== undefined && body !== null) payload.received = body;
+                const respBody = (status === 200) ? JSON.stringify(payload)
+                    : JSON.stringify({ error: status === 404 ? 'not found' : 'server error' });
+                const respHeaders = { 'Content-Type': 'application/json', 'X-Mock': 'playground' };
+                return httpEnvelope(status >= 200 && status < 300, { status: status, body: respBody, headers: respHeaders });
+            };
+            const optHeaders = (opts) => (opts && typeof opts === 'object' && opts.headers && typeof opts.headers === 'object') ? opts.headers : {};
+            const optBody = (opts) => (opts && typeof opts === 'object' && opts.body !== undefined) ? opts.body : null;
+
+            visitor.registerExternal('HTTP', (method, url, opts) => runHttp(String(method || 'GET'), url, optHeaders(opts), optBody(opts)));
+            visitor.registerExternal('HTTP_GET', (url, opts) => runHttp('GET', url, optHeaders(opts), null));
+            visitor.registerExternal('HTTP_POST', (url, body, opts) => runHttp('POST', url, optHeaders(opts), body == null ? '' : String(body)));
         }
 
         const examples = {
@@ -2093,7 +2129,40 @@ PRINT("error:", TRIM(res.value))
 ctx = SHELL_CTX("/work")
 PRINT("ctx ok:", ctx.ok)
 res = SHELL(ctx, "cat notes.txt")
-PRINT("first line:", SPLIT(TRIM(res.value), "\\n").1)`
+PRINT("first line:", SPLIT(TRIM(res.value), "\\n").1)`,
+
+            '21_http': `// 21 - HTTP Requests
+// HTTP_GET / HTTP_POST / HTTP return a Result: .value = {status, body, headers},
+// .ok is true only for a 2xx status. A transport failure gives .value.status = 0.
+// (The playground MOCKS responses; a real host makes real requests.)
+
+// GET
+res = HTTP_GET("http://api.example/data")
+PRINT("GET ok:", res.ok)
+PRINT("status:", res.value.status)
+PRINT("body:", res.value.body)
+
+// Parse a JSON response body
+parsed = JSON_PARSE(res.value.body)
+PRINT("echoed method:", parsed.value.method)
+
+// POST with a body (echoed back by the mock)
+res = HTTP_POST("http://api.example/submit", "payload42")
+PRINT("POST status:", res.value.status)
+PRINT("POST body:", res.value.body)
+
+// A non-2xx response: .ok is false but .value still has the details
+res = HTTP_GET("http://api.example/notfound")
+PRINT("404 ok:", res.ok, "status:", res.value.status)
+
+// General HTTP with custom headers
+opts = {"headers": {"X-Token": "abc123"}}
+res = HTTP("GET", "http://api.example/me", opts)
+PRINT("GEN status:", res.value.status)
+
+// Transport failure (not a real URL) -> status 0
+res = HTTP_GET("not-a-url")
+PRINT("bad ok:", res.ok, "status:", res.value.status)`
         };
 
         let currentExample = '01_hello';
