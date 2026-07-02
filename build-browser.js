@@ -17,6 +17,10 @@ function convertToGlobal(filePath, globalName, dependencies = {}, extraExports =
     // Remove named exports: export { Foo, Bar };
     content = content.replace(/export\s*\{[^}]*\}\s*;?\s*/g, '');
 
+    // Demote named declaration exports: export const/let/var/class/function X → plain declaration
+    // (expose via extraExports if the global namespace needs it)
+    content = content.replace(/export\s+(const|let|var|class|function)\s+/g, '$1 ');
+
     // Generate dependency injection code
     const depInjections = Object.entries(dependencies)
         .map(([name, globalRef]) => `    const ${name} = global.${globalRef};`)
@@ -76,10 +80,10 @@ const schedulerContent = convertToGlobal('Scheduler.js', 'Scheduler', {
     ThreadState: 'ThreadState'
 });
 
-// CustomVisitor (depends on ProperTeeVisitor)
+// CustomVisitor (depends on ProperTeeVisitor; also exposes the TEE_NULL value — spec v0.8.0)
 const customVisitorContent = convertToGlobal('ProperTeeCustomVisitor.js', 'ProperTeeCustomVisitor', {
     ProperTeeVisitor: 'ProperTeeVisitor'
-});
+}, ['TEE_NULL']);
 
 // Ensure browser directory exists
 if (!existsSync('browser')) {

@@ -4945,7 +4945,7 @@ class Scheduler {
 // it only by identity, arithmetic/logic/conditions reject it). "No implicit null":
 // the language never produces this — it enters only via the `null` literal or data
 // (JSON_PARSE, host values).
-export const TEE_NULL = Symbol('null');
+const TEE_NULL = Symbol('null');
 
 class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
@@ -7021,4 +7021,5 @@ class AsyncPendingError extends Error {
 
 
     global.ProperTeeCustomVisitor = ProperTeeCustomVisitor;
+    global.TEE_NULL = TEE_NULL;
 })(typeof window !== 'undefined' ? window : this);
