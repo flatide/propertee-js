@@ -1,0 +1,2 @@
+PASS two-arg bounds
+Runtime error: Runtime Error: RANDOM() requires zero or two arguments

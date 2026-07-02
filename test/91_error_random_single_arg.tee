@@ -1,0 +1,7 @@
+// Test: single-argument RANDOM was removed (spec v0.7.0 #5)
+r = RANDOM(1, 10)
+if r >= 1 and r <= 10 then
+    PRINT("PASS two-arg bounds")
+end
+
+x = RANDOM(10)

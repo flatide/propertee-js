@@ -1,0 +1,26 @@
+// Test: and/or short-circuit left to right (spec v0.7.0 #2)
+
+function trace(v) do
+    PRINT("evaluated")
+    return v
+end
+
+// Left side decides: right side is NOT evaluated (no "evaluated" printed)
+PRINT(false and trace(true))
+PRINT(true or trace(false))
+
+// Left side does not decide: right side runs
+PRINT(true and trace(true))
+PRINT(false or trace(false))
+
+// The presence-guard idiom now works
+obj = {"a": 1}
+if HAS_KEY(obj, "missing") and obj.missing == 1 then
+    PRINT("FAIL absent guard")
+else
+    PRINT("PASS absent guard")
+end
+
+if HAS_KEY(obj, "a") and obj.a == 1 then
+    PRINT("PASS present guard")
+end

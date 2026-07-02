@@ -1,0 +1,10 @@
+// Test: if condition must be boolean (spec v0.7.0 #1)
+ok = true
+if ok then
+    PRINT("boolean condition works")
+end
+
+n = 1
+if n then
+    PRINT("unreachable")
+end

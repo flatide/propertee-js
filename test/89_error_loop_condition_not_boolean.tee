@@ -1,0 +1,10 @@
+// Test: loop condition must be boolean (spec v0.7.0 #1)
+i = 0
+loop i < 3 do
+    i = i + 1
+end
+PRINT(i)
+
+loop "go" do
+    PRINT("unreachable")
+end

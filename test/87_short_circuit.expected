@@ -1,0 +1,8 @@
+false
+true
+evaluated
+true
+evaluated
+false
+PASS absent guard
+PASS present guard

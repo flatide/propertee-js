@@ -12,8 +12,8 @@ else
     PRINT("FAIL random float < 0")
 end
 
-// RANDOM(max) - 1 arg: integer 0 to max-1
-r2 = RANDOM(10)
+// RANDOM(min, max) with a 0 base (the 1-arg form was removed in spec v0.7.0 — 91_error_random_single_arg)
+r2 = RANDOM(0, 9)
 if r2 >= 0 == true then
     if r2 < 10 == true then
         if FLOOR(r2) == r2 == true then

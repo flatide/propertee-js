@@ -1,0 +1,2 @@
+boolean condition works
+Runtime error: Runtime Error at line 8:3: Condition requires a boolean value. Got number

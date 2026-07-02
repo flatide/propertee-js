@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.6.0
+# ProperTee Language Specification v0.7.0
 
 ## Overview
 
@@ -28,12 +28,13 @@ There is **no null**. The empty object `{}` serves as the "no value" sentinel th
 
 ### Truthiness
 
-Used in `if` conditions and `loop` conditions:
+`if` conditions and `loop` conditions require a **boolean** value:
 
-- **Truthy:** `true` only
-- **Falsy:** everything else — including `false`, `0`, `""`, `[]`, `{}`
+- `true` — take the branch / continue the loop
+- `false` — skip the branch / stop the loop
+- **Any other type is a runtime error:** `Condition requires a boolean value`
 
-Note: Conditions must use explicit boolean comparisons (e.g., `if x == true then` or `if x != false then`).
+There is no implicit coercion — `0`, `""`, `[]`, `{}` are not "falsy", they are type errors in a condition, matching the strictness of the logical operators. (Until spec v0.6.0, non-booleans in conditions were silently falsy; v0.7.0 made them loud — see the changelog migration note.)
 
 ## Variables
 
@@ -136,7 +137,17 @@ Equality (`==`, `!=`) works across all types. Values are compared by content, no
 | `or` | logical OR | boolean or boolean |
 | `not` | logical NOT | not boolean |
 
-All logical operators **require boolean operands**. Using a number or string with `and`/`or` is a runtime error. Both sides are always evaluated (no short-circuit).
+All logical operators **require boolean operands**. Using a number or string with `and`/`or` is a runtime error.
+
+Evaluation **short-circuits** left to right: `false and X` and `true or X` do not evaluate `X` at all — side effects included — and an operand is type-checked only when it is evaluated. This enables the presence-guard idiom:
+
+```
+if HAS_KEY(obj, "k") and obj.k == 1 then   // obj.k is never touched when "k" is absent
+    ...
+end
+```
+
+(Until spec v0.6.0 both sides were always evaluated.)
 
 ### Precedence (lowest to highest)
 
@@ -703,8 +714,9 @@ All built-in function names are UPPERCASE.
 | `CEIL(n)` | Round up |
 | `ROUND(n)` | Round to nearest integer |
 | `RANDOM()` | Random decimal between 0.0 (inclusive) and 1.0 (exclusive) |
-| `RANDOM(max)` | Random integer from 0 (inclusive) to `max` (exclusive). `max` must be positive. |
 | `RANDOM(min, max)` | Random integer from `min` to `max` (both inclusive). |
+
+The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusive upper bound clashed with the inclusive two-argument form. Calling `RANDOM` with one argument is a runtime error; write `RANDOM(0, max - 1)` for the old meaning.
 
 ### Type Conversion
 
@@ -723,7 +735,7 @@ All built-in function names are UPPERCASE.
 
 | Function | Description |
 |---|---|
-| `LEN(s)` | Length of string, array, or object (number of entries). Returns `0` for other types. |
+| `LEN(s)` | Length of a string, array, or object (number of entries). Any other type is a runtime error. |
 | `UPPERCASE(s)` | Convert to uppercase |
 | `LOWERCASE(s)` | Convert to lowercase |
 | `TRIM(s)` | Remove leading/trailing whitespace |
@@ -745,7 +757,7 @@ All built-in function names are UPPERCASE.
 | `PUSH(arr, values...)` | Returns new array with values appended. Original unchanged. |
 | `POP(arr)` | Returns new array with last element removed. Original unchanged. |
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
-| `SLICE(arr, start, [end])` | Returns sub-array. `start` is 1-based. `end` is exclusive. |
+| `SLICE(arr, start, [count])` | Returns a sub-array of up to `count` elements starting at `start` (1-based); omit `count` for the rest of the array. Same start+count convention as `SUBSTRING` and `READ_LINES`. |
 | `SORT(arr)` | Returns new array sorted ascending. All elements must be the same type (number or string). |
 | `SORT_DESC(arr)` | Returns new array sorted descending. Same type restriction as `SORT`. |
 | `SORT_BY(arr, key)` | Returns new array of objects sorted ascending by the given key. |
@@ -1093,6 +1105,9 @@ Common error conditions:
 | Type mismatch in arithmetic | Arithmetic operator '+' requires numeric operands |
 | Non-coercible `+` operands | Addition requires numeric or string operands |
 | Non-boolean in `and`/`or` | Logical AND requires boolean operands |
+| Non-boolean `if`/`loop` condition | Condition requires a boolean value |
+| `LEN` on a non-collection | LEN() requires a string, array, or object argument |
+| Single-argument `RANDOM` | RANDOM() requires zero or two arguments |
 | Division by zero | Division by zero |
 | Missing property | Property 'x' does not exist |
 | Array out of bounds | Array index out of bounds |
@@ -1113,6 +1128,16 @@ Common error conditions:
 ---
 
 ## Changelog
+
+### v0.7.0 — breaking-change batch
+
+Five coordinated breaking changes ([#1](https://github.com/flatide/ProperTee/issues/1), [#2](https://github.com/flatide/ProperTee/issues/2), [#5](https://github.com/flatide/ProperTee/issues/5), [#6](https://github.com/flatide/ProperTee/issues/6), [#7](https://github.com/flatide/ProperTee/issues/7)) landed together so scripts migrate once. **Migration note:**
+
+- **Strict conditions** (#1): a non-boolean `if`/`loop` condition is now a runtime error (`Condition requires a boolean value`). Previously non-booleans were silently falsy — `if LEN(arr) then` never ran; it now fails loudly. Write explicit comparisons (`if LEN(arr) > 0 then`).
+- **Short-circuit `and`/`or`** (#2): evaluation is left to right and stops as soon as the result is decided — `false and X` / `true or X` no longer evaluate `X`, side effects included. This enables `if HAS_KEY(obj, "k") and obj.k == 1 then`. Operand type errors now report only the evaluated operand's type (`Got number`, not `Got number and number`).
+- **`RANDOM(max)` removed** (#5): the single-argument form (0 to max−1, exclusive) clashed with the inclusive two-argument form. Calling `RANDOM` with one argument is a runtime error; use `RANDOM(0, max - 1)` for the old meaning.
+- **`SLICE(arr, start, count)`** (#6): the third argument is now a **count**, unified with `SUBSTRING` and `READ_LINES`. The old third argument was in practice a 1-based *inclusive* end (the previous spec text "end is exclusive" described the 0-based internal bound), so migrate `SLICE(a, s, e)` → `SLICE(a, s, e - s + 1)`.
+- **Strict `LEN`** (#7): `LEN` on a number or boolean is now a runtime error (`LEN() requires a string, array, or object argument`) instead of silently returning `0`.
 
 ### v0.6.0
 

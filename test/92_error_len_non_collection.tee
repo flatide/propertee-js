@@ -1,0 +1,5 @@
+// Test: LEN on a non-collection is an error (spec v0.7.0 #7)
+PRINT(LEN("hello"))
+PRINT(LEN([1, 2, 3]))
+PRINT(LEN({"a": 1, "b": 2}))
+PRINT(LEN(42))

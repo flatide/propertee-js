@@ -21,7 +21,7 @@ PRINT(LEN(arr2))
 arr3 = POP(arr2)
 PRINT(arr3)
 
-// SLICE (1-based start, exclusive end)
+// SLICE (1-based start, count — spec v0.7.0)
 data = [10, 20, 30, 40, 50]
 PRINT(SLICE(data, 2, 4))
 PRINT(SLICE(data, 3))

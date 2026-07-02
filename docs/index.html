@@ -1013,7 +1013,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'FLOOR', sig: 'FLOOR(n)', desc: 'Round down to an integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(FLOOR(3.8))' },
                 { name: 'CEIL', sig: 'CEIL(n)', desc: 'Round up to an integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(CEIL(3.2))' },
                 { name: 'ROUND', sig: 'ROUND(n)', desc: 'Round to the nearest integer.', returns: 'A number.', fails: 'Runtime error if n is not a number.', sample: 'PRINT(ROUND(3.5))' },
-                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(max) | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in a range.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if arguments are not numbers, or max is not positive, or min > max.', sample: 'PRINT(RANDOM(1, 6))' },
+                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in an inclusive range. The single-argument form was removed in spec v0.7.0.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if called with one argument, arguments are not numbers, or min > max.', sample: 'PRINT(RANDOM(1, 6))' },
             ]},
             { cat: 'Conversion', fns: [
                 { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number.', returns: 'A number.', fails: 'Runtime error if s is not a string, is empty, or is not a valid numeric string.', sample: 'PRINT(TO_NUMBER("42") + 1)' },
@@ -1021,7 +1021,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", or "object".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))' },
             ]},
             { cat: 'String', fns: [
-                { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', returns: 'A number (0 for other types).', fails: 'Does not fail (returns 0 for unsupported types).', sample: 'PRINT(LEN("hello"))' },
+                { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', returns: 'A number.', fails: 'Runtime error for other types (spec v0.7.0).', sample: 'PRINT(LEN("hello"))' },
                 { name: 'UPPERCASE', sig: 'UPPERCASE(s)', desc: 'Convert to uppercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(UPPERCASE("hi"))' },
                 { name: 'LOWERCASE', sig: 'LOWERCASE(s)', desc: 'Convert to lowercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(LOWERCASE("HI"))' },
                 { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(TRIM("  hi  "))' },
@@ -1040,7 +1040,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'PUSH', sig: 'PUSH(arr, values...)', desc: 'Append values (original unchanged).', returns: 'A new array.', fails: 'Runtime error if the first argument is not an array.', sample: 'PRINT(PUSH([1, 2], 3))' },
                 { name: 'POP', sig: 'POP(arr)', desc: 'Remove the last element (original unchanged).', returns: 'A new array (empty stays empty).', fails: 'Runtime error if the argument is not an array.', sample: 'PRINT(POP([1, 2, 3]))' },
                 { name: 'CONCAT', sig: 'CONCAT(arrs...)', desc: 'Concatenate arrays.', returns: 'A new array.', fails: 'Runtime error if any argument is not an array.', sample: 'PRINT(CONCAT([1], [2, 3]))' },
-                { name: 'SLICE', sig: 'SLICE(arr, start, [end])', desc: 'Sub-array; start 1-based, end exclusive.', returns: 'A new array (indices clamped to bounds).', fails: 'Runtime error if arr is not an array or start/end are not numbers.', sample: 'PRINT(SLICE([1, 2, 3, 4], 2, 4))' },
+                { name: 'SLICE', sig: 'SLICE(arr, start, [count])', desc: 'Sub-array of up to count elements from start (1-based); count omitted = rest of the array. Same start+count convention as SUBSTRING (spec v0.7.0).', returns: 'A new array (clamped to bounds).', fails: 'Runtime error if arr is not an array or start/count are not numbers.', sample: 'PRINT(SLICE([1, 2, 3, 4], 2, 2))' },
                 { name: 'SORT', sig: 'SORT(arr)', desc: 'Sort ascending.', returns: 'A new array.', fails: 'Runtime error if arr is not an array, or elements are mixed types (must be all numbers or all strings).', sample: 'PRINT(SORT([3, 1, 2]))' },
                 { name: 'SORT_DESC', sig: 'SORT_DESC(arr)', desc: 'Sort descending.', returns: 'A new array.', fails: 'Runtime error if arr is not an array, or elements are mixed types.', sample: 'PRINT(SORT_DESC([3, 1, 2]))' },
                 { name: 'SORT_BY', sig: 'SORT_BY(arr, key)', desc: 'Sort objects ascending by a key.', returns: 'A new array of objects.', fails: 'Runtime error if arr is not an array of objects, or the key values are not comparable.', sample: 'PRINT(SORT_BY([{"n": 2}, {"n": 1}], "n"))' },

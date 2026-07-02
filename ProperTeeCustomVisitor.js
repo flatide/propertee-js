@@ -126,7 +126,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (Array.isArray(a)) return a.length;
                 if (typeof a === 'string') return a.length;
                 if (typeof a === 'object' && a !== null) return Object.keys(a).length;
-                return 0;
+                // spec v0.7.0 (#7): non-collections are an error (was a silent 0)
+                throw new Error('Runtime Error: LEN() requires a string, array, or object argument');
             },
             'TO_NUMBER': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TO_NUMBER() requires a string argument');
@@ -165,13 +166,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
                 return arrays.reduce((acc, arr) => [...acc, ...arr], []);
             },
-            'SLICE': (arr, start, end) => {
+            'SLICE': (arr, start, count) => {
                 if (!Array.isArray(arr)) throw new Error('Runtime Error: SLICE() first argument must be an array');
                 if (typeof start !== 'number') throw new Error('Runtime Error: SLICE() second argument must be a number');
-                if (end !== undefined && typeof end !== 'number') throw new Error('Runtime Error: SLICE() third argument must be a number');
-                const zeroStart = start - 1;
-                const zeroEnd = end !== undefined ? end : undefined;
-                return end === undefined ? arr.slice(zeroStart) : arr.slice(zeroStart, zeroEnd);
+                if (count !== undefined && typeof count !== 'number') throw new Error('Runtime Error: SLICE() third argument must be a number');
+                // spec v0.7.0 (#6): 3rd arg is a COUNT, like SUBSTRING and READ_LINES (was an end bound)
+                const zeroStart = Math.max(0, start - 1);
+                return count === undefined ? arr.slice(zeroStart) : arr.slice(zeroStart, zeroStart + Math.max(0, count));
             },
             'CHARS': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: CHARS() requires a string argument');
@@ -267,11 +268,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (args.length === 0) {
                     return Math.random();
                 } else if (args.length === 1) {
-                    if (typeof args[0] !== 'number')
-                        throw new Error('Runtime Error: RANDOM() argument must be a number');
-                    const max = args[0];
-                    if (max <= 0) throw new Error('Runtime Error: RANDOM() max must be positive');
-                    return Math.floor(Math.random() * max);
+                    // spec v0.7.0 (#5): the single-argument form was removed
+                    throw new Error('Runtime Error: RANDOM() requires zero or two arguments');
                 } else {
                     if (typeof args[0] !== 'number' || typeof args[1] !== 'number')
                         throw new Error('Runtime Error: RANDOM() arguments must be numbers');
@@ -583,6 +581,24 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return new Error(`Runtime Error at ${location}: ${message}`);
     }
 
+    // ProperTee type name for error messages (same names as TYPE_OF).
+    _valueTypeName(v) {
+        if (typeof v === 'boolean') return 'boolean';
+        if (typeof v === 'number') return 'number';
+        if (typeof v === 'string') return 'string';
+        if (Array.isArray(v)) return 'array';
+        return 'object';
+    }
+
+    // Spec v0.7.0 (#1): if/loop conditions must be boolean — non-booleans are an error, not falsy.
+    *_evalCondition(exprCtx) {
+        const v = yield* this.visit(exprCtx);
+        if (typeof v !== 'boolean') {
+            throw this.createError(`Condition requires a boolean value. Got ${this._valueTypeName(v)}`, exprCtx);
+        }
+        return v;
+    }
+
     // Get current scope stack (from activeThread or fallback to this.scopeStack)
     _getScopeStack() {
         if (this.activeThread) return this.activeThread.scopeStack;
@@ -864,9 +880,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitIfStatement(ctx) {
-        const condition = yield* this.visit(ctx.condition);
+        const condition = yield* this._evalCondition(ctx.condition);
 
-        if (condition === true) {
+        if (condition) {
             if (ctx.thenBody) {
                 return yield* this.visitBlock(ctx.thenBody);
             }
@@ -889,9 +905,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         let iterations = 0;
 
         try {
-            let condition = yield* this.visit(ctx.expression());
+            let condition = yield* this._evalCondition(ctx.expression());
 
-            while (condition === true) {
+            while (condition) {
                 if (++iterations > maxIterations) {
                     if (this.iterationLimitBehavior === 'warn') {
                         this.stderr(`Warning: Loop exceeded maximum iterations (${maxIterations}), stopping loop`);
@@ -914,7 +930,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     else throw e;
                 }
 
-                condition = yield* this.visit(ctx.expression());
+                condition = yield* this._evalCondition(ctx.expression());
             }
         } catch (e) {
             if (!(e instanceof BreakException)) throw e;
@@ -1669,24 +1685,32 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
     }
 
+    // Spec v0.7.0 (#2): and/or SHORT-CIRCUIT left to right — the right operand is not evaluated
+    // (side effects included) when the left side decides; operands are type-checked only when evaluated.
     *visitAndExpr(ctx) {
         const left = yield* this.visit(ctx.expression(0));
-        const right = yield* this.visit(ctx.expression(1));
-
-        if (typeof left !== 'boolean' || typeof right !== 'boolean') {
-            throw this.createError(`Logical AND requires boolean operands. Got ${typeof left} and ${typeof right}`, ctx);
+        if (typeof left !== 'boolean') {
+            throw this.createError(`Logical AND requires boolean operands. Got ${this._valueTypeName(left)}`, ctx);
         }
-        return left && right;
+        if (!left) return false;
+        const right = yield* this.visit(ctx.expression(1));
+        if (typeof right !== 'boolean') {
+            throw this.createError(`Logical AND requires boolean operands. Got ${this._valueTypeName(right)}`, ctx);
+        }
+        return right;
     }
 
     *visitOrExpr(ctx) {
         const left = yield* this.visit(ctx.expression(0));
-        const right = yield* this.visit(ctx.expression(1));
-
-        if (typeof left !== 'boolean' || typeof right !== 'boolean') {
-            throw this.createError(`Logical OR requires boolean operands. Got ${typeof left} or ${typeof right}`, ctx);
+        if (typeof left !== 'boolean') {
+            throw this.createError(`Logical OR requires boolean operands. Got ${this._valueTypeName(left)}`, ctx);
         }
-        return left || right;
+        if (left) return true;
+        const right = yield* this.visit(ctx.expression(1));
+        if (typeof right !== 'boolean') {
+            throw this.createError(`Logical OR requires boolean operands. Got ${this._valueTypeName(right)}`, ctx);
+        }
+        return right;
     }
 
     // --- Function Call ---
