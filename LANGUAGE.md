@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.4.0
+# ProperTee Language Specification v0.6.0
 
 ## Overview
 
@@ -458,9 +458,11 @@ PRINT(x)               // "global" (unchanged)
 
 Loop variables (`item`, `key`, `val`) follow the same scoping rules — local if inside a function, global otherwise. They are always accessible without `::`.
 
-## Multi Blocks (Parallel Execution)
+## Multi Blocks (Cooperative Concurrency)
 
 Any function can be run concurrently inside a `multi` block using the `thread` keyword. Results are collected into a single object.
+
+**Concurrency, not parallelism.** ProperTee threads are cooperatively scheduled: only one thread executes at any moment, interleaving at statement boundaries in a deterministic round-robin order. A `multi` block therefore does not make CPU-bound work faster. Its benefit is overlapping *waits* — while one thread is blocked in `SLEEP`, `SHELL`, `HTTP*`, an async external function, or host I/O, the other threads keep running. What you get in exchange is reproducibility: the same script produces the same interleaving and the same output order on every run, with no data races and no locks.
 
 ```
 function worker(name) do
@@ -838,6 +840,30 @@ end
 
 Each `SHELL()` call creates a fresh process via `/bin/sh -c <cmd>`. There are no persistent sessions. The context from `SHELL_CTX()` is just a configuration object — it doesn't hold any process state. When passing a context to `SHELL()`, pass the Result from `SHELL_CTX()` directly — `SHELL` auto-unwraps the Result to extract the context.
 
+### HTTP
+
+| Function | Description |
+|---|---|
+| `HTTP_GET(url, [options])` | HTTP GET. Returns Result (see below). |
+| `HTTP_POST(url, body, [options])` | HTTP POST with a string `body`. Returns Result. |
+| `HTTP(method, url, [options])` | General request for any method (PUT/DELETE/PATCH/...). `options.body` carries the request body. |
+
+`options` is an object: `{"headers": {"Key": "Value", ...}, "timeout": <ms>, "body": <for HTTP()>}` — all optional. (`"header"` is also accepted for `"headers"`.)
+
+**Request body.** A string body is sent as-is; any other value (object/array/number/boolean) is serialized as JSON. So `HTTP_POST(url, {"a": 1})` sends `{"a":1}` (not the bare `a=1` form). Set `"Content-Type": "application/json"` in `headers` if the server requires it.
+
+**Result shape.** A request that completes returns `{status, body, headers}` as `value`, with `ok` true only for a 2xx status (4xx/5xx keep the full `value` with `ok` false). A transport-level failure (bad URL, DNS, connection refused, timeout) returns `ok` false with `value = {"status": 0, "body": "<error message>", "headers": {}}`. So `res.value` is always that object — check `res.ok` and `res.value.status`.
+
+```
+res = HTTP_GET("http://service/health")
+if res.ok == true then
+    PRINT(res.value.body)
+end
+PRINT("status", res.value.status)
+```
+
+HTTP is a host-provided capability (a `PlatformProvider`), like file I/O — environments without one return the unsupported error.
+
 ```
 // One-off command
 result = SHELL("echo hello")
@@ -873,6 +899,20 @@ area = width * height    // 20000
 ```
 
 Properties are read-only and sit at the bottom of the variable lookup chain — any local or global variable with the same name takes precedence.
+
+### `_PROPS` — all inputs as one object
+
+Every injected property is also available as a member of the reserved object **`_PROPS`**, so a script can print, iterate, or pass along the whole input set at once while still reading each key directly:
+
+```
+PRINT(a)                                 // individual key (as before)
+PRINT(_PROPS.a)                          // same value via the object
+PRINT(JSON_FORMAT(_PROPS))               // {"a":40,"b":2}  — dump all inputs (debugging)
+loop k in KEYS(_PROPS) do PRINT(k) end   // iterate input names
+return { "echo": _PROPS }                // forward all inputs to a caller/system
+```
+
+`_PROPS` is a snapshot of the inputs (it does not contain itself, so `JSON_FORMAT(_PROPS)` is safe). Inside a function or `multi` setup it follows the same rule as other properties — use `::_PROPS`. If an input is literally named `_PROPS`, that caller-supplied value is used as-is.
 
 ## External Functions and the Result Pattern
 
@@ -1073,6 +1113,14 @@ Common error conditions:
 ---
 
 ## Changelog
+
+### v0.6.0
+
+- **HTTP built-ins**: `HTTP_GET(url, [options])`, `HTTP_POST(url, body, [options])`, and the general `HTTP(method, url, [options])`. Host-provided capability (`PlatformProvider`). Returns a Result whose `value` is `{status, body, headers}`; `ok` is true only for 2xx, and a transport failure yields `{status: 0, body: <message>, headers: {}}`.
+
+### v0.5.0
+
+- **`_PROPS` reserved object**: all host-injected properties are now also reachable as one object, `_PROPS` (e.g. `PRINT(_PROPS)`, `JSON_FORMAT(_PROPS)`, `KEYS(_PROPS)`, `_PROPS.a`), so a script can dump/iterate/forward the whole input set while each key stays directly accessible. Use `::_PROPS` inside functions/`multi` setup. A caller-supplied `_PROPS` input is left as-is.
 
 ### v0.4.0
 

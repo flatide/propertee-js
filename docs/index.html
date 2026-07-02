@@ -1867,7 +1867,7 @@ function worker(name, steps) do
     return name + " done"
 end
 
-// Run functions in parallel with "multi result do ... end"
+// Run functions concurrently with "multi result do ... end" (cooperative, deterministic)
 // Use "thread key: funcCall()" to name each result in the collection
 multi result do
     thread resultA: worker("Alpha", 3)
