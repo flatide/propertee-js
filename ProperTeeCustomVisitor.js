@@ -906,7 +906,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return yield* this.visitBlock(ctx.thenBody);
             }
             return null;
-        } else if (ctx.elseBody) {
+        }
+        // spec v0.9.0 (#3): elseif arms — first true condition wins; later conditions unevaluated
+        for (let n = 0; n < ctx.elseifConds.length; n++) {
+            if (yield* this._evalCondition(ctx.elseifConds[n])) {
+                return yield* this.visitBlock(ctx.elseifBodies[n]);
+            }
+        }
+        if (ctx.elseBody) {
             return yield* this.visitBlock(ctx.elseBody);
         }
         return null;

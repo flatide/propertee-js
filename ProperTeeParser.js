@@ -3,107 +3,110 @@
 import antlr4 from 'antlr4';
 import ProperTeeVisitor from './ProperTeeVisitor.js';
 
-const serializedATN = [4,1,52,307,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,
+const serializedATN = [4,1,53,317,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,
 4,2,5,7,5,2,6,7,6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,
 2,13,7,13,2,14,7,14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,
 20,7,20,2,21,7,21,1,0,5,0,46,8,0,10,0,12,0,49,9,0,1,0,1,0,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,3,1,61,8,1,1,2,1,2,1,2,1,2,1,3,1,3,1,3,1,3,3,3,71,8,3,
 1,3,1,3,1,3,5,3,76,8,3,10,3,12,3,79,9,3,1,4,5,4,82,8,4,10,4,12,4,85,9,4,
-1,5,1,5,1,5,1,5,1,5,1,5,3,5,93,8,5,1,5,1,5,1,6,1,6,1,6,1,6,3,6,101,8,6,1,
-6,1,6,1,6,1,6,1,6,1,7,1,7,1,7,5,7,111,8,7,10,7,12,7,114,9,7,1,8,1,8,3,8,
-118,8,8,1,8,1,8,1,8,3,8,123,8,8,1,8,1,8,1,9,1,9,1,9,1,9,1,10,1,10,3,10,133,
-8,10,1,10,1,10,1,10,1,11,1,11,1,11,3,11,141,8,11,1,11,1,11,1,11,1,11,1,11,
-1,11,1,11,1,11,1,11,3,11,152,8,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,
-1,11,1,11,1,11,3,11,165,8,11,1,11,1,11,1,11,1,11,3,11,171,8,11,1,12,1,12,
-1,12,1,12,3,12,177,8,12,1,12,3,12,180,8,12,1,13,1,13,1,13,1,13,1,13,1,13,
-3,13,188,8,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,
-1,13,1,13,1,13,1,13,1,13,1,13,1,13,5,13,209,8,13,10,13,12,13,212,9,13,1,
-14,1,14,1,14,1,14,1,14,3,14,219,8,14,1,14,1,14,1,14,1,14,1,14,1,14,3,14,
-227,8,14,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,
-1,15,1,15,1,15,1,15,3,15,246,8,15,1,16,1,16,1,16,1,16,1,16,5,16,253,8,16,
-10,16,12,16,256,9,16,3,16,258,8,16,1,16,1,16,1,17,1,17,1,17,1,17,5,17,266,
-8,17,10,17,12,17,269,9,17,3,17,271,8,17,1,17,1,17,1,18,1,18,1,18,1,18,1,
-19,1,19,1,20,1,20,1,20,1,20,1,20,1,20,3,20,287,8,20,1,20,1,20,1,20,1,20,
-1,20,1,20,5,20,295,8,20,10,20,12,20,298,9,20,3,20,300,8,20,1,20,3,20,303,
-8,20,1,21,1,21,1,21,0,2,6,26,22,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,
-30,32,34,36,38,40,42,0,5,1,0,8,10,2,0,7,7,11,11,1,0,39,40,1,0,48,49,1,0,
-18,23,341,0,47,1,0,0,0,2,60,1,0,0,0,4,62,1,0,0,0,6,70,1,0,0,0,8,83,1,0,0,
-0,10,86,1,0,0,0,12,96,1,0,0,0,14,107,1,0,0,0,16,115,1,0,0,0,18,126,1,0,0,
-0,20,130,1,0,0,0,22,170,1,0,0,0,24,179,1,0,0,0,26,187,1,0,0,0,28,226,1,0,
-0,0,30,245,1,0,0,0,32,247,1,0,0,0,34,261,1,0,0,0,36,274,1,0,0,0,38,278,1,
-0,0,0,40,302,1,0,0,0,42,304,1,0,0,0,44,46,3,2,1,0,45,44,1,0,0,0,46,49,1,
-0,0,0,47,45,1,0,0,0,47,48,1,0,0,0,48,50,1,0,0,0,49,47,1,0,0,0,50,51,5,0,
-0,1,51,1,1,0,0,0,52,61,3,4,2,0,53,61,3,10,5,0,54,61,3,22,11,0,55,61,3,12,
-6,0,56,61,3,16,8,0,57,61,3,20,10,0,58,61,3,24,12,0,59,61,3,26,13,0,60,52,
-1,0,0,0,60,53,1,0,0,0,60,54,1,0,0,0,60,55,1,0,0,0,60,56,1,0,0,0,60,57,1,
-0,0,0,60,58,1,0,0,0,60,59,1,0,0,0,61,3,1,0,0,0,62,63,3,6,3,0,63,64,5,1,0,
-0,64,65,3,26,13,0,65,5,1,0,0,0,66,67,6,3,-1,0,67,71,5,47,0,0,68,69,5,46,
-0,0,69,71,5,47,0,0,70,66,1,0,0,0,70,68,1,0,0,0,71,77,1,0,0,0,72,73,10,1,
-0,0,73,74,5,2,0,0,74,76,3,28,14,0,75,72,1,0,0,0,76,79,1,0,0,0,77,75,1,0,
-0,0,77,78,1,0,0,0,78,7,1,0,0,0,79,77,1,0,0,0,80,82,3,2,1,0,81,80,1,0,0,0,
-82,85,1,0,0,0,83,81,1,0,0,0,83,84,1,0,0,0,84,9,1,0,0,0,85,83,1,0,0,0,86,
-87,5,24,0,0,87,88,3,26,13,0,88,89,5,25,0,0,89,92,3,8,4,0,90,91,5,26,0,0,
-91,93,3,8,4,0,92,90,1,0,0,0,92,93,1,0,0,0,93,94,1,0,0,0,94,95,5,27,0,0,95,
-11,1,0,0,0,96,97,5,33,0,0,97,98,5,47,0,0,98,100,5,3,0,0,99,101,3,14,7,0,
-100,99,1,0,0,0,100,101,1,0,0,0,101,102,1,0,0,0,102,103,5,4,0,0,103,104,5,
-30,0,0,104,105,3,8,4,0,105,106,5,27,0,0,106,13,1,0,0,0,107,112,5,47,0,0,
-108,109,5,5,0,0,109,111,5,47,0,0,110,108,1,0,0,0,111,114,1,0,0,0,112,110,
-1,0,0,0,112,113,1,0,0,0,113,15,1,0,0,0,114,112,1,0,0,0,115,117,5,43,0,0,
-116,118,5,47,0,0,117,116,1,0,0,0,117,118,1,0,0,0,118,119,1,0,0,0,119,120,
-5,30,0,0,120,122,3,8,4,0,121,123,3,18,9,0,122,121,1,0,0,0,122,123,1,0,0,
-0,123,124,1,0,0,0,124,125,5,27,0,0,125,17,1,0,0,0,126,127,5,44,0,0,127,128,
-5,48,0,0,128,129,3,8,4,0,129,19,1,0,0,0,130,132,5,34,0,0,131,133,3,28,14,
-0,132,131,1,0,0,0,132,133,1,0,0,0,133,134,1,0,0,0,134,135,5,6,0,0,135,136,
-3,32,16,0,136,21,1,0,0,0,137,138,5,28,0,0,138,140,3,26,13,0,139,141,5,42,
-0,0,140,139,1,0,0,0,140,141,1,0,0,0,141,142,1,0,0,0,142,143,5,30,0,0,143,
-144,3,8,4,0,144,145,5,27,0,0,145,171,1,0,0,0,146,147,5,28,0,0,147,148,5,
-47,0,0,148,149,5,29,0,0,149,151,3,26,13,0,150,152,5,42,0,0,151,150,1,0,0,
-0,151,152,1,0,0,0,152,153,1,0,0,0,153,154,5,30,0,0,154,155,3,8,4,0,155,156,
-5,27,0,0,156,171,1,0,0,0,157,158,5,28,0,0,158,159,5,47,0,0,159,160,5,5,0,
-0,160,161,5,47,0,0,161,162,5,29,0,0,162,164,3,26,13,0,163,165,5,42,0,0,164,
-163,1,0,0,0,164,165,1,0,0,0,165,166,1,0,0,0,166,167,5,30,0,0,167,168,3,8,
-4,0,168,169,5,27,0,0,169,171,1,0,0,0,170,137,1,0,0,0,170,146,1,0,0,0,170,
-157,1,0,0,0,171,23,1,0,0,0,172,180,5,31,0,0,173,180,5,32,0,0,174,176,5,35,
-0,0,175,177,3,26,13,0,176,175,1,0,0,0,176,177,1,0,0,0,177,180,1,0,0,0,178,
-180,5,45,0,0,179,172,1,0,0,0,179,173,1,0,0,0,179,174,1,0,0,0,179,178,1,0,
-0,0,180,25,1,0,0,0,181,182,6,13,-1,0,182,188,3,30,15,0,183,184,5,7,0,0,184,
-188,3,26,13,7,185,186,5,36,0,0,186,188,3,26,13,6,187,181,1,0,0,0,187,183,
-1,0,0,0,187,185,1,0,0,0,188,210,1,0,0,0,189,190,10,5,0,0,190,191,7,0,0,0,
-191,209,3,26,13,6,192,193,10,4,0,0,193,194,7,1,0,0,194,209,3,26,13,5,195,
-196,10,3,0,0,196,197,3,42,21,0,197,198,3,26,13,4,198,209,1,0,0,0,199,200,
-10,2,0,0,200,201,5,37,0,0,201,209,3,26,13,3,202,203,10,1,0,0,203,204,5,38,
-0,0,204,209,3,26,13,2,205,206,10,8,0,0,206,207,5,2,0,0,207,209,3,28,14,0,
-208,189,1,0,0,0,208,192,1,0,0,0,208,195,1,0,0,0,208,199,1,0,0,0,208,202,
-1,0,0,0,208,205,1,0,0,0,209,212,1,0,0,0,210,208,1,0,0,0,210,211,1,0,0,0,
-211,27,1,0,0,0,212,210,1,0,0,0,213,227,5,47,0,0,214,227,5,48,0,0,215,227,
-5,49,0,0,216,218,5,12,0,0,217,219,5,46,0,0,218,217,1,0,0,0,218,219,1,0,0,
-0,219,220,1,0,0,0,220,227,5,47,0,0,221,222,5,12,0,0,222,223,5,3,0,0,223,
-224,3,26,13,0,224,225,5,4,0,0,225,227,1,0,0,0,226,213,1,0,0,0,226,214,1,
-0,0,0,226,215,1,0,0,0,226,216,1,0,0,0,226,221,1,0,0,0,227,29,1,0,0,0,228,
-246,3,32,16,0,229,230,5,46,0,0,230,246,5,47,0,0,231,246,5,47,0,0,232,233,
-5,48,0,0,233,234,5,2,0,0,234,246,5,48,0,0,235,246,5,48,0,0,236,246,5,49,
-0,0,237,246,7,2,0,0,238,246,5,41,0,0,239,246,3,34,17,0,240,246,3,40,20,0,
-241,242,5,3,0,0,242,243,3,26,13,0,243,244,5,4,0,0,244,246,1,0,0,0,245,228,
-1,0,0,0,245,229,1,0,0,0,245,231,1,0,0,0,245,232,1,0,0,0,245,235,1,0,0,0,
-245,236,1,0,0,0,245,237,1,0,0,0,245,238,1,0,0,0,245,239,1,0,0,0,245,240,
-1,0,0,0,245,241,1,0,0,0,246,31,1,0,0,0,247,248,5,47,0,0,248,257,5,3,0,0,
-249,254,3,26,13,0,250,251,5,5,0,0,251,253,3,26,13,0,252,250,1,0,0,0,253,
-256,1,0,0,0,254,252,1,0,0,0,254,255,1,0,0,0,255,258,1,0,0,0,256,254,1,0,
-0,0,257,249,1,0,0,0,257,258,1,0,0,0,258,259,1,0,0,0,259,260,5,4,0,0,260,
-33,1,0,0,0,261,270,5,13,0,0,262,267,3,36,18,0,263,264,5,5,0,0,264,266,3,
-36,18,0,265,263,1,0,0,0,266,269,1,0,0,0,267,265,1,0,0,0,267,268,1,0,0,0,
-268,271,1,0,0,0,269,267,1,0,0,0,270,262,1,0,0,0,270,271,1,0,0,0,271,272,
-1,0,0,0,272,273,5,14,0,0,273,35,1,0,0,0,274,275,3,38,19,0,275,276,5,6,0,
-0,276,277,3,26,13,0,277,37,1,0,0,0,278,279,7,3,0,0,279,39,1,0,0,0,280,281,
-5,15,0,0,281,282,3,26,13,0,282,283,5,16,0,0,283,286,3,26,13,0,284,285,5,
-5,0,0,285,287,3,26,13,0,286,284,1,0,0,0,286,287,1,0,0,0,287,288,1,0,0,0,
-288,289,5,17,0,0,289,303,1,0,0,0,290,299,5,15,0,0,291,296,3,26,13,0,292,
-293,5,5,0,0,293,295,3,26,13,0,294,292,1,0,0,0,295,298,1,0,0,0,296,294,1,
-0,0,0,296,297,1,0,0,0,297,300,1,0,0,0,298,296,1,0,0,0,299,291,1,0,0,0,299,
-300,1,0,0,0,300,301,1,0,0,0,301,303,5,17,0,0,302,280,1,0,0,0,302,290,1,0,
-0,0,303,41,1,0,0,0,304,305,7,4,0,0,305,43,1,0,0,0,31,47,60,70,77,83,92,100,
-112,117,122,132,140,151,164,170,176,179,187,208,210,218,226,245,254,257,
-267,270,286,296,299,302];
+1,5,1,5,1,5,1,5,1,5,1,5,1,5,1,5,1,5,5,5,96,8,5,10,5,12,5,99,9,5,1,5,1,5,
+3,5,103,8,5,1,5,1,5,1,6,1,6,1,6,1,6,3,6,111,8,6,1,6,1,6,1,6,1,6,1,6,1,7,
+1,7,1,7,5,7,121,8,7,10,7,12,7,124,9,7,1,8,1,8,3,8,128,8,8,1,8,1,8,1,8,3,
+8,133,8,8,1,8,1,8,1,9,1,9,1,9,1,9,1,10,1,10,3,10,143,8,10,1,10,1,10,1,10,
+1,11,1,11,1,11,3,11,151,8,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,
+3,11,162,8,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,1,11,3,11,
+175,8,11,1,11,1,11,1,11,1,11,3,11,181,8,11,1,12,1,12,1,12,1,12,3,12,187,
+8,12,1,12,3,12,190,8,12,1,13,1,13,1,13,1,13,1,13,1,13,3,13,198,8,13,1,13,
+1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,
+13,1,13,1,13,1,13,5,13,219,8,13,10,13,12,13,222,9,13,1,14,1,14,1,14,1,14,
+1,14,3,14,229,8,14,1,14,1,14,1,14,1,14,1,14,1,14,3,14,237,8,14,1,15,1,15,
+1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,
+15,3,15,256,8,15,1,16,1,16,1,16,1,16,1,16,5,16,263,8,16,10,16,12,16,266,
+9,16,3,16,268,8,16,1,16,1,16,1,17,1,17,1,17,1,17,5,17,276,8,17,10,17,12,
+17,279,9,17,3,17,281,8,17,1,17,1,17,1,18,1,18,1,18,1,18,1,19,1,19,1,20,1,
+20,1,20,1,20,1,20,1,20,3,20,297,8,20,1,20,1,20,1,20,1,20,1,20,1,20,5,20,
+305,8,20,10,20,12,20,308,9,20,3,20,310,8,20,1,20,3,20,313,8,20,1,21,1,21,
+1,21,0,2,6,26,22,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,
+40,42,0,5,1,0,8,10,2,0,7,7,11,11,1,0,40,41,1,0,49,50,1,0,18,23,352,0,47,
+1,0,0,0,2,60,1,0,0,0,4,62,1,0,0,0,6,70,1,0,0,0,8,83,1,0,0,0,10,86,1,0,0,
+0,12,106,1,0,0,0,14,117,1,0,0,0,16,125,1,0,0,0,18,136,1,0,0,0,20,140,1,0,
+0,0,22,180,1,0,0,0,24,189,1,0,0,0,26,197,1,0,0,0,28,236,1,0,0,0,30,255,1,
+0,0,0,32,257,1,0,0,0,34,271,1,0,0,0,36,284,1,0,0,0,38,288,1,0,0,0,40,312,
+1,0,0,0,42,314,1,0,0,0,44,46,3,2,1,0,45,44,1,0,0,0,46,49,1,0,0,0,47,45,1,
+0,0,0,47,48,1,0,0,0,48,50,1,0,0,0,49,47,1,0,0,0,50,51,5,0,0,1,51,1,1,0,0,
+0,52,61,3,4,2,0,53,61,3,10,5,0,54,61,3,22,11,0,55,61,3,12,6,0,56,61,3,16,
+8,0,57,61,3,20,10,0,58,61,3,24,12,0,59,61,3,26,13,0,60,52,1,0,0,0,60,53,
+1,0,0,0,60,54,1,0,0,0,60,55,1,0,0,0,60,56,1,0,0,0,60,57,1,0,0,0,60,58,1,
+0,0,0,60,59,1,0,0,0,61,3,1,0,0,0,62,63,3,6,3,0,63,64,5,1,0,0,64,65,3,26,
+13,0,65,5,1,0,0,0,66,67,6,3,-1,0,67,71,5,48,0,0,68,69,5,47,0,0,69,71,5,48,
+0,0,70,66,1,0,0,0,70,68,1,0,0,0,71,77,1,0,0,0,72,73,10,1,0,0,73,74,5,2,0,
+0,74,76,3,28,14,0,75,72,1,0,0,0,76,79,1,0,0,0,77,75,1,0,0,0,77,78,1,0,0,
+0,78,7,1,0,0,0,79,77,1,0,0,0,80,82,3,2,1,0,81,80,1,0,0,0,82,85,1,0,0,0,83,
+81,1,0,0,0,83,84,1,0,0,0,84,9,1,0,0,0,85,83,1,0,0,0,86,87,5,24,0,0,87,88,
+3,26,13,0,88,89,5,25,0,0,89,97,3,8,4,0,90,91,5,26,0,0,91,92,3,26,13,0,92,
+93,5,25,0,0,93,94,3,8,4,0,94,96,1,0,0,0,95,90,1,0,0,0,96,99,1,0,0,0,97,95,
+1,0,0,0,97,98,1,0,0,0,98,102,1,0,0,0,99,97,1,0,0,0,100,101,5,27,0,0,101,
+103,3,8,4,0,102,100,1,0,0,0,102,103,1,0,0,0,103,104,1,0,0,0,104,105,5,28,
+0,0,105,11,1,0,0,0,106,107,5,34,0,0,107,108,5,48,0,0,108,110,5,3,0,0,109,
+111,3,14,7,0,110,109,1,0,0,0,110,111,1,0,0,0,111,112,1,0,0,0,112,113,5,4,
+0,0,113,114,5,31,0,0,114,115,3,8,4,0,115,116,5,28,0,0,116,13,1,0,0,0,117,
+122,5,48,0,0,118,119,5,5,0,0,119,121,5,48,0,0,120,118,1,0,0,0,121,124,1,
+0,0,0,122,120,1,0,0,0,122,123,1,0,0,0,123,15,1,0,0,0,124,122,1,0,0,0,125,
+127,5,44,0,0,126,128,5,48,0,0,127,126,1,0,0,0,127,128,1,0,0,0,128,129,1,
+0,0,0,129,130,5,31,0,0,130,132,3,8,4,0,131,133,3,18,9,0,132,131,1,0,0,0,
+132,133,1,0,0,0,133,134,1,0,0,0,134,135,5,28,0,0,135,17,1,0,0,0,136,137,
+5,45,0,0,137,138,5,49,0,0,138,139,3,8,4,0,139,19,1,0,0,0,140,142,5,35,0,
+0,141,143,3,28,14,0,142,141,1,0,0,0,142,143,1,0,0,0,143,144,1,0,0,0,144,
+145,5,6,0,0,145,146,3,32,16,0,146,21,1,0,0,0,147,148,5,29,0,0,148,150,3,
+26,13,0,149,151,5,43,0,0,150,149,1,0,0,0,150,151,1,0,0,0,151,152,1,0,0,0,
+152,153,5,31,0,0,153,154,3,8,4,0,154,155,5,28,0,0,155,181,1,0,0,0,156,157,
+5,29,0,0,157,158,5,48,0,0,158,159,5,30,0,0,159,161,3,26,13,0,160,162,5,43,
+0,0,161,160,1,0,0,0,161,162,1,0,0,0,162,163,1,0,0,0,163,164,5,31,0,0,164,
+165,3,8,4,0,165,166,5,28,0,0,166,181,1,0,0,0,167,168,5,29,0,0,168,169,5,
+48,0,0,169,170,5,5,0,0,170,171,5,48,0,0,171,172,5,30,0,0,172,174,3,26,13,
+0,173,175,5,43,0,0,174,173,1,0,0,0,174,175,1,0,0,0,175,176,1,0,0,0,176,177,
+5,31,0,0,177,178,3,8,4,0,178,179,5,28,0,0,179,181,1,0,0,0,180,147,1,0,0,
+0,180,156,1,0,0,0,180,167,1,0,0,0,181,23,1,0,0,0,182,190,5,32,0,0,183,190,
+5,33,0,0,184,186,5,36,0,0,185,187,3,26,13,0,186,185,1,0,0,0,186,187,1,0,
+0,0,187,190,1,0,0,0,188,190,5,46,0,0,189,182,1,0,0,0,189,183,1,0,0,0,189,
+184,1,0,0,0,189,188,1,0,0,0,190,25,1,0,0,0,191,192,6,13,-1,0,192,198,3,30,
+15,0,193,194,5,7,0,0,194,198,3,26,13,7,195,196,5,37,0,0,196,198,3,26,13,
+6,197,191,1,0,0,0,197,193,1,0,0,0,197,195,1,0,0,0,198,220,1,0,0,0,199,200,
+10,5,0,0,200,201,7,0,0,0,201,219,3,26,13,6,202,203,10,4,0,0,203,204,7,1,
+0,0,204,219,3,26,13,5,205,206,10,3,0,0,206,207,3,42,21,0,207,208,3,26,13,
+4,208,219,1,0,0,0,209,210,10,2,0,0,210,211,5,38,0,0,211,219,3,26,13,3,212,
+213,10,1,0,0,213,214,5,39,0,0,214,219,3,26,13,2,215,216,10,8,0,0,216,217,
+5,2,0,0,217,219,3,28,14,0,218,199,1,0,0,0,218,202,1,0,0,0,218,205,1,0,0,
+0,218,209,1,0,0,0,218,212,1,0,0,0,218,215,1,0,0,0,219,222,1,0,0,0,220,218,
+1,0,0,0,220,221,1,0,0,0,221,27,1,0,0,0,222,220,1,0,0,0,223,237,5,48,0,0,
+224,237,5,49,0,0,225,237,5,50,0,0,226,228,5,12,0,0,227,229,5,47,0,0,228,
+227,1,0,0,0,228,229,1,0,0,0,229,230,1,0,0,0,230,237,5,48,0,0,231,232,5,12,
+0,0,232,233,5,3,0,0,233,234,3,26,13,0,234,235,5,4,0,0,235,237,1,0,0,0,236,
+223,1,0,0,0,236,224,1,0,0,0,236,225,1,0,0,0,236,226,1,0,0,0,236,231,1,0,
+0,0,237,29,1,0,0,0,238,256,3,32,16,0,239,240,5,47,0,0,240,256,5,48,0,0,241,
+256,5,48,0,0,242,243,5,49,0,0,243,244,5,2,0,0,244,256,5,49,0,0,245,256,5,
+49,0,0,246,256,5,50,0,0,247,256,7,2,0,0,248,256,5,42,0,0,249,256,3,34,17,
+0,250,256,3,40,20,0,251,252,5,3,0,0,252,253,3,26,13,0,253,254,5,4,0,0,254,
+256,1,0,0,0,255,238,1,0,0,0,255,239,1,0,0,0,255,241,1,0,0,0,255,242,1,0,
+0,0,255,245,1,0,0,0,255,246,1,0,0,0,255,247,1,0,0,0,255,248,1,0,0,0,255,
+249,1,0,0,0,255,250,1,0,0,0,255,251,1,0,0,0,256,31,1,0,0,0,257,258,5,48,
+0,0,258,267,5,3,0,0,259,264,3,26,13,0,260,261,5,5,0,0,261,263,3,26,13,0,
+262,260,1,0,0,0,263,266,1,0,0,0,264,262,1,0,0,0,264,265,1,0,0,0,265,268,
+1,0,0,0,266,264,1,0,0,0,267,259,1,0,0,0,267,268,1,0,0,0,268,269,1,0,0,0,
+269,270,5,4,0,0,270,33,1,0,0,0,271,280,5,13,0,0,272,277,3,36,18,0,273,274,
+5,5,0,0,274,276,3,36,18,0,275,273,1,0,0,0,276,279,1,0,0,0,277,275,1,0,0,
+0,277,278,1,0,0,0,278,281,1,0,0,0,279,277,1,0,0,0,280,272,1,0,0,0,280,281,
+1,0,0,0,281,282,1,0,0,0,282,283,5,14,0,0,283,35,1,0,0,0,284,285,3,38,19,
+0,285,286,5,6,0,0,286,287,3,26,13,0,287,37,1,0,0,0,288,289,7,3,0,0,289,39,
+1,0,0,0,290,291,5,15,0,0,291,292,3,26,13,0,292,293,5,16,0,0,293,296,3,26,
+13,0,294,295,5,5,0,0,295,297,3,26,13,0,296,294,1,0,0,0,296,297,1,0,0,0,297,
+298,1,0,0,0,298,299,5,17,0,0,299,313,1,0,0,0,300,309,5,15,0,0,301,306,3,
+26,13,0,302,303,5,5,0,0,303,305,3,26,13,0,304,302,1,0,0,0,305,308,1,0,0,
+0,306,304,1,0,0,0,306,307,1,0,0,0,307,310,1,0,0,0,308,306,1,0,0,0,309,301,
+1,0,0,0,309,310,1,0,0,0,310,311,1,0,0,0,311,313,5,17,0,0,312,290,1,0,0,0,
+312,300,1,0,0,0,313,41,1,0,0,0,314,315,7,4,0,0,315,43,1,0,0,0,32,47,60,70,
+77,83,97,102,110,122,127,132,142,150,161,174,180,186,189,197,218,220,228,
+236,255,264,267,277,280,296,306,309,312];
 
 
 const atn = new antlr4.atn.ATNDeserializer().deserialize(serializedATN);
@@ -118,22 +121,22 @@ export default class ProperTeeParser extends antlr4.Parser {
     static literalNames = [ null, "'='", "'.'", "'('", "')'", "','", "':'", 
                             "'-'", "'*'", "'/'", "'%'", "'+'", "'$'", "'{'", 
                             "'}'", "'['", "'..'", "']'", "'>'", "'<'", "'=='", 
-                            "'>='", "'<='", "'!='", "'if'", "'then'", "'else'", 
-                            "'end'", "'loop'", "'in'", "'do'", "'break'", 
-                            "'continue'", "'function'", "'thread'", "'return'", 
-                            "'not'", "'and'", "'or'", "'true'", "'false'", 
-                            "'null'", "'infinite'", "'multi'", "'monitor'", 
-                            "'debug'", "'::'" ];
+                            "'>='", "'<='", "'!='", "'if'", "'then'", "'elseif'", 
+                            "'else'", "'end'", "'loop'", "'in'", "'do'", 
+                            "'break'", "'continue'", "'function'", "'thread'", 
+                            "'return'", "'not'", "'and'", "'or'", "'true'", 
+                            "'false'", "'null'", "'infinite'", "'multi'", 
+                            "'monitor'", "'debug'", "'::'" ];
     static symbolicNames = [ null, null, null, null, null, null, null, null, 
                              null, null, null, null, null, null, null, null, 
                              null, null, null, null, null, null, null, null, 
-                             "K_IF", "K_THEN", "K_ELSE", "K_END", "K_LOOP", 
-                             "K_IN", "K_DO", "K_BREAK", "K_CONTINUE", "K_FUNCTION", 
-                             "K_SPAWN", "K_RETURN", "K_NOT", "K_AND", "K_OR", 
-                             "K_TRUE", "K_FALSE", "K_NULL", "K_INFINITE", 
-                             "K_MULTI", "K_MONITOR", "K_DEBUG", "GLOBAL_PREFIX", 
-                             "ID", "INTEGER", "STRING", "COMMENT", "BLOCK_COMMENT", 
-                             "WS" ];
+                             "K_IF", "K_THEN", "K_ELSEIF", "K_ELSE", "K_END", 
+                             "K_LOOP", "K_IN", "K_DO", "K_BREAK", "K_CONTINUE", 
+                             "K_FUNCTION", "K_SPAWN", "K_RETURN", "K_NOT", 
+                             "K_AND", "K_OR", "K_TRUE", "K_FALSE", "K_NULL", 
+                             "K_INFINITE", "K_MULTI", "K_MONITOR", "K_DEBUG", 
+                             "GLOBAL_PREFIX", "ID", "INTEGER", "STRING", 
+                             "COMMENT", "BLOCK_COMMENT", "WS" ];
     static ruleNames = [ "root", "statement", "assignment", "lvalue", "block", 
                          "ifStatement", "functionDef", "parameterList", 
                          "parallelStmt", "monitorClause", "spawnStmt", "iterationStmt", 
@@ -200,7 +203,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.state = 47;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        while((((_la) & ~0x1f) === 0 && ((1 << _la) & 2432737416) !== 0) || ((((_la - 32)) & ~0x1f) === 0 && ((1 << (_la - 32)) & 256927) !== 0)) {
+	        while((((_la) & ~0x1f) === 0 && ((1 << _la) & 553689224) !== 0) || ((((_la - 32)) & ~0x1f) === 0 && ((1 << (_la - 32)) & 513855) !== 0)) {
 	            this.state = 44;
 	            this.statement();
 	            this.state = 49;
@@ -347,7 +350,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.state = 70;
 	        this._errHandler.sync(this);
 	        switch(this._input.LA(1)) {
-	        case 47:
+	        case 48:
 	            localctx = new VarLValueContext(this, localctx);
 	            this._ctx = localctx;
 	            _prevctx = localctx;
@@ -355,7 +358,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	            this.state = 67;
 	            this.match(ProperTeeParser.ID);
 	            break;
-	        case 46:
+	        case 47:
 	            localctx = new GlobalVarLValueContext(this, localctx);
 	            this._ctx = localctx;
 	            _prevctx = localctx;
@@ -418,7 +421,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.state = 83;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        while((((_la) & ~0x1f) === 0 && ((1 << _la) & 2432737416) !== 0) || ((((_la - 32)) & ~0x1f) === 0 && ((1 << (_la - 32)) & 256927) !== 0)) {
+	        while((((_la) & ~0x1f) === 0 && ((1 << _la) & 553689224) !== 0) || ((((_la - 32)) & ~0x1f) === 0 && ((1 << (_la - 32)) & 513855) !== 0)) {
 	            this.state = 80;
 	            this.statement();
 	            this.state = 85;
@@ -455,17 +458,35 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        this.match(ProperTeeParser.K_THEN);
 	        this.state = 89;
 	        localctx.thenBody = this.block();
-	        this.state = 92;
+	        this.state = 97;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===26) {
+	        while(_la===26) {
 	            this.state = 90;
-	            this.match(ProperTeeParser.K_ELSE);
+	            this.match(ProperTeeParser.K_ELSEIF);
 	            this.state = 91;
+	            localctx._expression = this.expression(0);
+	            localctx.elseifConds.push(localctx._expression);
+	            this.state = 92;
+	            this.match(ProperTeeParser.K_THEN);
+	            this.state = 93;
+	            localctx._block = this.block();
+	            localctx.elseifBodies.push(localctx._block);
+	            this.state = 99;
+	            this._errHandler.sync(this);
+	            _la = this._input.LA(1);
+	        }
+	        this.state = 102;
+	        this._errHandler.sync(this);
+	        _la = this._input.LA(1);
+	        if(_la===27) {
+	            this.state = 100;
+	            this.match(ProperTeeParser.K_ELSE);
+	            this.state = 101;
 	            localctx.elseBody = this.block();
 	        }
 
-	        this.state = 94;
+	        this.state = 104;
 	        this.match(ProperTeeParser.K_END);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -489,27 +510,27 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 96;
+	        this.state = 106;
 	        this.match(ProperTeeParser.K_FUNCTION);
-	        this.state = 97;
+	        this.state = 107;
 	        localctx.funcName = this.match(ProperTeeParser.ID);
-	        this.state = 98;
+	        this.state = 108;
 	        this.match(ProperTeeParser.T__2);
-	        this.state = 100;
+	        this.state = 110;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===47) {
-	            this.state = 99;
+	        if(_la===48) {
+	            this.state = 109;
 	            this.parameterList();
 	        }
 
-	        this.state = 102;
+	        this.state = 112;
 	        this.match(ProperTeeParser.T__3);
-	        this.state = 103;
+	        this.state = 113;
 	        this.match(ProperTeeParser.K_DO);
-	        this.state = 104;
+	        this.state = 114;
 	        this.block();
-	        this.state = 105;
+	        this.state = 115;
 	        this.match(ProperTeeParser.K_END);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -533,17 +554,17 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 107;
+	        this.state = 117;
 	        this.match(ProperTeeParser.ID);
-	        this.state = 112;
+	        this.state = 122;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
 	        while(_la===5) {
-	            this.state = 108;
+	            this.state = 118;
 	            this.match(ProperTeeParser.T__4);
-	            this.state = 109;
+	            this.state = 119;
 	            this.match(ProperTeeParser.ID);
-	            this.state = 114;
+	            this.state = 124;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
 	        }
@@ -569,29 +590,29 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 115;
+	        this.state = 125;
 	        this.match(ProperTeeParser.K_MULTI);
-	        this.state = 117;
+	        this.state = 127;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===47) {
-	            this.state = 116;
+	        if(_la===48) {
+	            this.state = 126;
 	            localctx.resultVar = this.match(ProperTeeParser.ID);
 	        }
 
-	        this.state = 119;
+	        this.state = 129;
 	        this.match(ProperTeeParser.K_DO);
-	        this.state = 120;
+	        this.state = 130;
 	        this.block();
-	        this.state = 122;
+	        this.state = 132;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===44) {
-	            this.state = 121;
+	        if(_la===45) {
+	            this.state = 131;
 	            this.monitorClause();
 	        }
 
-	        this.state = 124;
+	        this.state = 134;
 	        this.match(ProperTeeParser.K_END);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -614,11 +635,11 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 18, ProperTeeParser.RULE_monitorClause);
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 126;
+	        this.state = 136;
 	        this.match(ProperTeeParser.K_MONITOR);
-	        this.state = 127;
+	        this.state = 137;
 	        this.match(ProperTeeParser.INTEGER);
-	        this.state = 128;
+	        this.state = 138;
 	        this.block();
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -643,19 +664,19 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    try {
 	        localctx = new SpawnKeyStmtContext(this, localctx);
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 130;
+	        this.state = 140;
 	        this.match(ProperTeeParser.K_SPAWN);
-	        this.state = 132;
+	        this.state = 142;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===12 || ((((_la - 47)) & ~0x1f) === 0 && ((1 << (_la - 47)) & 7) !== 0)) {
-	            this.state = 131;
+	        if(_la===12 || ((((_la - 48)) & ~0x1f) === 0 && ((1 << (_la - 48)) & 7) !== 0)) {
+	            this.state = 141;
 	            this.access();
 	        }
 
-	        this.state = 134;
+	        this.state = 144;
 	        this.match(ProperTeeParser.T__5);
-	        this.state = 135;
+	        this.state = 145;
 	        this.functionCall();
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -678,88 +699,88 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 22, ProperTeeParser.RULE_iterationStmt);
 	    var _la = 0;
 	    try {
-	        this.state = 170;
+	        this.state = 180;
 	        this._errHandler.sync(this);
-	        var la_ = this._interp.adaptivePredict(this._input,14,this._ctx);
+	        var la_ = this._interp.adaptivePredict(this._input,15,this._ctx);
 	        switch(la_) {
 	        case 1:
 	            localctx = new ConditionLoopContext(this, localctx);
 	            this.enterOuterAlt(localctx, 1);
-	            this.state = 137;
+	            this.state = 147;
 	            this.match(ProperTeeParser.K_LOOP);
-	            this.state = 138;
+	            this.state = 148;
 	            this.expression(0);
-	            this.state = 140;
+	            this.state = 150;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
-	            if(_la===42) {
-	                this.state = 139;
+	            if(_la===43) {
+	                this.state = 149;
 	                this.match(ProperTeeParser.K_INFINITE);
 	            }
 
-	            this.state = 142;
+	            this.state = 152;
 	            this.match(ProperTeeParser.K_DO);
-	            this.state = 143;
+	            this.state = 153;
 	            this.block();
-	            this.state = 144;
+	            this.state = 154;
 	            this.match(ProperTeeParser.K_END);
 	            break;
 
 	        case 2:
 	            localctx = new ValueLoopContext(this, localctx);
 	            this.enterOuterAlt(localctx, 2);
-	            this.state = 146;
+	            this.state = 156;
 	            this.match(ProperTeeParser.K_LOOP);
-	            this.state = 147;
+	            this.state = 157;
 	            localctx.value = this.match(ProperTeeParser.ID);
-	            this.state = 148;
+	            this.state = 158;
 	            this.match(ProperTeeParser.K_IN);
-	            this.state = 149;
+	            this.state = 159;
 	            this.expression(0);
-	            this.state = 151;
+	            this.state = 161;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
-	            if(_la===42) {
-	                this.state = 150;
+	            if(_la===43) {
+	                this.state = 160;
 	                this.match(ProperTeeParser.K_INFINITE);
 	            }
 
-	            this.state = 153;
+	            this.state = 163;
 	            this.match(ProperTeeParser.K_DO);
-	            this.state = 154;
+	            this.state = 164;
 	            this.block();
-	            this.state = 155;
+	            this.state = 165;
 	            this.match(ProperTeeParser.K_END);
 	            break;
 
 	        case 3:
 	            localctx = new KeyValueLoopContext(this, localctx);
 	            this.enterOuterAlt(localctx, 3);
-	            this.state = 157;
+	            this.state = 167;
 	            this.match(ProperTeeParser.K_LOOP);
-	            this.state = 158;
+	            this.state = 168;
 	            localctx.key = this.match(ProperTeeParser.ID);
-	            this.state = 159;
+	            this.state = 169;
 	            this.match(ProperTeeParser.T__4);
-	            this.state = 160;
+	            this.state = 170;
 	            localctx.value = this.match(ProperTeeParser.ID);
-	            this.state = 161;
+	            this.state = 171;
 	            this.match(ProperTeeParser.K_IN);
-	            this.state = 162;
+	            this.state = 172;
 	            this.expression(0);
-	            this.state = 164;
+	            this.state = 174;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
-	            if(_la===42) {
-	                this.state = 163;
+	            if(_la===43) {
+	                this.state = 173;
 	                this.match(ProperTeeParser.K_INFINITE);
 	            }
 
-	            this.state = 166;
+	            this.state = 176;
 	            this.match(ProperTeeParser.K_DO);
-	            this.state = 167;
+	            this.state = 177;
 	            this.block();
-	            this.state = 168;
+	            this.state = 178;
 	            this.match(ProperTeeParser.K_END);
 	            break;
 
@@ -784,39 +805,39 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    let localctx = new FlowControlContext(this, this._ctx, this.state);
 	    this.enterRule(localctx, 24, ProperTeeParser.RULE_flowControl);
 	    try {
-	        this.state = 179;
+	        this.state = 189;
 	        this._errHandler.sync(this);
 	        switch(this._input.LA(1)) {
-	        case 31:
+	        case 32:
 	            localctx = new BreakStmtContext(this, localctx);
 	            this.enterOuterAlt(localctx, 1);
-	            this.state = 172;
+	            this.state = 182;
 	            this.match(ProperTeeParser.K_BREAK);
 	            break;
-	        case 32:
+	        case 33:
 	            localctx = new ContinueStmtContext(this, localctx);
 	            this.enterOuterAlt(localctx, 2);
-	            this.state = 173;
+	            this.state = 183;
 	            this.match(ProperTeeParser.K_CONTINUE);
 	            break;
-	        case 35:
+	        case 36:
 	            localctx = new ReturnStmtContext(this, localctx);
 	            this.enterOuterAlt(localctx, 3);
-	            this.state = 174;
+	            this.state = 184;
 	            this.match(ProperTeeParser.K_RETURN);
-	            this.state = 176;
+	            this.state = 186;
 	            this._errHandler.sync(this);
-	            var la_ = this._interp.adaptivePredict(this._input,15,this._ctx);
+	            var la_ = this._interp.adaptivePredict(this._input,16,this._ctx);
 	            if(la_===1) {
-	                this.state = 175;
+	                this.state = 185;
 	                this.expression(0);
 
 	            }
 	            break;
-	        case 45:
+	        case 46:
 	            localctx = new DebugStmtContext(this, localctx);
 	            this.enterOuterAlt(localctx, 4);
-	            this.state = 178;
+	            this.state = 188;
 	            this.match(ProperTeeParser.K_DEBUG);
 	            break;
 	        default:
@@ -850,69 +871,69 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 187;
+	        this.state = 197;
 	        this._errHandler.sync(this);
 	        switch(this._input.LA(1)) {
 	        case 3:
 	        case 13:
 	        case 15:
-	        case 39:
 	        case 40:
 	        case 41:
-	        case 46:
+	        case 42:
 	        case 47:
 	        case 48:
 	        case 49:
+	        case 50:
 	            localctx = new AtomExprContext(this, localctx);
 	            this._ctx = localctx;
 	            _prevctx = localctx;
 
-	            this.state = 182;
+	            this.state = 192;
 	            this.atom();
 	            break;
 	        case 7:
 	            localctx = new UnaryMinusExprContext(this, localctx);
 	            this._ctx = localctx;
 	            _prevctx = localctx;
-	            this.state = 183;
+	            this.state = 193;
 	            this.match(ProperTeeParser.T__6);
-	            this.state = 184;
+	            this.state = 194;
 	            this.expression(7);
 	            break;
-	        case 36:
+	        case 37:
 	            localctx = new NotExprContext(this, localctx);
 	            this._ctx = localctx;
 	            _prevctx = localctx;
-	            this.state = 185;
+	            this.state = 195;
 	            this.match(ProperTeeParser.K_NOT);
-	            this.state = 186;
+	            this.state = 196;
 	            this.expression(6);
 	            break;
 	        default:
 	            throw new antlr4.error.NoViableAltException(this);
 	        }
 	        this._ctx.stop = this._input.LT(-1);
-	        this.state = 210;
+	        this.state = 220;
 	        this._errHandler.sync(this);
-	        var _alt = this._interp.adaptivePredict(this._input,19,this._ctx)
+	        var _alt = this._interp.adaptivePredict(this._input,20,this._ctx)
 	        while(_alt!=2 && _alt!=antlr4.atn.ATN.INVALID_ALT_NUMBER) {
 	            if(_alt===1) {
 	                if(this._parseListeners!==null) {
 	                    this.triggerExitRuleEvent();
 	                }
 	                _prevctx = localctx;
-	                this.state = 208;
+	                this.state = 218;
 	                this._errHandler.sync(this);
-	                var la_ = this._interp.adaptivePredict(this._input,18,this._ctx);
+	                var la_ = this._interp.adaptivePredict(this._input,19,this._ctx);
 	                switch(la_) {
 	                case 1:
 	                    localctx = new MultiplicativeExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 189;
+	                    this.state = 199;
 	                    if (!( this.precpred(this._ctx, 5))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 5)");
 	                    }
-	                    this.state = 190;
+	                    this.state = 200;
 	                    _la = this._input.LA(1);
 	                    if(!((((_la) & ~0x1f) === 0 && ((1 << _la) & 1792) !== 0))) {
 	                    this._errHandler.recoverInline(this);
@@ -921,18 +942,18 @@ export default class ProperTeeParser extends antlr4.Parser {
 	                    	this._errHandler.reportMatch(this);
 	                        this.consume();
 	                    }
-	                    this.state = 191;
+	                    this.state = 201;
 	                    this.expression(6);
 	                    break;
 
 	                case 2:
 	                    localctx = new AdditiveExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 192;
+	                    this.state = 202;
 	                    if (!( this.precpred(this._ctx, 4))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 4)");
 	                    }
-	                    this.state = 193;
+	                    this.state = 203;
 	                    _la = this._input.LA(1);
 	                    if(!(_la===7 || _la===11)) {
 	                    this._errHandler.recoverInline(this);
@@ -941,67 +962,67 @@ export default class ProperTeeParser extends antlr4.Parser {
 	                    	this._errHandler.reportMatch(this);
 	                        this.consume();
 	                    }
-	                    this.state = 194;
+	                    this.state = 204;
 	                    this.expression(5);
 	                    break;
 
 	                case 3:
 	                    localctx = new ComparisonExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 195;
+	                    this.state = 205;
 	                    if (!( this.precpred(this._ctx, 3))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 3)");
 	                    }
-	                    this.state = 196;
+	                    this.state = 206;
 	                    localctx.op = this.comparisonOp();
-	                    this.state = 197;
+	                    this.state = 207;
 	                    this.expression(4);
 	                    break;
 
 	                case 4:
 	                    localctx = new AndExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 199;
+	                    this.state = 209;
 	                    if (!( this.precpred(this._ctx, 2))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 2)");
 	                    }
-	                    this.state = 200;
+	                    this.state = 210;
 	                    this.match(ProperTeeParser.K_AND);
-	                    this.state = 201;
+	                    this.state = 211;
 	                    this.expression(3);
 	                    break;
 
 	                case 5:
 	                    localctx = new OrExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 202;
+	                    this.state = 212;
 	                    if (!( this.precpred(this._ctx, 1))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 1)");
 	                    }
-	                    this.state = 203;
+	                    this.state = 213;
 	                    this.match(ProperTeeParser.K_OR);
-	                    this.state = 204;
+	                    this.state = 214;
 	                    this.expression(2);
 	                    break;
 
 	                case 6:
 	                    localctx = new MemberAccessExprContext(this, new ExpressionContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, ProperTeeParser.RULE_expression);
-	                    this.state = 205;
+	                    this.state = 215;
 	                    if (!( this.precpred(this._ctx, 8))) {
 	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 8)");
 	                    }
-	                    this.state = 206;
+	                    this.state = 216;
 	                    this.match(ProperTeeParser.T__1);
-	                    this.state = 207;
+	                    this.state = 217;
 	                    this.access();
 	                    break;
 
 	                } 
 	            }
-	            this.state = 212;
+	            this.state = 222;
 	            this._errHandler.sync(this);
-	            _alt = this._interp.adaptivePredict(this._input,19,this._ctx);
+	            _alt = this._interp.adaptivePredict(this._input,20,this._ctx);
 	        }
 
 	    } catch( error) {
@@ -1025,58 +1046,58 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 28, ProperTeeParser.RULE_access);
 	    var _la = 0;
 	    try {
-	        this.state = 226;
+	        this.state = 236;
 	        this._errHandler.sync(this);
-	        var la_ = this._interp.adaptivePredict(this._input,21,this._ctx);
+	        var la_ = this._interp.adaptivePredict(this._input,22,this._ctx);
 	        switch(la_) {
 	        case 1:
 	            localctx = new StaticAccessContext(this, localctx);
 	            this.enterOuterAlt(localctx, 1);
-	            this.state = 213;
+	            this.state = 223;
 	            this.match(ProperTeeParser.ID);
 	            break;
 
 	        case 2:
 	            localctx = new ArrayAccessContext(this, localctx);
 	            this.enterOuterAlt(localctx, 2);
-	            this.state = 214;
+	            this.state = 224;
 	            this.match(ProperTeeParser.INTEGER);
 	            break;
 
 	        case 3:
 	            localctx = new StringKeyAccessContext(this, localctx);
 	            this.enterOuterAlt(localctx, 3);
-	            this.state = 215;
+	            this.state = 225;
 	            this.match(ProperTeeParser.STRING);
 	            break;
 
 	        case 4:
 	            localctx = new VarEvalAccessContext(this, localctx);
 	            this.enterOuterAlt(localctx, 4);
-	            this.state = 216;
+	            this.state = 226;
 	            this.match(ProperTeeParser.T__11);
-	            this.state = 218;
+	            this.state = 228;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
-	            if(_la===46) {
-	                this.state = 217;
+	            if(_la===47) {
+	                this.state = 227;
 	                this.match(ProperTeeParser.GLOBAL_PREFIX);
 	            }
 
-	            this.state = 220;
+	            this.state = 230;
 	            this.match(ProperTeeParser.ID);
 	            break;
 
 	        case 5:
 	            localctx = new EvalAccessContext(this, localctx);
 	            this.enterOuterAlt(localctx, 5);
-	            this.state = 221;
+	            this.state = 231;
 	            this.match(ProperTeeParser.T__11);
-	            this.state = 222;
+	            this.state = 232;
 	            this.match(ProperTeeParser.T__2);
-	            this.state = 223;
+	            this.state = 233;
 	            this.expression(0);
-	            this.state = 224;
+	            this.state = 234;
 	            this.match(ProperTeeParser.T__3);
 	            break;
 
@@ -1102,64 +1123,64 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 30, ProperTeeParser.RULE_atom);
 	    var _la = 0;
 	    try {
-	        this.state = 245;
+	        this.state = 255;
 	        this._errHandler.sync(this);
-	        var la_ = this._interp.adaptivePredict(this._input,22,this._ctx);
+	        var la_ = this._interp.adaptivePredict(this._input,23,this._ctx);
 	        switch(la_) {
 	        case 1:
 	            localctx = new FuncAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 1);
-	            this.state = 228;
+	            this.state = 238;
 	            this.functionCall();
 	            break;
 
 	        case 2:
 	            localctx = new GlobalVarReferenceContext(this, localctx);
 	            this.enterOuterAlt(localctx, 2);
-	            this.state = 229;
+	            this.state = 239;
 	            this.match(ProperTeeParser.GLOBAL_PREFIX);
-	            this.state = 230;
+	            this.state = 240;
 	            this.match(ProperTeeParser.ID);
 	            break;
 
 	        case 3:
 	            localctx = new VarReferenceContext(this, localctx);
 	            this.enterOuterAlt(localctx, 3);
-	            this.state = 231;
+	            this.state = 241;
 	            this.match(ProperTeeParser.ID);
 	            break;
 
 	        case 4:
 	            localctx = new DecimalAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 4);
-	            this.state = 232;
+	            this.state = 242;
 	            this.match(ProperTeeParser.INTEGER);
-	            this.state = 233;
+	            this.state = 243;
 	            this.match(ProperTeeParser.T__1);
-	            this.state = 234;
+	            this.state = 244;
 	            this.match(ProperTeeParser.INTEGER);
 	            break;
 
 	        case 5:
 	            localctx = new IntegerAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 5);
-	            this.state = 235;
+	            this.state = 245;
 	            this.match(ProperTeeParser.INTEGER);
 	            break;
 
 	        case 6:
 	            localctx = new StringAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 6);
-	            this.state = 236;
+	            this.state = 246;
 	            this.match(ProperTeeParser.STRING);
 	            break;
 
 	        case 7:
 	            localctx = new BooleanAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 7);
-	            this.state = 237;
+	            this.state = 247;
 	            _la = this._input.LA(1);
-	            if(!(_la===39 || _la===40)) {
+	            if(!(_la===40 || _la===41)) {
 	            this._errHandler.recoverInline(this);
 	            }
 	            else {
@@ -1171,32 +1192,32 @@ export default class ProperTeeParser extends antlr4.Parser {
 	        case 8:
 	            localctx = new NullAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 8);
-	            this.state = 238;
+	            this.state = 248;
 	            this.match(ProperTeeParser.K_NULL);
 	            break;
 
 	        case 9:
 	            localctx = new ObjectAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 9);
-	            this.state = 239;
+	            this.state = 249;
 	            this.objectLiteral();
 	            break;
 
 	        case 10:
 	            localctx = new ArrayAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 10);
-	            this.state = 240;
+	            this.state = 250;
 	            this.arrayLiteral();
 	            break;
 
 	        case 11:
 	            localctx = new ParenAtomContext(this, localctx);
 	            this.enterOuterAlt(localctx, 11);
-	            this.state = 241;
+	            this.state = 251;
 	            this.match(ProperTeeParser.T__2);
-	            this.state = 242;
+	            this.state = 252;
 	            this.expression(0);
-	            this.state = 243;
+	            this.state = 253;
 	            this.match(ProperTeeParser.T__3);
 	            break;
 
@@ -1223,31 +1244,31 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 247;
-	        localctx.funcName = this.match(ProperTeeParser.ID);
-	        this.state = 248;
-	        this.match(ProperTeeParser.T__2);
 	        this.state = 257;
+	        localctx.funcName = this.match(ProperTeeParser.ID);
+	        this.state = 258;
+	        this.match(ProperTeeParser.T__2);
+	        this.state = 267;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if((((_la) & ~0x1f) === 0 && ((1 << _la) & 41096) !== 0) || ((((_la - 36)) & ~0x1f) === 0 && ((1 << (_la - 36)) & 15417) !== 0)) {
-	            this.state = 249;
+	        if((((_la) & ~0x1f) === 0 && ((1 << _la) & 41096) !== 0) || ((((_la - 37)) & ~0x1f) === 0 && ((1 << (_la - 37)) & 15417) !== 0)) {
+	            this.state = 259;
 	            this.expression(0);
-	            this.state = 254;
+	            this.state = 264;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
 	            while(_la===5) {
-	                this.state = 250;
+	                this.state = 260;
 	                this.match(ProperTeeParser.T__4);
-	                this.state = 251;
+	                this.state = 261;
 	                this.expression(0);
-	                this.state = 256;
+	                this.state = 266;
 	                this._errHandler.sync(this);
 	                _la = this._input.LA(1);
 	            }
 	        }
 
-	        this.state = 259;
+	        this.state = 269;
 	        this.match(ProperTeeParser.T__3);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -1271,29 +1292,29 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 261;
+	        this.state = 271;
 	        this.match(ProperTeeParser.T__12);
-	        this.state = 270;
+	        this.state = 280;
 	        this._errHandler.sync(this);
 	        _la = this._input.LA(1);
-	        if(_la===48 || _la===49) {
-	            this.state = 262;
+	        if(_la===49 || _la===50) {
+	            this.state = 272;
 	            this.objectEntry();
-	            this.state = 267;
+	            this.state = 277;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
 	            while(_la===5) {
-	                this.state = 263;
+	                this.state = 273;
 	                this.match(ProperTeeParser.T__4);
-	                this.state = 264;
+	                this.state = 274;
 	                this.objectEntry();
-	                this.state = 269;
+	                this.state = 279;
 	                this._errHandler.sync(this);
 	                _la = this._input.LA(1);
 	            }
 	        }
 
-	        this.state = 272;
+	        this.state = 282;
 	        this.match(ProperTeeParser.T__13);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -1316,11 +1337,11 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 36, ProperTeeParser.RULE_objectEntry);
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 274;
+	        this.state = 284;
 	        this.objectKey();
-	        this.state = 275;
+	        this.state = 285;
 	        this.match(ProperTeeParser.T__5);
-	        this.state = 276;
+	        this.state = 286;
 	        this.expression(0);
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -1344,9 +1365,9 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 278;
+	        this.state = 288;
 	        _la = this._input.LA(1);
-	        if(!(_la===48 || _la===49)) {
+	        if(!(_la===49 || _la===50)) {
 	        this._errHandler.recoverInline(this);
 	        }
 	        else {
@@ -1374,61 +1395,61 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    this.enterRule(localctx, 40, ProperTeeParser.RULE_arrayLiteral);
 	    var _la = 0;
 	    try {
-	        this.state = 302;
+	        this.state = 312;
 	        this._errHandler.sync(this);
-	        var la_ = this._interp.adaptivePredict(this._input,30,this._ctx);
+	        var la_ = this._interp.adaptivePredict(this._input,31,this._ctx);
 	        switch(la_) {
 	        case 1:
 	            localctx = new RangeArrayContext(this, localctx);
 	            this.enterOuterAlt(localctx, 1);
-	            this.state = 280;
+	            this.state = 290;
 	            this.match(ProperTeeParser.T__14);
-	            this.state = 281;
+	            this.state = 291;
 	            localctx.rangeStart = this.expression(0);
-	            this.state = 282;
+	            this.state = 292;
 	            this.match(ProperTeeParser.T__15);
-	            this.state = 283;
+	            this.state = 293;
 	            localctx.rangeEnd = this.expression(0);
-	            this.state = 286;
+	            this.state = 296;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
 	            if(_la===5) {
-	                this.state = 284;
+	                this.state = 294;
 	                this.match(ProperTeeParser.T__4);
-	                this.state = 285;
+	                this.state = 295;
 	                localctx.rangeStep = this.expression(0);
 	            }
 
-	            this.state = 288;
+	            this.state = 298;
 	            this.match(ProperTeeParser.T__16);
 	            break;
 
 	        case 2:
 	            localctx = new ListArrayContext(this, localctx);
 	            this.enterOuterAlt(localctx, 2);
-	            this.state = 290;
+	            this.state = 300;
 	            this.match(ProperTeeParser.T__14);
-	            this.state = 299;
+	            this.state = 309;
 	            this._errHandler.sync(this);
 	            _la = this._input.LA(1);
-	            if((((_la) & ~0x1f) === 0 && ((1 << _la) & 41096) !== 0) || ((((_la - 36)) & ~0x1f) === 0 && ((1 << (_la - 36)) & 15417) !== 0)) {
-	                this.state = 291;
+	            if((((_la) & ~0x1f) === 0 && ((1 << _la) & 41096) !== 0) || ((((_la - 37)) & ~0x1f) === 0 && ((1 << (_la - 37)) & 15417) !== 0)) {
+	                this.state = 301;
 	                this.expression(0);
-	                this.state = 296;
+	                this.state = 306;
 	                this._errHandler.sync(this);
 	                _la = this._input.LA(1);
 	                while(_la===5) {
-	                    this.state = 292;
+	                    this.state = 302;
 	                    this.match(ProperTeeParser.T__4);
-	                    this.state = 293;
+	                    this.state = 303;
 	                    this.expression(0);
-	                    this.state = 298;
+	                    this.state = 308;
 	                    this._errHandler.sync(this);
 	                    _la = this._input.LA(1);
 	                }
 	            }
 
-	            this.state = 301;
+	            this.state = 311;
 	            this.match(ProperTeeParser.T__16);
 	            break;
 
@@ -1455,7 +1476,7 @@ export default class ProperTeeParser extends antlr4.Parser {
 	    var _la = 0;
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 304;
+	        this.state = 314;
 	        _la = this._input.LA(1);
 	        if(!((((_la) & ~0x1f) === 0 && ((1 << _la) & 16515072) !== 0))) {
 	        this._errHandler.recoverInline(this);
@@ -1507,33 +1528,34 @@ ProperTeeParser.T__21 = 22;
 ProperTeeParser.T__22 = 23;
 ProperTeeParser.K_IF = 24;
 ProperTeeParser.K_THEN = 25;
-ProperTeeParser.K_ELSE = 26;
-ProperTeeParser.K_END = 27;
-ProperTeeParser.K_LOOP = 28;
-ProperTeeParser.K_IN = 29;
-ProperTeeParser.K_DO = 30;
-ProperTeeParser.K_BREAK = 31;
-ProperTeeParser.K_CONTINUE = 32;
-ProperTeeParser.K_FUNCTION = 33;
-ProperTeeParser.K_SPAWN = 34;
-ProperTeeParser.K_RETURN = 35;
-ProperTeeParser.K_NOT = 36;
-ProperTeeParser.K_AND = 37;
-ProperTeeParser.K_OR = 38;
-ProperTeeParser.K_TRUE = 39;
-ProperTeeParser.K_FALSE = 40;
-ProperTeeParser.K_NULL = 41;
-ProperTeeParser.K_INFINITE = 42;
-ProperTeeParser.K_MULTI = 43;
-ProperTeeParser.K_MONITOR = 44;
-ProperTeeParser.K_DEBUG = 45;
-ProperTeeParser.GLOBAL_PREFIX = 46;
-ProperTeeParser.ID = 47;
-ProperTeeParser.INTEGER = 48;
-ProperTeeParser.STRING = 49;
-ProperTeeParser.COMMENT = 50;
-ProperTeeParser.BLOCK_COMMENT = 51;
-ProperTeeParser.WS = 52;
+ProperTeeParser.K_ELSEIF = 26;
+ProperTeeParser.K_ELSE = 27;
+ProperTeeParser.K_END = 28;
+ProperTeeParser.K_LOOP = 29;
+ProperTeeParser.K_IN = 30;
+ProperTeeParser.K_DO = 31;
+ProperTeeParser.K_BREAK = 32;
+ProperTeeParser.K_CONTINUE = 33;
+ProperTeeParser.K_FUNCTION = 34;
+ProperTeeParser.K_SPAWN = 35;
+ProperTeeParser.K_RETURN = 36;
+ProperTeeParser.K_NOT = 37;
+ProperTeeParser.K_AND = 38;
+ProperTeeParser.K_OR = 39;
+ProperTeeParser.K_TRUE = 40;
+ProperTeeParser.K_FALSE = 41;
+ProperTeeParser.K_NULL = 42;
+ProperTeeParser.K_INFINITE = 43;
+ProperTeeParser.K_MULTI = 44;
+ProperTeeParser.K_MONITOR = 45;
+ProperTeeParser.K_DEBUG = 46;
+ProperTeeParser.GLOBAL_PREFIX = 47;
+ProperTeeParser.ID = 48;
+ProperTeeParser.INTEGER = 49;
+ProperTeeParser.STRING = 50;
+ProperTeeParser.COMMENT = 51;
+ProperTeeParser.BLOCK_COMMENT = 52;
+ProperTeeParser.WS = 53;
 
 ProperTeeParser.RULE_root = 0;
 ProperTeeParser.RULE_statement = 1;
@@ -2005,6 +2027,10 @@ class IfStatementContext extends antlr4.ParserRuleContext {
         this.ruleIndex = ProperTeeParser.RULE_ifStatement;
         this.condition = null;
         this.thenBody = null;
+        this._expression = null;
+        this.elseifConds = [];
+        this._block = null;
+        this.elseifBodies = [];
         this.elseBody = null;
     }
 
@@ -2012,16 +2038,31 @@ class IfStatementContext extends antlr4.ParserRuleContext {
 	    return this.getToken(ProperTeeParser.K_IF, 0);
 	};
 
-	K_THEN() {
-	    return this.getToken(ProperTeeParser.K_THEN, 0);
+	K_THEN = function(i) {
+		if(i===undefined) {
+			i = null;
+		}
+	    if(i===null) {
+	        return this.getTokens(ProperTeeParser.K_THEN);
+	    } else {
+	        return this.getToken(ProperTeeParser.K_THEN, i);
+	    }
 	};
+
 
 	K_END() {
 	    return this.getToken(ProperTeeParser.K_END, 0);
 	};
 
-	expression() {
-	    return this.getTypedRuleContext(ExpressionContext,0);
+	expression = function(i) {
+	    if(i===undefined) {
+	        i = null;
+	    }
+	    if(i===null) {
+	        return this.getTypedRuleContexts(ExpressionContext);
+	    } else {
+	        return this.getTypedRuleContext(ExpressionContext,i);
+	    }
 	};
 
 	block = function(i) {
@@ -2034,6 +2075,18 @@ class IfStatementContext extends antlr4.ParserRuleContext {
 	        return this.getTypedRuleContext(BlockContext,i);
 	    }
 	};
+
+	K_ELSEIF = function(i) {
+		if(i===undefined) {
+			i = null;
+		}
+	    if(i===null) {
+	        return this.getTokens(ProperTeeParser.K_ELSEIF);
+	    } else {
+	        return this.getToken(ProperTeeParser.K_ELSEIF, i);
+	    }
+	};
+
 
 	K_ELSE() {
 	    return this.getToken(ProperTeeParser.K_ELSE, 0);

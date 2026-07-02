@@ -1,0 +1,9 @@
+95 -> A
+85 -> B
+75 -> C
+65 -> F
+eval: first
+eval: second
+branch: second
+after: 5
+small even

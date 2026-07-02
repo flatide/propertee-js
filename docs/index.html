@@ -782,7 +782,7 @@
             <option value="02_variables">02 Variables</option>
             <option value="03_arithmetic">03 Arithmetic</option>
             <option value="04_comparisons">04 Comparisons</option>
-            <option value="05_if_else">05 If / Else</option>
+            <option value="05_if_else">05 If / Elseif / Else</option>
             <option value="06_loops">06 Loops</option>
             <option value="07_functions">07 Functions</option>
             <option value="08_strings">08 Strings</option>
@@ -808,6 +808,7 @@
             <div class="reference-bar">
                 <button class="ref-chip kw" onclick="insertText('if')">if</button>
                 <button class="ref-chip kw" onclick="insertText('then')">then</button>
+                <button class="ref-chip kw" onclick="insertText('elseif')">elseif</button>
                 <button class="ref-chip kw" onclick="insertText('else')">else</button>
                 <button class="ref-chip kw" onclick="insertText('end')">end</button>
                 <button class="ref-chip kw" onclick="insertText('loop')">loop</button>
@@ -1610,23 +1611,21 @@ PRINT("not a:", not a)
 age = 25
 PRINT("Is adult (18-65):", age >= 18 and age <= 65)`,
 
-            '05_if_else': `// 05 - If / Else
-// Syntax: if <condition> then <body> [else <body>] end
+            '05_if_else': `// 05 - If / Elseif / Else
+// Syntax: if <cond> then <body> [elseif <cond> then <body>]* [else <body>] end
+// Conditions are checked top to bottom; the first true arm wins and
+// later conditions are not evaluated. One "end" closes the whole chain.
 
 score = 85
 
 if score >= 90 then
     PRINT("Grade: A")
+elseif score >= 80 then
+    PRINT("Grade: B")
+elseif score >= 70 then
+    PRINT("Grade: C")
 else
-    if score >= 80 then
-        PRINT("Grade: B")
-    else
-        if score >= 70 then
-            PRINT("Grade: C")
-        else
-            PRINT("Grade: F")
-        end
-    end
+    PRINT("Grade: F")
 end
 
 // Simple if (no else)
@@ -2530,7 +2529,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
         // Syntax highlighting
         function highlightSyntax(code) {
             var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX';
-            var keywords = 'if|then|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
+            var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
                 + '|(\\/\\/[^\\n]*)'                               // line comments

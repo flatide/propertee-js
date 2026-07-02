@@ -1,0 +1,53 @@
+// Test: elseif chains (spec v0.9.0 #3)
+function grade(score) do
+    if score >= 90 then
+        return "A"
+    elseif score >= 80 then
+        return "B"
+    elseif score >= 70 then
+        return "C"
+    else
+        return "F"
+    end
+end
+
+loop s in [95, 85, 75, 65] do
+    PRINT(s, "->", grade(s))
+end
+
+// first match wins; later conditions are not evaluated (side effect proves it)
+function check(label, result) do
+    PRINT("eval:", label)
+    return result
+end
+
+if check("first", false) then
+    PRINT("branch: first")
+elseif check("second", true) then
+    PRINT("branch: second")
+elseif check("third", true) then
+    PRINT("branch: third")
+end
+
+// elseif without else — no branch taken
+x = 5
+if x == 1 then
+    PRINT("one")
+elseif x == 2 then
+    PRINT("two")
+end
+PRINT("after:", x)
+
+// nested if inside an elseif body
+y = 10
+if y < 0 then
+    PRINT("negative")
+elseif y < 100 then
+    if y % 2 == 0 then
+        PRINT("small even")
+    else
+        PRINT("small odd")
+    end
+else
+    PRINT("large")
+end
