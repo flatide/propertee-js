@@ -888,6 +888,36 @@ PRINT("Hello, World!")</textarea>
                 (k, v) => v === TEE_NULL ? null : v, indent);
         }
 
+        // `not a == b` parses as `(not a) == b` (LANGUAGE.md §Precedence) — with a boolean a and
+        // a non-boolean b this silently always yields false. Hint at the parse before running.
+        const NOT_COMPARISON = /\bnot\s+(?!\()((?:::)?[A-Za-z_]\w*(?:\.\$?[A-Za-z_]\w*|\.\d+)*|\d+(?:\.\d+)?)\s*(==|!=)/g;
+        function emitNotComparisonHints(scriptText) {
+            const lines = scriptText.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                // blank string contents and drop the line comment so neither can false-match
+                let code = '', inStr = false, esc = false;
+                for (const c of lines[i]) {
+                    if (inStr) {
+                        if (esc) { esc = false; code += ' '; }
+                        else if (c === '\\') { esc = true; code += ' '; }
+                        else if (c === '"') { inStr = false; code += '"'; }
+                        else code += ' ';
+                    } else {
+                        if (c === '"') { inStr = true; code += '"'; }
+                        else if (c === '/' && code.endsWith('/')) { code = code.slice(0, -1); break; }
+                        else code += c;
+                    }
+                }
+                NOT_COMPARISON.lastIndex = 0;
+                let m;
+                while ((m = NOT_COMPARISON.exec(code)) !== null) {
+                    const flipped = m[2] === '==' ? '!=' : '==';
+                    appendOutput(`Hint: line ${i + 1}: 'not ${m[1]} ${m[2]} …' parses as '(not ${m[1]}) ${m[2]} …' — ` +
+                        `write '${m[1]} ${flipped} …' or 'not (${m[1]} ${m[2]} …)' if you meant to negate the comparison.\n`, '#f9e2af');
+                }
+            }
+        }
+
         class ErrorListener extends antlr4.error.ErrorListener {
             constructor() {
                 super();
@@ -2251,6 +2281,8 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                     return;
                 }
 
+                emitNotComparisonHints(scriptText);
+
                 const ioStreams = {
                     stdout: (...args) => {
                         appendOutput(args.join(' ') + '\n');
@@ -2452,6 +2484,8 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                     endDebugSession();
                     return;
                 }
+
+                emitNotComparisonHints(scriptText);
 
                 const ioStreams = {
                     stdout: (...args) => {

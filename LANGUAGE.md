@@ -168,6 +168,17 @@ end
 
 Parentheses `()` override precedence.
 
+> **⚠️ `not` binds tighter than comparison** (as in Lua): `not a == b` parses as `(not a) == b`, **not** `not (a == b)`. When `a` is not a boolean this fails loudly (`not` requires a boolean), and when both sides are booleans the two readings coincidentally agree — but when `a` is a boolean and `b` is not, the expression silently always yields `false`, because equality across types is legal and a boolean never equals a non-boolean:
+>
+> ```
+> status = true
+> if not status == "done" then    // (not status) == "done" → false, for ANY status
+>     PRINT("never runs")
+> end
+> ```
+>
+> For inequality, write `a != b` (preferred) or `not (a == b)`.
+
 ## Strings
 
 Strings are double-quoted. Supported escape sequences:
