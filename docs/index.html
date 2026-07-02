@@ -879,6 +879,13 @@ PRINT("Hello, World!")</textarea>
     <script src="dist/propertee-bundle.js"></script>
 
     <script>
+        // JSON.stringify that serializes the interpreter's TEE_NULL (a Symbol — spec v0.8.0)
+        // as JSON null; plain stringify would silently DROP null-valued object keys.
+        function teeStringify(value, indent) {
+            return JSON.stringify(value === TEE_NULL ? null : value,
+                (k, v) => v === TEE_NULL ? null : v, indent);
+        }
+
         class ErrorListener extends antlr4.error.ErrorListener {
             constructor() {
                 super();
@@ -1494,7 +1501,7 @@ PRINT("Hello, World!")</textarea>
             const coerceBody = (body) => {
                 if (body == null) return '';
                 if (typeof body === 'string') return body;
-                return JSON.stringify(body);
+                return teeStringify(body);
             };
 
             visitor.registerExternal('HTTP', (method, url, opts) => runHttp(String(method || 'GET'), url, optHeaders(opts), coerceBody(optBody(opts))));
@@ -2083,11 +2090,12 @@ PRINT("created:", FILE_EXISTS(logDir))`,
 // print the contents, and RETURN the parsed object as the script result.
 // (The playground uses an in-memory filesystem.)
 
-// 1) Build an object
+// 1) Build an object (null is a first-class JSON value — spec v0.8.0)
 config = {
     "service": "teebox",
     "port": 18080,
-    "tags": ["prod", "api"]
+    "tags": ["prod", "api"],
+    "owner": null
 }
 
 // 2) Serialize to JSON and write it to a file
@@ -2105,6 +2113,7 @@ parsed = JSON_PARSE(text)
 PRINT("service:", parsed.value.service)
 PRINT("port:", parsed.value.port)
 PRINT("first tag:", parsed.value.tags.1)
+PRINT("owner is null:", parsed.value.owner == null)   // null survives the round-trip
 
 // 5) Return the parsed object — shown as the script's result
 return parsed.value`,
@@ -2262,7 +2271,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                 const mainGenerator = visitor.visitRoot(tree);
                 const result = await scheduler.run(mainGenerator);
 
-                appendOutput('Finished with result: ' + JSON.stringify(result, null, 2) + '\n', '#a6e3a1');
+                appendOutput('Finished with result: ' + teeStringify(result, 2) + '\n', '#a6e3a1');
 
             } catch (e) {
                 appendOutput('Runtime Error: ' + e.message + '\n', '#f38ba8');
@@ -2482,7 +2491,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                 const result = await scheduler.run(mainGenerator);
 
                 if (isDebugging) {
-                    appendOutput('Finished with result: ' + JSON.stringify(result, null, 2) + '\n', '#a6e3a1');
+                    appendOutput('Finished with result: ' + teeStringify(result, 2) + '\n', '#a6e3a1');
                     endDebugSession();
                 }
 

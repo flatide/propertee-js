@@ -334,6 +334,10 @@ PRINT("r3.status:", result.r3.value.status)`
                 const mainGenerator = visitor.visitRoot(tree);
                 const result = await scheduler.run(mainGenerator);
 
+                // TEE_NULL-aware stringify: plain stringify drops null-valued keys (spec v0.8.0)
+                const teeStringify = (value, indent) => JSON.stringify(
+                    value === TEE_NULL ? null : value, (k, v) => v === TEE_NULL ? null : v, indent);
+
                 // Summary
                 const summary = document.createElement('div');
                 summary.style.marginTop = '20px';
@@ -343,10 +347,10 @@ PRINT("r3.status:", result.r3.value.status)`
                 summary.style.fontSize = '12px';
                 summary.innerHTML = `
                     <strong>--- Return Value ---</strong>
-                    <pre style="margin: 5px 0;">${JSON.stringify(result, null, 2)}</pre>
+                    <pre style="margin: 5px 0;">${teeStringify(result, 2)}</pre>
 
                     <strong>--- Variables ---</strong>
-                    <pre style="margin: 5px 0;">${JSON.stringify(visitor.variables, null, 2)}</pre>
+                    <pre style="margin: 5px 0;">${teeStringify(visitor.variables, 2)}</pre>
                 `;
                 output.appendChild(summary);
 

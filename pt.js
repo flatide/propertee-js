@@ -5,7 +5,7 @@ import { createInterface } from 'readline';
 import antlr4 from 'antlr4';
 import ProperTeeLexer from './ProperTeeLexer.js';
 import ProperTeeParser from './ProperTeeParser.js';
-import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
+import ProperTeeCustomVisitor, { TEE_NULL } from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
 const VERSION = '0.4.0';
@@ -207,7 +207,8 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
                 console.log('(no variables)');
             } else {
                 for (const [k, v] of Object.entries(vars)) {
-                    console.log(`  ${k} = ${JSON.stringify(v)}`);
+                    // TEE_NULL-aware: plain stringify would drop null-valued keys (spec v0.8.0)
+                    console.log(`  ${k} = ${JSON.stringify(v === TEE_NULL ? null : v, (key, x) => x === TEE_NULL ? null : x)}`);
                 }
             }
             rl.prompt();
