@@ -324,7 +324,7 @@ visitor.registerExternalAsync('SLOW_FETCH', async (key) => {
 
 ## Conventions
 
-- **No null** — the language has no null keyword. Functions without `return` or with bare `return` produce `{}` (empty object). Missing function arguments default to `{}`.
+- **No implicit null** (spec v0.8.0) — the language never produces null: functions without `return` or with bare `return` produce `{}` (empty object), missing function arguments default to `{}`. The `null` literal exists purely as data for lossless JSON round-trips, represented internally by the exported `TEE_NULL` Symbol (NOT JS `null`, which the visitor uses as a statement sentinel; a Symbol naturally falls through every typeof-based check). Equality and `TYPE_OF` (→ `"null"`) work on it; conditions, logic, arithmetic, and member access on it are runtime errors.
 - **ES modules** — all files use `import`/`export`. Package type is `"module"`.
 - **Plain objects for collections** — `{}` for ProperTee objects (preserves insertion order in V8/modern engines), `[]` for arrays. All runtime values are plain JS primitives/objects.
 - `SLEEP()` returns a scheduler command object — the generator yields it to the scheduler

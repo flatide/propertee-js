@@ -1,5 +1,13 @@
 import ProperTeeVisitor from './ProperTeeVisitor.js';
 
+// Spec v0.8.0 (#4): the ProperTee null value. A Symbol, NOT JS null — the visitor
+// uses JS null internally as a statement sentinel, and a Symbol naturally falls
+// through every typeof-based check (deepCopy passes it through, _deepEqual matches
+// it only by identity, arithmetic/logic/conditions reject it). "No implicit null":
+// the language never produces this — it enters only via the `null` literal or data
+// (JSON_PARSE, host values).
+export const TEE_NULL = Symbol('null');
+
 export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
         super();
@@ -54,8 +62,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return copy;
         };
 
+        // JSON.stringify that serializes TEE_NULL as JSON null (a bare Symbol would be
+        // dropped from objects / already-null in arrays — the replacer makes it uniform)
+        const teeJsonStringify = (value) =>
+            JSON.stringify(value === TEE_NULL ? null : value, (k, v) => v === TEE_NULL ? null : v);
+
         // Format a value for display inside collections (strings get single quotes)
         const formatJsonValue = (value) => {
+            if (value === TEE_NULL) return 'null';
             if (value === null || value === undefined) return 'null';
             if (typeof value === 'string') return "'" + value + "'";
             if (typeof value === 'boolean') return String(value);
@@ -70,6 +84,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Format a value for PRINT output (matching Java TypeChecker.formatValue)
         const formatDisplayValue = (value) => {
+            if (value === TEE_NULL) return 'null';
             if (value === null || value === undefined) return 'null';
             if (typeof value === 'boolean') return String(value);
             if (typeof value === 'number') {
@@ -138,11 +153,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return num;
             },
             'TO_STRING': (value) => {
+                if (value === TEE_NULL) return 'null';
                 if (typeof value === 'boolean') return value ? 'true' : 'false';
                 if (typeof value === 'number') return String(value);
                 if (typeof value === 'string') return value;
-                if (Array.isArray(value)) return JSON.stringify(value);
-                if (typeof value === 'object' && value !== null) return JSON.stringify(value);
+                if (Array.isArray(value)) return teeJsonStringify(value);
+                if (typeof value === 'object' && value !== null) return teeJsonStringify(value);
                 return String(value);
             },
             'SLEEP': (milliseconds) => {
@@ -354,6 +370,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             },
             // --- Type ---
             'TYPE_OF': (value) => {
+                if (value === TEE_NULL) return 'null';   // spec v0.8.0 (#4)
                 if (typeof value === 'boolean') return 'boolean';
                 if (typeof value === 'number') return 'number';
                 if (typeof value === 'string') return 'string';
@@ -368,7 +385,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 try {
                     const parsed = JSON.parse(str);
                     const convert = (v) => {
-                        if (v === null || v === undefined) return {};
+                        // spec v0.8.0 (#4): JSON null is preserved (was normalized to {})
+                        if (v === null || v === undefined) return TEE_NULL;
                         if (Array.isArray(v)) return v.map(convert);
                         if (typeof v === 'object') {
                             const result = {};
@@ -385,7 +403,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
             },
             'JSON_FORMAT': (value) => {
-                return JSON.stringify(value);
+                return teeJsonStringify(value);
             },
             'MILTIME': () => {
                 return Date.now();
@@ -583,6 +601,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     // ProperTee type name for error messages (same names as TYPE_OF).
     _valueTypeName(v) {
+        if (v === TEE_NULL) return 'null';   // spec v0.8.0 (#4)
         if (typeof v === 'boolean') return 'boolean';
         if (typeof v === 'number') return 'number';
         if (typeof v === 'string') return 'string';
@@ -1362,6 +1381,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return ctx.getText() === 'true';
     }
 
+    *visitNullAtom(ctx) {
+        return TEE_NULL;   // spec v0.8.0 (#4): the null literal
+    }
+
     *visitParenAtom(ctx) {
         return yield* this.visit(ctx.expression());
     }
@@ -1523,6 +1546,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         if (targetObj === null) {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
+        }
+
+        // spec v0.8.0 (#4): member access on the null value fails like a missing property
+        if (targetObj === TEE_NULL) {
+            throw this.createError(`Property '${key}' does not exist`, ctx);
         }
 
         // Object access: integer keys become string keys (no positional access)

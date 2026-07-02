@@ -1,0 +1,2 @@
+explicit comparison works
+Runtime error: Runtime Error at line 6:3: Condition requires a boolean value. Got null

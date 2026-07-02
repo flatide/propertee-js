@@ -23,9 +23,9 @@ PRINT(res.value)
 res = JSON_PARSE("true")
 PRINT(res.value)
 
-// JSON_PARSE - null → {}
+// JSON_PARSE - null → null (preserved — spec v0.8.0; was {} until spec v0.7.0)
 res = JSON_PARSE("null")
-PRINT(res.value == {})
+PRINT(res.value == null)
 
 // JSON_PARSE - error
 res = JSON_PARSE("{invalid}")

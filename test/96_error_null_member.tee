@@ -1,0 +1,4 @@
+// Test: member access on null is a runtime error (spec v0.8.0 #4)
+obj = JSON_PARSE("{\"user\":null}").value
+PRINT(HAS_KEY(obj, "user"))
+x = obj.user.name

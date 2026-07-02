@@ -1018,7 +1018,7 @@ PRINT("Hello, World!")</textarea>
             { cat: 'Conversion', fns: [
                 { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number.', returns: 'A number.', fails: 'Runtime error if s is not a string, is empty, or is not a valid numeric string.', sample: 'PRINT(TO_NUMBER("42") + 1)' },
                 { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', returns: 'A string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TO_STRING(true))' },
-                { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", or "object".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))' },
+                { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", "object", or "null".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))' },
             ]},
             { cat: 'String', fns: [
                 { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', returns: 'A number.', fails: 'Runtime error for other types (spec v0.7.0).', sample: 'PRINT(LEN("hello"))' },
@@ -1056,7 +1056,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'REMOVE_KEY', sig: 'REMOVE_KEY(obj, key)', desc: 'Drop a key.', returns: 'A new object (no error if the key is absent).', fails: 'Runtime error if obj is not an object or key is not a string.', sample: 'PRINT(REMOVE_KEY({"a": 1, "b": 2}, "a"))' },
             ]},
             { cat: 'JSON', fns: [
-                { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string.', returns: RESULT_NOTE + ' .value = the parsed value (JSON null becomes {}).', fails: 'Returns a Result with .ok=false and .value = an error message if s is not a string or is invalid JSON. Does NOT stop the script.', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.ok, res.value.a)' },
+                { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string.', returns: RESULT_NOTE + ' .value = the parsed value (JSON null is preserved as null — spec v0.8.0).', fails: 'Returns a Result with .ok=false and .value = an error message if s is not a string or is invalid JSON. Does NOT stop the script.', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.ok, res.value.a)' },
                 { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))' },
             ]},
             { cat: 'Time', fns: [
@@ -1108,7 +1108,7 @@ PRINT("Hello, World!")</textarea>
             RANDOM: { desc: '난수: [0,1) 소수 또는 범위 내 정수.', returns: '숫자: 인자 없으면 [0,1) 소수, 그 외 정수.', fails: '인자가 숫자가 아니거나 max가 양수가 아니거나 min > max이면 런타임 에러.' },
             TO_NUMBER: { desc: '문자열을 숫자로 변환.', returns: '숫자.', fails: 's가 문자열이 아니거나 비어 있거나 올바른 숫자 문자열이 아니면 런타임 에러.' },
             TO_STRING: { desc: '임의의 값을 문자열로 변환.', returns: '문자열.', fails: '실패하지 않음(모든 값 허용).' },
-            TYPE_OF: { desc: '값의 타입 이름.', returns: '문자열: "number", "string", "boolean", "array", "object".', fails: '실패하지 않음(모든 값 허용).' },
+            TYPE_OF: { desc: '값의 타입 이름.', returns: '문자열: "number", "string", "boolean", "array", "object", "null".', fails: '실패하지 않음(모든 값 허용).' },
             LEN: { desc: '문자열/배열/객체의 길이.', returns: '숫자(그 외 타입은 0).', fails: '실패하지 않음(미지원 타입은 0 반환).' },
             UPPERCASE: { desc: '대문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
             LOWERCASE: { desc: '소문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
@@ -1138,7 +1138,7 @@ PRINT("Hello, World!")</textarea>
             ENTRIES: { desc: '삽입 순서의 키/값 쌍.', returns: '{"key": k, "value": v} 객체의 배열.', fails: 'obj가 객체가 아니면 런타임 에러.' },
             MERGE: { desc: '두 객체 병합.', returns: '새 객체(키 충돌 시 obj2 우선).', fails: '인자 중 객체가 아닌 것이 있으면 런타임 에러.' },
             REMOVE_KEY: { desc: '키 하나 제거.', returns: '새 객체(키가 없어도 에러 없음).', fails: 'obj가 객체가 아니거나 key가 문자열이 아니면 런타임 에러.' },
-            JSON_PARSE: { desc: 'JSON 문자열 파싱.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(JSON null은 {}).', fails: 's가 문자열이 아니거나 잘못된 JSON이면 .ok=false 와 에러 메시지 반환. 스크립트는 중단되지 않음.' },
+            JSON_PARSE: { desc: 'JSON 문자열 파싱.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(JSON null은 null로 보존 — spec v0.8.0).', fails: 's가 문자열이 아니거나 잘못된 JSON이면 .ok=false 와 에러 메시지 반환. 스크립트는 중단되지 않음.' },
             JSON_FORMAT: { desc: '임의의 값을 JSON으로 직렬화.', returns: 'JSON 문자열.', fails: '실패하지 않음(모든 값 허용).' },
             SLEEP: { desc: '현재 스레드를 ms 밀리초 동안 멈춤.', returns: '빈 객체 {}.', fails: 'ms가 숫자가 아니면 런타임 에러.' },
             MILTIME: { desc: '현재 epoch 시간.', returns: '숫자(epoch 밀리초).', fails: '실패하지 않음.' },
@@ -2527,7 +2527,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                 + '|("(?:[^"\\\\]|\\\\.)*")'                       // strings
                 + '|(\\b(?:' + builtins + ')\\b(?=\\s*\\())'       // built-in functions
                 + '|(\\b(?:' + keywords + ')\\b)'                  // keywords
-                + '|(\\b(?:true|false)\\b)'                        // booleans
+                + '|(\\b(?:true|false|null)\\b)'                   // booleans / null
                 + '|(\\b\\d+\\.\\d+\\b|\\b\\d+\\b)'               // numbers
                 + '|(::)'                                          // global prefix
                 + '|(==|!=|>=|<=|\\.\\.|>|<|[+\\-*\\/%=])'         // operators

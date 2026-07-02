@@ -1,0 +1,10 @@
+// Test: JSON null round-trips losslessly (spec v0.8.0 #4)
+src = "{\"a\":null,\"b\":{},\"c\":[1,null]}"
+res = JSON_PARSE(src)
+PRINT(res.ok)
+PRINT(res.value.a == null)
+PRINT(res.value.b == {})
+PRINT(res.value.a == res.value.b)
+PRINT(res.value.c.2 == null)
+PRINT(JSON_FORMAT(res.value))
+PRINT(JSON_FORMAT(null))

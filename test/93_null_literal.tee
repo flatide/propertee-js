@@ -1,0 +1,32 @@
+// Test: null literal — first-class JSON data value (spec v0.8.0 #4)
+x = null
+PRINT(x)
+PRINT(TYPE_OF(x))
+
+// Equality: null equals only null
+PRINT(null == null)
+PRINT(null == {})
+PRINT(null == 0)
+PRINT(null == false)
+PRINT(null != {})
+
+// Containers and display
+arr = [1, null, "a"]
+PRINT(arr)
+obj = {"a": null, "b": 2}
+PRINT(obj)
+PRINT(HAS_KEY(obj, "a"))
+
+// String concatenation coerces via TO_STRING
+PRINT("value: " + null)
+PRINT(TO_STRING(null))
+
+// Assignment keeps value semantics
+y = x
+PRINT(y == null)
+
+// The language never produces null: no-return functions still yield {}
+function noop() do
+end
+PRINT(noop() == {})
+PRINT(noop() == null)

@@ -1,12 +1,12 @@
-# ProperTee Language Specification v0.7.0
+# ProperTee Language Specification v0.8.0
 
 ## Overview
 
-ProperTee is a small, safe scripting language designed for embedding in host applications. It features cooperative multithreading with a thread purity model — threads cannot mutate shared state, eliminating data races by design. There are no locks, no shared mutable state, and no null.
+ProperTee is a small, safe scripting language designed for embedding in host applications. It features cooperative multithreading with a thread purity model — threads cannot mutate shared state, eliminating data races by design. There are no locks, no shared mutable state, and no implicit null.
 
 ## Values and Types
 
-ProperTee has six types:
+ProperTee has seven types:
 
 | Type | Examples | Notes |
 |---|---|---|
@@ -16,8 +16,15 @@ ProperTee has six types:
 | boolean | `true`, `false` | |
 | array | `[1, 2, 3]`, `[]` | Ordered, 1-based indexing, heterogeneous |
 | object | `{"name": "Alice", "age": 30}`, `{}` | Ordered key-value pairs, string keys |
+| null | `null` | JSON's explicit "no value" — data, not a language mechanism |
 
-There is **no null**. The empty object `{}` serves as the "no value" sentinel throughout the language.
+There is **no implicit null**. The language itself never produces `null`: a missing argument defaults to `{}`, a function without a `return` returns `{}`, and no operation quietly yields `null`. The empty object `{}` remains the language's "no value" sentinel. `null` exists so that JSON — where `null` is a standard, meaningful value — round-trips losslessly: it enters a program only through the `null` literal or through data (`JSON_PARSE`, host-injected values), and it stays inert wherever it lands:
+
+- `TYPE_OF(null)` → `"null"`; it displays and JSON-formats as `null` (unquoted).
+- Equality works: `null == null` is `true`, `null == {}` is `false`, `null == 0` is `false`.
+- Everything else is a runtime error — `null` in a condition (`Condition requires a boolean value. Got null`), in arithmetic or logic, or member access on it. There is no null propagation: misuse fails loudly at the point of use.
+
+Scripts that don't touch JSON `null` never see it; check for it explicitly (`if x == null then`) at data boundaries.
 
 ### Number Representation
 
@@ -127,7 +134,7 @@ Division by zero is a runtime error.
 | `>=` | greater or equal | number >= number |
 | `<=` | less or equal | number <= number |
 
-Equality (`==`, `!=`) works across all types. Values are compared by content, not identity — `{} == {}` is `true`. Relational operators (`>`, `<`, `>=`, `<=`) require both operands to be numbers.
+Equality (`==`, `!=`) works across all types. Values are compared by content, not identity — `{} == {}` is `true`. `null` equals only itself: `null == null` is `true`; against any other value (including `{}`) it is `false`. Relational operators (`>`, `<`, `>=`, `<=`) require both operands to be numbers.
 
 ### Logical
 
@@ -729,7 +736,7 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 
 | Function | Description |
 |---|---|
-| `TYPE_OF(v)` | Returns type name: `"number"`, `"string"`, `"boolean"`, `"array"`, `"object"` |
+| `TYPE_OF(v)` | Returns type name: `"number"`, `"string"`, `"boolean"`, `"array"`, `"object"`, `"null"` |
 
 ### String Functions
 
@@ -786,8 +793,8 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 
 | Function | Description |
 |---|---|
-| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON. JSON `null` becomes `{}`. |
-| `JSON_FORMAT(v)` | Convert any value to JSON string. |
+| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON. JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
+| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly. |
 
 ### File I/O
 
@@ -1128,6 +1135,17 @@ Common error conditions:
 ---
 
 ## Changelog
+
+### v0.8.0 — first-class `null`
+
+`null` is now the seventh value type ([#4](https://github.com/flatide/ProperTee/issues/4)), added so JSON round-trips losslessly — JSON is central to ProperTee, and `null` is a standard, meaningful JSON value that previously could not be represented (`JSON_PARSE` collapsed it into `{}`, and `JSON_FORMAT` could never emit it).
+
+The design principle is **no implicit null**: the language itself never produces `null` (missing arguments and bare `return` still yield `{}`), so variables don't become nullable by accident — `null` enters a program only through the `null` literal or through data (`JSON_PARSE`, host-injected values). Once present it is inert data: equality and `TYPE_OF` (→ `"null"`) work; conditions, logic, arithmetic, and member access on `null` are runtime errors (the spec v0.7.0 strictness applies unchanged), so there is no null propagation.
+
+**Migration note:**
+
+- **`null` is now a reserved word.** A script using `null` as a variable or function name must rename it (previously it parsed as an ordinary identifier).
+- **`JSON_PARSE` no longer normalizes JSON `null` to `{}`.** Code that tested a parsed field with `== {}` to detect JSON `null` must now compare with `== null`. Fields that are genuinely `{}` in the JSON are unaffected.
 
 ### v0.7.0 — breaking-change batch
 
