@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.9.0
+# ProperTee Language Specification v0.10.0
 
 ## Overview
 
@@ -805,6 +805,18 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 | `MERGE(obj1, obj2)` | Returns new object with all entries from both. `obj2` values override `obj1` on key conflict. |
 | `REMOVE_KEY(obj, key)` | Returns new object without the specified key. No error if key absent. |
 
+### Results and Error Escalation
+
+Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-results-fail-and-unwrap) for the semantics.
+
+| Function | Description |
+|---|---|
+| `FAIL(message)` | Raise a runtime error at the call site with `message` (non-string coerced via `TO_STRING`). The script terminates exactly as with any runtime error — `Runtime Error at line L:C: <message>`; inside a `multi` thread, only that thread fails (collected as `{status: "error"}`). Never returns. |
+| `UNWRAP(res[, message])` | If `res` is a genuine Result with `ok` true, evaluates to `res.value`. If `ok` is false (including `"running"`), raises a runtime error with `TO_STRING(res.value)` — prefixed `message + ": "` when the second argument is given. A value that is not a genuine Result is a runtime error (`UNWRAP() requires a Result`). |
+| `OK([value])` | Construct a genuine Result `{status: "done", ok: true, value: value}`. Missing argument → `value` is `{}`. |
+| `ERR([value])` | Construct a genuine Result `{status: "error", ok: false, value: value}`. Missing argument → `value` is `{}`. `value` may be any type (structured errors, as with HTTP error Results). |
+| `IS_RESULT(x)` | `true` if `x` is a genuine Result (runtime-created or `OK`/`ERR`-constructed), else `false`. Accepts any value; never errors. |
+
 ### Environment
 
 | Function | Description |
@@ -977,6 +989,35 @@ Result objects have three fields:
 - `status` — `"done"`, `"error"`, or `"running"` (in-progress threads in multi blocks)
 
 For external function results, `ok` is sufficient — check `res.ok == true`. The `status` field exists primarily for multi block thread results, where it distinguishes between `"running"` (not yet finished) and `"error"` (finished with failure) — both have `ok: false`.
+
+### Genuine Results, `FAIL`, and `UNWRAP`
+
+Added in spec v0.10.0.
+
+**Genuine Results.** Result objects created by the runtime — Result-returning built-ins (`JSON_PARSE`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O group), external function calls (sync and async, including timeout errors), and `multi` thread collection entries — and by the `OK`/`ERR` constructors are *genuine Results*: the runtime remembers their origin. A script object literal with the same three fields is a plain object, **not** a genuine Result.
+
+The distinction is invisible to `TYPE_OF` (still `"object"`), display, equality, and JSON serialization; it is observed only by `IS_RESULT` and `UNWRAP`. Copies of a genuine Result (assignment, argument passing, `PUSH`, deep copy) are genuine Results; field mutation does not remove the origin. The origin does not survive JSON: `JSON_FORMAT` renders a genuine Result as the plain three-field object, and nothing inside `JSON_PARSE`d data is a genuine Result (the wrapping Result returned by `JSON_PARSE` itself is genuine).
+
+**Escalation.** The Result pattern makes recoverable errors explicit values; `FAIL` is the explicit escalation for the errors a script decides are fatal — it raises an ordinary runtime error at the call site, so the run fails exactly as with any other runtime error:
+
+```
+res = HTTP_GET(url)
+if not res.ok then
+    FAIL("upstream failed: " + res.value.body)
+end
+```
+
+`UNWRAP` compresses the check-then-escalate chain to one call per step — it is not a separate error mechanism; it desugars to `FAIL`:
+
+```
+// UNWRAP(res) ≡  if not res.ok then FAIL(TO_STRING(res.value)) end  ... then res.value
+user = UNWRAP(fetch(1))
+data = UNWRAP(JSON_PARSE(text), "config parse")   // error message: "config parse: <parse error>"
+```
+
+Inside a `multi` thread, `FAIL` (and an escalating `UNWRAP`) fails only that thread — the failure is collected as `{status: "error", ok: false, value: <message>}` and the run continues, like any worker runtime error.
+
+Scripts that need to hand a **structured** error to the host (not just a message) should return a Result as data instead of escalating — `FAIL`/`UNWRAP` flatten the failure to a message string.
 
 ### Async External Functions
 
@@ -1154,10 +1195,19 @@ Common error conditions:
 | Range step not positive | Range step must be positive |
 | Range bounds not numbers | Range bounds must be numbers |
 | Range step not a number | Range step must be a number |
+| Deliberate failure | `FAIL(msg)` raises `msg` itself (script-chosen text) |
+| `UNWRAP` on a non-Result | UNWRAP() requires a Result |
+| `FAIL` without a message | FAIL() requires a message argument |
 
 ---
 
 ## Changelog
+
+### v0.10.0 — Result escalation (`FAIL`/`UNWRAP`) and genuine Results
+
+Five new built-ins — `FAIL`, `UNWRAP`, `OK`, `ERR`, `IS_RESULT` — and the *genuine Result* origin rule (see [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-results-fail-and-unwrap)). The Result pattern handles recoverable errors; this batch adds the missing **escalation** direction: a script can now declare an error fatal (`FAIL`), and `UNWRAP` compresses the check-then-escalate chain to one call. `OK`/`ERR` construct genuine Results (for returning structured results and for mocking Result-returning calls); `IS_RESULT` observes the origin.
+
+**Non-breaking**: no grammar or keyword changes; no existing behavior changes; existing fixtures are byte-identical. Scripts (or hosts) that define/register functions under these five names shadow the new built-ins and keep their existing behavior (hosts note: externally registered `FAIL`/`UNWRAP` are shadowed by the built-ins, like `PRINT`/`SLEEP` always were). `UNWRAP` accepts only genuine Results — replace hand-built `{"status": ..., "ok": ..., "value": ...}` literals with `OK(v)`/`ERR(v)` where they must interoperate with `UNWRAP`.
 
 ### v0.9.0 — `elseif`
 

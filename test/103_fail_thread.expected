@@ -1,0 +1,5 @@
+[THREAD ERROR] Runtime Error at line 4:8: worker 2 aborted
+a: true 10
+b: false Runtime Error at line 4:8: worker 2 aborted
+b is_result: true
+run continues

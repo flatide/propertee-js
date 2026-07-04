@@ -1,0 +1,13 @@
+// spec v0.10.0: UNWRAP unwraps ok Results and escalates error Results
+function fetch(id) do
+    if id == 1 then
+        return OK({"name": "alice"})
+    end
+    return ERR("no such user: " + TO_STRING(id))
+end
+
+user = UNWRAP(fetch(1))
+PRINT("name:", user.name)
+PRINT("with context next")
+u2 = UNWRAP(fetch(2), "fetch step")
+PRINT("unreachable")

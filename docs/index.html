@@ -1098,6 +1098,13 @@ PRINT("Hello, World!")</textarea>
                 { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string.', returns: RESULT_NOTE + ' .value = the parsed value (JSON null is preserved as null — spec v0.8.0).', fails: 'Returns a Result with .ok=false and .value = an error message if s is not a string or is invalid JSON. Does NOT stop the script.', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.ok, res.value.a)' },
                 { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))' },
             ]},
+            { cat: 'Results', fns: [
+                { name: 'FAIL', sig: 'FAIL(message)', desc: 'Raise a runtime error at the call site — the explicit escalation for errors a script decides are fatal (spec v0.10.0).', returns: 'Never returns.', fails: 'Always — that is its purpose. The script stops exactly as with any runtime error; inside a multi thread, only that thread fails.', sample: 'res = JSON_PARSE("{bad")\nif not res.ok then\n    FAIL("config parse failed: " + res.value)\nend' },
+                { name: 'UNWRAP', sig: 'UNWRAP(res, [message])', desc: 'The value of an ok genuine Result; an error Result escalates like FAIL with TO_STRING(res.value), prefixed "message: " when given.', returns: 'res.value when res.ok is true.', fails: 'Runtime error when res.ok is false, or when res is not a genuine Result (script literals are not — build them with OK/ERR).', sample: 'cfg = UNWRAP(JSON_PARSE("{\\"a\\": 1}"), "config")\nPRINT(cfg.a)' },
+                { name: 'OK', sig: 'OK([value])', desc: 'Construct a genuine Result {status: "done", ok: true, value}.', returns: 'A genuine Result. Missing value → {}.', fails: 'Does not fail.', sample: 'r = OK(42)\nPRINT(r.ok, UNWRAP(r))' },
+                { name: 'ERR', sig: 'ERR([value])', desc: 'Construct a genuine error Result {status: "error", ok: false, value}. value may be any type (structured errors allowed).', returns: 'A genuine Result. Missing value → {}.', fails: 'Does not fail (UNWRAP on it does).', sample: 'r = ERR("boom")\nPRINT(r.ok, r.value)' },
+                { name: 'IS_RESULT', sig: 'IS_RESULT(x)', desc: 'Observe the genuine-Result origin — true only for runtime- or OK/ERR-created Results (a hand-built {status, ok, value} literal is false).', returns: 'A boolean.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(IS_RESULT(OK(1)))\nPRINT(IS_RESULT({"ok": true}))' },
+            ]},
             { cat: 'Time', fns: [
                 { name: 'SLEEP', sig: 'SLEEP(ms)', desc: 'Pause the current thread for ms milliseconds.', returns: 'The empty object {}.', fails: 'Runtime error if ms is not a number.', sample: 'PRINT("before")\nSLEEP(300)\nPRINT("after")' },
                 { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current epoch time.', returns: 'A number (epoch milliseconds).', fails: 'Does not fail.', sample: 'PRINT(MILTIME())' },
@@ -1179,6 +1186,11 @@ PRINT("Hello, World!")</textarea>
             REMOVE_KEY: { desc: '키 하나 제거.', returns: '새 객체(키가 없어도 에러 없음).', fails: 'obj가 객체가 아니거나 key가 문자열이 아니면 런타임 에러.' },
             JSON_PARSE: { desc: 'JSON 문자열 파싱.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(JSON null은 null로 보존 — spec v0.8.0).', fails: 's가 문자열이 아니거나 잘못된 JSON이면 .ok=false 와 에러 메시지 반환. 스크립트는 중단되지 않음.' },
             JSON_FORMAT: { desc: '임의의 값을 JSON으로 직렬화.', returns: 'JSON 문자열.', fails: '실패하지 않음(모든 값 허용).' },
+            FAIL: { desc: '호출 지점에서 런타임 에러 발생 — 스크립트가 치명적이라고 판단한 에러의 명시적 승격 (spec v0.10.0).', returns: '반환하지 않음.', fails: '항상 — 그것이 목적. 여느 런타임 에러처럼 스크립트가 중단되며, multi 스레드 안에서는 해당 스레드만 실패.' },
+            UNWRAP: { desc: 'ok인 genuine Result의 값을 꺼냄; 에러 Result면 TO_STRING(res.value)로 FAIL처럼 승격(두 번째 인자가 있으면 "message: " 접두).', returns: 'res.ok가 true면 res.value.', fails: 'res.ok가 false이거나 res가 genuine Result가 아니면 런타임 에러(스크립트 리터럴은 genuine이 아님 — OK/ERR로 생성).' },
+            OK: { desc: 'genuine Result {status: "done", ok: true, value} 생성.', returns: 'genuine Result. 인자 생략 시 value = {}.', fails: '실패하지 않음.' },
+            ERR: { desc: 'genuine 에러 Result {status: "error", ok: false, value} 생성. value는 어떤 타입이든 가능(구조화된 에러 허용).', returns: 'genuine Result. 인자 생략 시 value = {}.', fails: '실패하지 않음(이걸 UNWRAP하면 실패).' },
+            IS_RESULT: { desc: 'genuine-Result 출처 관찰 — 런타임 또는 OK/ERR가 만든 Result만 true(수제 {status, ok, value} 리터럴은 false).', returns: '불리언.', fails: '실패하지 않음(모든 값 허용).' },
             SLEEP: { desc: '현재 스레드를 ms 밀리초 동안 멈춤.', returns: '빈 객체 {}.', fails: 'ms가 숫자가 아니면 런타임 에러.' },
             MILTIME: { desc: '현재 epoch 시간.', returns: '숫자(epoch 밀리초).', fails: '실패하지 않음.' },
             DATE: { desc: '현재 날짜.', returns: '문자열 "YYYY-MM-DD".', fails: '실패하지 않음.' },
@@ -1199,7 +1211,7 @@ PRINT("Hello, World!")</textarea>
             HTTP_POST: { desc: 'HTTP POST. 문자열 body 는 그대로, 객체/배열 body 는 JSON 으로 직렬화. options = {headers, timeout}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: '2xx 아니면 .ok=false(value 유지). 전송 실패는 .ok=false, .value.status=0.' },
             HTTP: { desc: '임의 메서드(PUT/DELETE/PATCH/...)용 범용 요청. options = {headers, timeout, body}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'HTTP_GET과 동일: 2xx 아니면 .ok=false, 전송 실패는 .value.status=0.' },
         };
-        const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸', 'HTTP': 'HTTP' };
+        const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Results': 'Result', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸', 'HTTP': 'HTTP' };
         const UI_STR = {
             en: { panel: 'Built-in Functions', returns: 'Returns', fails: 'On failure', sample: 'Sample', empty: 'Select a function to see its definition and a sample.', insert: 'Insert' },
             ko: { panel: '내장 함수', returns: '반환값', fails: '실패 시', sample: '예제', empty: '함수를 선택하면 정의와 예제를 볼 수 있습니다.', insert: '삽입' }
@@ -2562,7 +2574,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
             var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments

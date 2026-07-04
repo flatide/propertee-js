@@ -8,6 +8,21 @@ import ProperTeeVisitor from './ProperTeeVisitor.js';
 // (JSON_PARSE, host values).
 export const TEE_NULL = Symbol('null');
 
+// Spec v0.10.0: the genuine-Result origin brand. A registry symbol (Symbol.for) so
+// Scheduler.js brands collection entries without an import; a symbol KEY is invisible
+// to Object.keys / JSON.stringify / for...in, so display, JSON, equality, and TYPE_OF
+// are byte-identical — only IS_RESULT and UNWRAP observe it, and deepCopy preserves it.
+// Script object literals never carry it.
+export const TEE_RESULT = Symbol.for('propertee.result');
+
+function makeResult(status, ok, value) {
+    return { status: status, ok: ok, value: value, [TEE_RESULT]: true };
+}
+
+function isGenuineResult(v) {
+    return v !== null && typeof v === 'object' && v[TEE_RESULT] === true;
+}
+
 export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
         super();
@@ -59,6 +74,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (Array.isArray(value)) return value.map(item => this.deepCopy(item));
             const copy = {};
             for (const key of Object.keys(value)) copy[key] = this.deepCopy(value[key]);
+            // A genuine Result stays genuine across copies (spec v0.10.0 — origin propagation;
+            // Object.keys skips symbol keys, so carry the brand explicitly).
+            if (value[TEE_RESULT] === true) copy[TEE_RESULT] = true;
             return copy;
         };
 
@@ -167,6 +185,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 // Returns a scheduler command instead of a Promise
                 return { __schedulerCommand: true, type: 'SLEEP', duration: milliseconds };
             },
+            // Spec v0.10.0: genuine-Result constructors + observer. (FAIL/UNWRAP live in
+            // visitFunctionCall so their errors carry the call site's line:col.)
+            'OK': (value) => makeResult("done", true, value === undefined ? {} : value),
+            'ERR': (value) => makeResult("error", false, value === undefined ? {} : value),
+            'IS_RESULT': (value) => isGenuineResult(value),
             'PUSH': (arr, ...values) => {
                 if (!Array.isArray(arr)) throw new Error('Runtime Error: PUSH() first argument must be an array');
                 return [...arr, ...values];
@@ -381,7 +404,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             // --- JSON ---
             'JSON_PARSE': (str) => {
                 if (typeof str !== 'string')
-                    return { status: "error", ok: false, value: "JSON_PARSE() requires a string argument" };
+                    return makeResult("error", false, "JSON_PARSE() requires a string argument");
                 try {
                     const parsed = JSON.parse(str);
                     const convert = (v) => {
@@ -397,9 +420,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         }
                         return v;
                     };
-                    return { status: "done", ok: true, value: convert(parsed) };
+                    return makeResult("done", true, convert(parsed));
                 } catch (e) {
-                    return { status: "error", ok: false, value: "Invalid JSON: " + e.message };
+                    return makeResult("error", false, "Invalid JSON: " + e.message);
                 }
             },
             'JSON_FORMAT': (value) => {
@@ -420,22 +443,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // SHELL_CTX — stub (no process execution in JS runtime)
         this.registerExternal('SHELL_CTX', (...args) => {
-            return { status: "error", ok: false, value: "SHELL_CTX() is not available in this environment" };
+            return makeResult("error", false, "SHELL_CTX() is not available in this environment");
         });
 
         // SHELL — stub (no process execution in JS runtime)
         this.registerExternalAsync('SHELL', (...args) => {
-            return { status: "error", ok: false, value: "SHELL() is not available in this environment" };
+            return makeResult("error", false, "SHELL() is not available in this environment");
         });
 
         // ENV — stub (no OS environment access in JS runtime)
         this.registerExternal('ENV', (...args) => {
-            return { status: "error", ok: false, value: "ENV() is not available in this environment" };
+            return makeResult("error", false, "ENV() is not available in this environment");
         });
 
         // File I/O — stubs (no filesystem access in JS runtime)
         const fileStub = (name) => (...args) => {
-            return { status: "error", ok: false, value: name + "() is not available in this environment" };
+            return makeResult("error", false, name + "() is not available in this environment");
         };
         for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_LINES', 'WRITE_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'DELETE_FILE']) {
             this.registerExternal(name, fileStub(name));
@@ -486,7 +509,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             try {
                 return func(...args);
             } catch (e) {
-                return { ok: false, value: e.message };
+                // Keep the historical key shape (no `status`); brand only (spec v0.10.0).
+                return { ok: false, value: e.message, [TEE_RESULT]: true };
             }
         };
     }
@@ -538,13 +562,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         if (result && typeof result.then === 'function') {
                             result.then(
                                 (val) => resolve(val),
-                                (err) => resolve({ status: "error", ok: false, value: err.message })
+                                (err) => resolve(makeResult("error", false, err.message))
                             );
                         } else {
                             resolve(result);
                         }
                     } catch (e) {
-                        resolve({ status: "error", ok: false, value: e.message });
+                        resolve(makeResult("error", false, e.message));
                     }
                 }, 0);
             });
@@ -578,13 +602,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError(`'${keyword}' is not available in this environment`, ctx);
     }
 
-    // Result helper for external functions
+    // Result helper for external functions (genuine-Result branded — spec v0.10.0)
     static ok(value) {
-        return { status: "done", ok: true, value: value };
+        return makeResult("done", true, value);
     }
 
     static error(message) {
-        return { status: "error", ok: false, value: message };
+        return makeResult("error", false, message);
     }
 
     getLocation(ctx) {
@@ -1766,6 +1790,23 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             for (const exprCtx of ctx.expression()) {
                 args.push(yield* this.visit(exprCtx));
             }
+        }
+
+        // FAIL/UNWRAP (spec v0.10.0) are dispatched here — not via the builtin table —
+        // so their errors carry the call site's line:col (interpreter-level builtins,
+        // like the reference runtime's PRINT/SLEEP dispatch).
+        if (funcName === 'FAIL') {
+            if (args.length !== 1) throw this.createError('FAIL() requires a message argument', ctx);
+            throw this.createError(this.functions['TO_STRING'](args[0]), ctx);
+        }
+        if (funcName === 'UNWRAP') {
+            if (args.length < 1 || args.length > 2) throw this.createError('UNWRAP() requires (result, [message])', ctx);
+            const res = args[0];
+            if (!isGenuineResult(res)) throw this.createError('UNWRAP() requires a Result', ctx);
+            if (res.ok === true) return res.value;
+            const valueText = this.functions['TO_STRING'](res.value);
+            throw this.createError(
+                args.length > 1 ? this.functions['TO_STRING'](args[1]) + ': ' + valueText : valueText, ctx);
         }
 
         // Built-in function

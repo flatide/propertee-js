@@ -1,0 +1,5 @@
+// spec v0.10.0: UNWRAP rejects values that are not genuine Results
+forged = {"status": "done", "ok": true, "value": 1}
+PRINT("before")
+x = UNWRAP(forged)
+PRINT("unreachable")

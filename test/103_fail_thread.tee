@@ -1,0 +1,17 @@
+// spec v0.10.0: FAIL inside a multi worker fails only that thread
+function work(n) do
+    if n == 2 then
+        FAIL("worker " + TO_STRING(n) + " aborted")
+    end
+    return n * 10
+end
+
+multi r do
+    thread a: work(1)
+    thread b: work(2)
+end
+
+PRINT("a:", r.a.ok, r.a.value)
+PRINT("b:", r.b.ok, r.b.value)
+PRINT("b is_result:", IS_RESULT(r.b))
+PRINT("run continues")

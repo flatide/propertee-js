@@ -1,0 +1,16 @@
+// spec v0.10.0: genuine-Result brand — creation, propagation, JSON boundary
+r = OK(7)
+PRINT("type:", TYPE_OF(r), "is_result:", IS_RESULT(r))
+copy = r
+PRINT("copy is_result:", IS_RESULT(copy))
+arr = PUSH([], r)
+PRINT("pushed is_result:", IS_RESULT(arr.1))
+forged = {"status": "done", "ok": true, "value": 7}
+PRINT("forged is_result:", IS_RESULT(forged))
+PRINT("parse wrapper:", IS_RESULT(JSON_PARSE("[1]")))
+roundtrip = JSON_PARSE(JSON_FORMAT(r))
+PRINT("roundtrip value is_result:", IS_RESULT(roundtrip.value))
+PRINT("roundtrip json:", JSON_FORMAT(r))
+e = ERR({"code": 42})
+PRINT("err ok:", e.ok, "code:", e.value.code)
+PRINT("no-arg:", IS_RESULT())

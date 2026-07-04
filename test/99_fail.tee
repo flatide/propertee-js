@@ -1,0 +1,12 @@
+// spec v0.10.0: FAIL raises a runtime error at the call site
+function check(res) do
+    if not res.ok then
+        FAIL("check failed: " + res.value)
+    end
+    return res.value
+end
+
+PRINT("value:", check(OK("fine")))
+PRINT("before fail")
+r = check(ERR("boom"))
+PRINT("unreachable")

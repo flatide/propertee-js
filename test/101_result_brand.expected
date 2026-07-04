@@ -1,0 +1,9 @@
+type: object is_result: true
+copy is_result: true
+pushed is_result: true
+forged is_result: false
+parse wrapper: true
+roundtrip value is_result: false
+roundtrip json: {"status":"done","ok":true,"value":7}
+err ok: false code: 42
+no-arg: false

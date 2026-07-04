@@ -1,5 +1,9 @@
 import { ThreadContext, ThreadState } from './ThreadContext.js';
 
+// Genuine-Result origin brand (spec v0.10.0) — same registry symbol as the visitor's
+// TEE_RESULT, resolved via Symbol.for so no import (and no bundling-order concern).
+const TEE_RESULT = Symbol.for('propertee.result');
+
 export default class Scheduler {
     constructor(visitor) {
         this.visitor = visitor;
@@ -103,7 +107,7 @@ export default class Scheduler {
             if (thread.state === ThreadState.BLOCKED) {
                 // Check timeout
                 if (thread.asyncTimeoutMs > 0 && (now - thread.asyncSubmitTime) > thread.asyncTimeoutMs) {
-                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout" };
+                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout", [TEE_RESULT]: true };
                     thread.clearAsyncState();
                     thread.markReady();
                     continue;
@@ -223,7 +227,7 @@ export default class Scheduler {
             const collection = {};
             for (let i = 0; i < childIds.length; i++) {
                 const keyName = resultKeyNames[i];
-                collection[keyName] = { status: "running", ok: false, value: {} };
+                collection[keyName] = { status: "running", ok: false, value: {}, [TEE_RESULT]: true };
             }
             parentThread._resultCollection = collection;
         }
@@ -246,13 +250,15 @@ export default class Scheduler {
                     parent._resultCollection[key] = {
                         status: "error",
                         ok: false,
-                        value: childThread.error ? childThread.error.message : 'Unknown thread error'
+                        value: childThread.error ? childThread.error.message : 'Unknown thread error',
+                        [TEE_RESULT]: true
                     };
                 } else {
                     parent._resultCollection[key] = {
                         status: "done",
                         ok: true,
-                        value: childThread.result
+                        value: childThread.result,
+                        [TEE_RESULT]: true
                     };
                 }
             }

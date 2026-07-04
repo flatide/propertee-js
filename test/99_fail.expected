@@ -1,0 +1,3 @@
+value: fine
+before fail
+Runtime error: Runtime Error at line 4:8: check failed: boom
