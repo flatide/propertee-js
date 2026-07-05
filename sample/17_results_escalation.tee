@@ -1,0 +1,63 @@
+// 17 — Results & escalation (spec v0.10.0–v0.12.0)
+// FAIL / UNWRAP / OK / ERR / IS_RESULT, genuine Results, and the reserved
+// ALL-CAPS namespace. Runs anywhere; in the playground the host-gated
+// built-ins (file I/O etc.) answer with error Results — that too is the demo.
+
+// ── 1. OK/ERR construct genuine Results; IS_RESULT observes the ORIGIN, not the shape
+good = OK(42)
+PRINT("OK(42) =", good)
+PRINT("IS_RESULT(good) =", IS_RESULT(good))
+
+forged = {"status": "done", "ok": true, "value": 42}
+PRINT("IS_RESULT(forged literal) =", IS_RESULT(forged))
+
+// the origin survives copies, but never survives JSON
+copied = good
+PRINT("IS_RESULT(copy) =", IS_RESULT(copied))
+plain = UNWRAP(JSON_PARSE(JSON_FORMAT(good)))
+PRINT("IS_RESULT(after JSON round-trip) =", IS_RESULT(plain))
+
+// ── 2. UNWRAP: ok -> value, error -> escalate; the 2-arg form prefixes context
+function parse_config(text) do
+    return UNWRAP(JSON_PARSE(text), "config parse")
+end
+cfg = parse_config("{\"retries\": 3}")
+PRINT("cfg.retries =", cfg.retries)
+// parse_config("oops") would end the run:
+//   Runtime Error at ...: config parse: <the JSON_PARSE error>
+
+// ── 3. FAIL declares an error fatal; a multi worker CONTAINS it
+//      (workers are pure, so capturing their failure is sound — the run goes on)
+function risky(n) do
+    if n > 1 then
+        FAIL("worker " + TO_STRING(n) + " aborted")
+    end
+    return n * 10
+end
+
+multi r do
+    thread a: risky(1)
+    thread b: risky(2)
+end
+PRINT("a:", r.a.status, "->", r.a.value)
+PRINT("b:", r.b.status, "-> captured, run continues; genuine:", IS_RESULT(r.b))
+
+// ── 4. Host-gated built-ins answer in the same Result shape
+//      (in the playground this is a stub error Result — handle it, don't UNWRAP it)
+file = READ_LINES("/etc/hosts", 1, 1)
+if not file.ok then
+    PRINT("READ_LINES said:", file.value)
+else
+    PRINT("first line:", file.value)
+end
+
+// ── 5. Namespace rules (spec v0.11.0–v0.12.0): your functions are yours,
+//      and an ALL-CAPS call is guaranteed to be a built-in or host function
+function Triple_len(xs) do        // mixed case: unrestricted
+    return LEN(xs) * 3            // LEN always resolves to the built-in
+end
+PRINT("Triple_len =", Triple_len([1, 2, 3]))
+// function LEN(x) do return 0 end
+//   ^ definition-time error since spec v0.12.0:
+//     Cannot define function 'LEN': all-uppercase names are reserved
+//     for built-in and host functions
