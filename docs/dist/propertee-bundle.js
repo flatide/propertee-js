@@ -6192,6 +6192,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     *visitFunctionDef(ctx) {
         const funcName = ctx.funcName.text;
+        // spec v0.12.0: the all-uppercase namespace is reserved for built-in/host functions
+        if (/^[A-Z][A-Z0-9_]*$/.test(funcName)) {
+            throw this.createError(
+                `Cannot define function '${funcName}': all-uppercase names are reserved for built-in and host functions`,
+                ctx
+            );
+        }
         const params = [];
         if (ctx.parameterList()) {
             for (const idToken of ctx.parameterList().ID()) {

@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.11.0
+# ProperTee Language Specification v0.12.0
 
 ## Overview
 
@@ -468,6 +468,20 @@ A function call `NAME(...)` resolves in this order (specified since spec v0.11.0
 
 A script-defined function therefore **shadows** any same-named built-in or external function — and a spec release adding new built-ins can never change what an existing script's calls resolve to. Within step 3, `FAIL` and `UNWRAP` cannot be replaced by host-registered externals (the built-ins win); an external registered under another catalog built-in's name replaces that built-in. Registering externals under the names `PRINT` or `SLEEP` is implementation-defined — avoid it.
 
+Since spec v0.12.0 a script cannot define an all-uppercase function name at all (see [Reserved Function Names](#reserved-function-names)), so a script function can never collide with a built-in in the first place; the order above still governs the residual case of host-registered externals with non-reserved names.
+
+### Reserved Function Names
+
+The all-uppercase namespace belongs to the runtime and the host (spec v0.12.0). A script cannot define a function whose name is all-uppercase — an uppercase letter followed only by uppercase letters, digits, or underscores (`^[A-Z][A-Z0-9_]*$`). The definition itself is a runtime error at the definition site:
+
+```
+function LEN(x) do    // Runtime error: Cannot define function 'LEN':
+    return 0          //   all-uppercase names are reserved for built-in
+end                   //   and host functions
+```
+
+The rule applies to **every** all-uppercase name, not just names that currently exist as built-ins — so a future spec release can add new built-ins without ever colliding with script code. What this buys: an ALL-CAPS call is always a built-in or host-provided function, guaranteed — the naming convention is a fact, not a custom. Mixed-case and lowercase names (`Foo`, `getBalance`, `get_balance`) are unrestricted. Variable names are unaffected (`MAX = 10` is legal — variables and functions are separate namespaces).
+
 ## Variable Scope
 
 ### Global and Local
@@ -732,9 +746,26 @@ end
 
 Only meaningful inside functions running within a `multi` block.
 
+### Blocking and Suspension
+
+Built-in functions are **runtime primitives** — provided by the runtime or the host, not written in ProperTee. Some of them **suspend**: a call that has to wait — `SLEEP`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O built-ins, and asynchronous host-registered external functions — pauses only the calling thread and yields to sibling threads until the wait is over. There is no `await`-style marker: suspension is a property of the call, not of the syntax, and any function may transitively suspend by calling one of these.
+
+`SLEEP` is simply the smallest suspension primitive (a pure timer). Scripts cannot suspend by any other means — waiting abstractions are *composed on top of* `SLEEP`:
+
+```
+// a polling wait, built from SLEEP
+function wait_until(flag_file) do
+    loop not FILE_EXISTS(flag_file) infinite do
+        SLEEP(100)
+    end
+end
+```
+
+Hosts can create their own suspension primitives: an asynchronous external function gets the same contract as the suspending built-ins — the calling thread is suspended, siblings keep running, and the outcome is delivered as a Result object.
+
 ## Built-in Functions
 
-All built-in function names are UPPERCASE.
+All built-in function names are UPPERCASE, and the all-uppercase namespace is reserved for built-in and host functions — scripts cannot define such names (see [Reserved Function Names](#reserved-function-names)).
 
 ### Output
 
@@ -1208,10 +1239,17 @@ Common error conditions:
 | Deliberate failure | `FAIL(msg)` raises `msg` itself (script-chosen text) |
 | `UNWRAP` on a non-Result | UNWRAP() requires a Result |
 | `FAIL` without a message | FAIL() requires a message argument |
+| All-uppercase function definition | Cannot define function 'X': all-uppercase names are reserved for built-in and host functions |
 
 ---
 
 ## Changelog
+
+### v0.12.0 — the all-uppercase function namespace is reserved
+
+A script can no longer define a function whose name is all-uppercase (`^[A-Z][A-Z0-9_]*$`) — the definition itself is a runtime error at the definition site (see [Reserved Function Names](#reserved-function-names)). The naming convention becomes a guarantee: an ALL-CAPS call is always a built-in or host-provided function, the way a keyword is always the language's — while staying a function (composable, blockable via the host's ignored-functions list). Where built-ins are concerned this supersedes the practical need for v0.11.0's shadowing rule: a script-function/built-in collision can no longer exist, so future built-in additions are structurally non-breaking. Analyzed in `docs/design-draft-reserved-uppercase-namespace.md` (which also records the rejected `sleep`-keyword proposal that started the discussion, and the suspension model now documented in [Blocking and Suspension](#blocking-and-suspension)).
+
+**Migration note (breaking):** rename any script-defined all-uppercase function — the error pinpoints the definition line. A corpus audit at adoption time found no such definitions outside the conformance suite itself. The shadow-mocking pattern (`function SLEEP(...)` to stub a built-in) is no longer possible — inject a host external or use a lowercase wrapper instead. Variable names are unaffected.
 
 ### v0.11.0 — function-name resolution pinned
 

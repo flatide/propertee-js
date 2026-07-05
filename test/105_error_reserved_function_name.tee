@@ -1,0 +1,6 @@
+// spec v0.12.0: all-uppercase function names are reserved for built-ins/host
+PRINT("before")
+function LEN(x) do
+    return 0
+end
+PRINT("after")

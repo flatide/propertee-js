@@ -1,0 +1,17 @@
+// mixed-case and lowercase function names stay unrestricted (spec v0.12.0)
+function Foo() do
+    return "Foo ok"
+end
+
+function getBALANCE(user) do
+    return "balance for " + user
+end
+
+function get_balance(user) do
+    return "snake for " + user
+end
+
+PRINT(Foo())
+PRINT(getBALANCE("alice"))
+PRINT(get_balance("bob"))
+PRINT(LEN([1, 2, 3]))
