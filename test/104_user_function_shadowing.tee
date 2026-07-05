@@ -1,0 +1,26 @@
+// spec v0.11.0: script-defined functions shadow built-ins and host externals
+function LEN(x) do
+    return "custom len"
+end
+
+function OK(v) do
+    return "custom ok"
+end
+
+function SLEEP(ms) do
+    return "custom sleep"
+end
+
+function FAIL(msg) do
+    return "custom fail"
+end
+
+function UNWRAP(r) do
+    return "custom unwrap"
+end
+
+PRINT(LEN([1, 2, 3]))
+PRINT(OK(1))
+PRINT(SLEEP(5))
+PRINT(FAIL("boom"))
+PRINT(UNWRAP("not a result"))

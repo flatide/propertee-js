@@ -1792,6 +1792,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         }
 
+        // User-defined function (spec v0.11.0: name resolution is host-blocked ->
+        // script-defined functions -> built-ins/externals, so a script function
+        // shadows any same-named built-in or external)
+        if (this.userDefinedFunctions[funcName]) {
+            return yield* this._callUserFunction(funcName, args, ctx);
+        }
+
         // FAIL/UNWRAP (spec v0.10.0) are dispatched here — not via the builtin table —
         // so their errors carry the call site's line:col (interpreter-level builtins,
         // like the reference runtime's PRINT/SLEEP dispatch).
@@ -1820,11 +1827,6 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             return result;
-        }
-
-        // User-defined function
-        if (this.userDefinedFunctions[funcName]) {
-            return yield* this._callUserFunction(funcName, args, ctx);
         }
 
         throw this.createError(`Unknown function '${funcName}'`, ctx);
