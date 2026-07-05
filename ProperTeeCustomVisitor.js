@@ -1,4 +1,5 @@
 import ProperTeeVisitor from './ProperTeeVisitor.js';
+import ProperTeeParser from './ProperTeeParser.js';
 
 // Spec v0.8.0 (#4): the ProperTee null value. A Symbol, NOT JS null — the visitor
 // uses JS null internally as a statement sentinel, and a Symbol naturally falls
@@ -596,6 +597,37 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     setHiddenKeywords(keywords) { this.hiddenKeywords = new Set(keywords || []); }
     setIgnoredFunctions(functions) { this.ignoredFunctions = new Set(functions || []); }
+
+    // Opt-in static validation pass for host restrictions (ProperTee issue #9).
+    // Runtime checks fire only when a construct is reached, so a forbidden statement in an
+    // untaken branch goes undetected; this scans the whole parse tree — dead branches
+    // included — and returns one "line L:C: 'X' is not available in this environment"
+    // entry per hidden-keyword construct / ignored-function call (empty array = clean).
+    // Runtime enforcement is unchanged (backstop).
+    validate(tree) {
+        const out = [];
+        const report = (name, token) =>
+            out.push(`line ${token.line}:${token.column}: '${name}' is not available in this environment`);
+        const checkKeyword = (keyword, ctx) => {
+            if (this.hiddenKeywords.has(keyword)) report(keyword, ctx.start);
+        };
+        const walk = (t) => {
+            if (t instanceof ProperTeeParser.IfStatementContext) checkKeyword('if', t);           // covers the elseif chain
+            else if (t instanceof ProperTeeParser.IterationStmtContext) checkKeyword('loop', t);   // all three loop forms
+            else if (t instanceof ProperTeeParser.FunctionDefContext) checkKeyword('function', t);
+            else if (t instanceof ProperTeeParser.ParallelStmtContext) checkKeyword('multi', t);
+            else if (t instanceof ProperTeeParser.SpawnStmtContext) checkKeyword('thread', t);
+            else if (t instanceof ProperTeeParser.DebugStmtContext) checkKeyword('debug', t);
+            else if (t instanceof ProperTeeParser.FunctionCallContext
+                    && this.ignoredFunctions.has(t.funcName.text)) {
+                report(t.funcName.text, t.funcName);
+            }
+            // Always recurse — a report on a construct does not hide violations nested inside it.
+            for (const child of t.children ?? []) walk(child);
+        };
+        walk(tree);
+        return out;
+    }
 
     _checkKeywordAllowed(keyword, ctx) {
         if (this.hiddenKeywords.has(keyword))

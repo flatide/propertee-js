@@ -93,6 +93,17 @@ else
         [ -f "$pt_file" ] || continue
         run_test "$pt_file"
     done
+
+    # Host-API tests (no .tee fixture): static validation pass (ProperTee issue #9)
+    actual=$(node "$SCRIPT_DIR/run_validate_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} validate_static (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} validate_static (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""

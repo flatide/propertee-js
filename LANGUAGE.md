@@ -1160,6 +1160,8 @@ x = SHELL("echo hello")   // Runtime error: 'SHELL' is not available in this env
 
 Both built-in and external functions can be ignored. The check applies to normal function calls and to function calls inside multi block `thread` spawns.
 
+**Two enforcement points.** The restrictions above are enforced at **runtime**: the error is raised only when the forbidden construct is reached or the forbidden function is called, so a forbidden construct sitting in an untaken branch is not detected by running the script. For sandboxing, implementations additionally provide an **opt-in static validation pass** (a host API — `Engine.validate(source)` in the reference runtime, `interpreter.validate(tree)` in propertee-java, `visitor.validate(tree)` in propertee-js): it scans the whole parse tree — dead branches included — and returns one `line L:C: 'X' is not available in this environment` entry per hidden-keyword construct and ignored-function call, so a host can reject a script before executing it. The static pass is conservative and has no false negatives for these two restriction types; the runtime checks stay in place as a backstop. Default behavior is unchanged — hosts choose when to validate.
+
 ## Comments
 
 ```
