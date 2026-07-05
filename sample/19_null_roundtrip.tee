@@ -1,0 +1,45 @@
+// 19 — first-class null & the lossless JSON round-trip (spec v0.8.0)
+// null is DATA, not a language mechanism: the language itself never produces
+// it (absence is {}), it enters only via the null literal or JSON — and it
+// leaves through JSON_FORMAT unchanged, so JSON round-trips byte-losslessly.
+// Runs identically on the playground, propertee2-java, and propertee-java.
+
+// ── 1. null enters via data: parse an upstream JSON payload losslessly
+src = "{\"coupon\":null,\"n\":1,\"tags\":[1,null,3]}"
+payload = UNWRAP(JSON_PARSE(src))          // JSON_PARSE returns a Result
+
+PRINT("coupon:", payload.coupon)           // displays as null
+PRINT("TYPE_OF:", TYPE_OF(payload.coupon))
+
+// ── 2. null equals ONLY null — {} ("absence") stays a different value
+PRINT("== null:", payload.coupon == null)
+PRINT("== {}:  ", payload.coupon == {})
+PRINT("null == false:", null == false)
+PRINT("null == 0:", null == 0)
+
+// ── 3. the round trip is byte-lossless: format(parse(src)) == src
+formatted = JSON_FORMAT(payload)
+PRINT(formatted)
+PRINT("lossless:", formatted == src)
+
+// ── 4. what the language itself NEVER produces: absence is {}, not null
+function noop() do
+end
+PRINT("noop() == {}:", noop() == {})
+PRINT("noop() == null:", noop() == null)
+
+// ── 5. check for null explicitly at the data boundary, then branch
+function describe_coupon(order) do
+    if order.coupon == null then
+        return "no coupon (explicit null in the data)"
+    end
+    return "coupon: " + order.coupon
+end
+PRINT(describe_coupon(payload))
+PRINT(describe_coupon({"coupon": "WELCOME10"}))
+
+// null stays inert data: string + coerces it for display...
+PRINT("label: " + null)
+// ...but conditions, logic, arithmetic, and member access on null are runtime
+// errors — no null propagation. Uncomment to see it fail loudly, with line:col:
+// if payload.coupon then PRINT("unreachable") end
