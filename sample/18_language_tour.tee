@@ -1,0 +1,113 @@
+// ==========================================================================
+// 18_language_tour.tee — ProperTee in one script
+//
+// The essence of the language, end to end:
+//   1. values  — strict, JSON-native, copied by value, 1-based
+//   2. flow    — boolean-only conditions, short-circuit logic, elseif
+//   3. results — failure is a value: OK / ERR / UNWRAP / IS_RESULT / FAIL
+//   4. threads — cooperative `multi`: pure workers, deterministic order,
+//                errors contained per thread
+//
+// Pure builtins only — identical output on the playground (propertee-js),
+// the reference runtime (propertee2-java), and v1 (propertee-java).
+// ==========================================================================
+
+PRINT("== 1. values ==")
+
+// JSON is the data model, and null round-trips losslessly. The language
+// itself never produces null (absence is {}) — null only enters as data.
+order_json = "{\"id\":7,\"items\":[\"tee\",\"box\",\"loom\"],\"coupon\":null}"
+order = UNWRAP(JSON_PARSE(order_json))     // JSON_PARSE returns a Result
+
+PRINT("first item:", order.items.1)        // 1-based: .1 is the first element
+PRINT("no coupon:", order.coupon == null)  // null compares only to null
+
+price = 7 / 2                              // division always yields a double
+PRINT("unit price: " + price)              // `+` with a string coerces: "3.5"
+
+copy = order.items                         // assignment copies by value
+copy.1 = "CHANGED"
+PRINT("original intact:", order.items.1)   // deep copy — no aliasing surprises
+
+PRINT("== 2. flow ==")
+
+function grade(score) do
+    if score >= 90 then
+        return "A"
+    elseif score >= 70 then
+        return "B"
+    else
+        return "F"
+    end
+end
+
+loop s in [95, 75, 40] do                  // for-each over an array
+    PRINT(s, "->", grade(s))
+end
+
+// Conditions must be boolean, and `and`/`or` short-circuit left to right:
+// the right side never runs when the left already decides — so this is safe.
+stock = 0
+shippable = stock > 0 and 100 / stock > 1
+PRINT("shippable:", shippable)
+
+PRINT("evens:", [2..8, 2])                 // ranges build arrays: [from..to, step]
+
+PRINT("== 3. results ==")
+
+// Failure is a value with one shape everywhere: {status, ok, value}.
+// (Builtins are ALL-CAPS — that namespace is reserved, so `function ERR()`
+// is a definition-time error, never a silent override.)
+function find_price(catalog, name) do
+    if HAS_KEY(catalog, name) then
+        return OK(catalog.$name)           // .$name — property access by variable
+    end
+    return ERR("not in catalog: " + name)
+end
+
+catalog = { "tee": 12000, "box": 4500 }
+
+PRINT("tee price:", UNWRAP(find_price(catalog, "tee")))
+
+miss = find_price(catalog, "loom")         // an error Result is still just data
+PRINT("loom:", miss.ok, "-", miss.value)
+PRINT("genuine Result:", IS_RESULT(miss))  // runtime-made Results carry a brand
+
+PRINT("== 4. threads ==")
+
+// Orders per region. Workers read globals as a read-only snapshot (::) —
+// they cannot write them, so parallel code stays pure and deterministic.
+regions = { "east": [3, 5, 2], "west": [4, 4], "south": [] }
+
+function region_total(name) do
+    PRINT("[" + name + "] starting")
+    total = 0
+    loop n in ::regions.$name do
+        total = total + n
+        SLEEP(20)                          // cooperative: yields to the others
+    end
+    if total == 0 then
+        FAIL("no orders in " + name)       // fails THIS worker only
+    end
+    return total
+end
+
+multi report do
+    loop name, orders in ::regions do
+        thread $name: region_total(name)   // one worker per region, dynamic key
+    end
+monitor 1000
+    PRINT("[monitor] east is", report.east.status)
+end
+
+// Every worker landed in `report` as a Result — including the failed one.
+loop name, r in report do
+    if r.ok then
+        PRINT(name, "total:", r.value)
+    else
+        PRINT(name, "failed:", r.value)    // the FAIL message, with line:col
+    end
+end
+
+grand = report.east.value + report.west.value
+PRINT(JSON_FORMAT({ "job": "regional-orders", "grand_total": grand, "coupon": null }))
