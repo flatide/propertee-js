@@ -24,6 +24,24 @@ function isGenuineResult(v) {
     return v !== null && typeof v === 'object' && v[TEE_RESULT] === true;
 }
 
+// The 32-bit integer envelope for integer-producing builtins (spec v0.13.0).
+function intResult(d) {
+    if (d < -2147483648 || d > 2147483647) {
+        throw new Error('Runtime Error: Integer overflow');
+    }
+    return d;
+}
+
+// Interpreter-dispatched names cannot be replaced by host registrations (spec v0.13.0).
+const INTERPRETER_DISPATCHED = new Set(['PRINT', 'SLEEP', 'FAIL', 'UNWRAP']);
+function requireReplaceableName(name) {
+    if (INTERPRETER_DISPATCHED.has(name)) {
+        throw new Error(`Cannot register an external function named '${name}': ` +
+            'interpreter-dispatched names (PRINT, SLEEP, FAIL, UNWRAP) cannot be replaced');
+    }
+    return name;
+}
+
 export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
         super();
@@ -152,10 +170,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             'SUM': (...args) => args.reduce((a, b) => a + b, 0),
             'MAX': (...args) => Math.max(...args),
             'MIN': (...args) => Math.min(...args),
-            'ABS': (n) => Math.abs(n),
-            'FLOOR': (n) => Math.floor(n),
-            'CEIL': (n) => Math.ceil(n),
-            'ROUND': (n) => Math.round(n),
+            // FLOOR/CEIL/ROUND produce an Integer; a result outside the 32-bit range is a loud
+            // error, never a silent promotion — and |−2³¹| does not fit ABS (spec v0.13.0).
+            'ABS': (n) => {
+                if (n === -2147483648) throw new Error('Runtime Error: Integer overflow');
+                return Math.abs(n);
+            },
+            'FLOOR': (n) => intResult(Math.floor(n)),
+            'CEIL': (n) => intResult(Math.ceil(n)),
+            'ROUND': (n) => intResult(Math.round(n)),
             'LEN': (a) => {
                 if (Array.isArray(a)) return a.length;
                 if (typeof a === 'string') return a.length;
@@ -506,6 +529,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // or throw an exception which is automatically caught and wrapped as
     // {ok: false, value: "error message"}.
     registerExternal(name, func) {
+        requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         this.functions[name] = (...args) => {
             try {
                 return func(...args);
@@ -520,6 +544,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // Used for blocking I/O (DB queries, HTTP calls) so other ProperTee threads aren't frozen.
     // The function can be synchronous or return a Promise for truly async operations.
     registerExternalAsync(name, func, timeoutMs = 0) {
+        requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         const self = this;
         this.functions[name] = (...args) => {
             if (!self.activeThread) {
@@ -1435,7 +1460,28 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitIntegerAtom(ctx) {
-        return parseInt(ctx.getText(), 10);
+        // Spec v0.13.0: integer literals must fit the 32-bit range (tokens are unsigned digits).
+        const value = parseInt(ctx.getText(), 10);
+        if (value > 2147483647) {
+            throw this.createError(`Integer literal out of range: ${ctx.getText()}`, ctx);
+        }
+        return value;
+    }
+
+    // Spec v0.13.0 (32-bit envelope): a value is "an integer" when it is whole AND in the 32-bit
+    // range — JS has one number type, so out-of-range integral values (which can only enter as
+    // data, e.g. JSON_PARSE) count as decimals, exactly like the Java runtimes' Double promotion.
+    _isIntValue(v) {
+        return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
+    }
+
+    /** Integer-integer +,-,* stay integers and must fit the 32-bit range (spec v0.13.0). */
+    _intArith(l, r, op, ctx) {
+        const result = op === '+' ? l + r : op === '-' ? l - r : l * r;
+        if (result < -2147483648 || result > 2147483647) {
+            throw this.createError('Integer overflow', ctx);
+        }
+        return result;
     }
 
     *visitDecimalAtom(ctx) {
@@ -1714,6 +1760,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (typeof value !== 'number') {
             throw this.createError(`Unary minus requires numeric operand. Got -${typeof value}`, ctx);
         }
+        // 32-bit envelope (spec v0.13.0): -MIN does not fit.
+        if (value === -2147483648) {
+            throw this.createError('Integer overflow', ctx);
+        }
         return -value;
     }
 
@@ -1734,7 +1784,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError(`Arithmetic operator '${op}' requires numeric operands. Got ${typeof left} ${op} ${typeof right}`, ctx);
         }
 
-        if (op === '*') return left * right;
+        if (op === '*') {
+            if (this._isIntValue(left) && this._isIntValue(right)) {
+                return this._intArith(left, right, '*', ctx);   // 32-bit envelope (spec v0.13.0)
+            }
+            return left * right;
+        }
         if (op === '/' || op === '%') {
             if (right === 0) throw this.createError('Division by zero', ctx);
             return op === '/' ? left / right : left % right;
@@ -1747,7 +1802,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const op = ctx.children[1].getText();
 
         if (op === '+') {
-            if (typeof left === 'number' && typeof right === 'number') return left + right;
+            if (typeof left === 'number' && typeof right === 'number') {
+                if (this._isIntValue(left) && this._isIntValue(right)) {
+                    return this._intArith(left, right, '+', ctx);   // 32-bit envelope (spec v0.13.0)
+                }
+                return left + right;
+            }
             if (typeof left === 'string' || typeof right === 'string') {
                 return this.functions['TO_STRING'](left) + this.functions['TO_STRING'](right);
             }
@@ -1756,6 +1816,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (op === '-') {
             if (typeof left !== 'number' || typeof right !== 'number') {
                 throw this.createError(`Subtraction requires numeric operands. Got ${typeof left} - ${typeof right}`, ctx);
+            }
+            if (this._isIntValue(left) && this._isIntValue(right)) {
+                return this._intArith(left, right, '-', ctx);   // 32-bit envelope (spec v0.13.0)
             }
             return left - right;
         }
@@ -2009,7 +2072,17 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             resultKeyNames.push(spawn.resultKey);
 
             if (this.ignoredFunctions.has(spawn.funcName)) {
-                throw this.createError(`'${spawn.funcName}' is not available in this environment`, spawn.ctx);
+                // Spec v0.13.0: a blocked function reached via a thread spawn fails THAT worker
+                // only — a generator that throws on its first slice rides the scheduler's normal
+                // worker-error path ([THREAD ERROR] + error Result, run continues). Previously
+                // this threw here, failing the whole run during spawn processing.
+                const blocked = this.createError(`'${spawn.funcName}' is not available in this environment`, spawn.ctx);
+                specs.push({
+                    name: `blocked-${spawn.funcName}-${i}`,
+                    generator: (function*() { throw blocked; })(),
+                    localScope: null
+                });
+                continue;
             }
 
             if (this.userDefinedFunctions[spawn.funcName]) {
@@ -2060,8 +2133,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         let monitorSpec = null;
         const monitorClause = ctx.monitorClause();
         if (monitorClause) {
+            const intervalToken = monitorClause.INTEGER().getText();
+            const interval = parseInt(intervalToken, 10);
+            if (interval > 2147483647) {   // an INTEGER literal — the 32-bit rule (spec v0.13.0)
+                throw this.createError(`Integer literal out of range: ${intervalToken}`, monitorClause);
+            }
             monitorSpec = {
-                interval: parseInt(monitorClause.INTEGER().getText()),
+                interval: interval,
                 blockCtx: monitorClause.block()
             };
         }

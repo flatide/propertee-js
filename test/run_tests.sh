@@ -65,6 +65,9 @@ run_test() {
         74_function_ignore)
             actual=$(node "$SCRIPT_DIR/run_test74.js" 2>&1)
             ;;
+        111_thread_ignored_function)
+            actual=$(node "$SCRIPT_DIR/run_test111.js" 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;
@@ -93,6 +96,17 @@ else
         [ -f "$pt_file" ] || continue
         run_test "$pt_file"
     done
+
+    # Host-API test (spec v0.13.0): interpreter-dispatched registration names are rejected
+    actual=$(node "$SCRIPT_DIR/run_guard_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} dispatch_name_guard (host API)\\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} dispatch_name_guard (host API)\\n"
+        echo "$actual" | head -20 | sed "s/^/  /"
+        FAIL=$((FAIL + 1))
+    fi
 
     # Host-API tests (no .tee fixture): static validation pass (ProperTee issue #9)
     actual=$(node "$SCRIPT_DIR/run_validate_test.js" 2>&1)

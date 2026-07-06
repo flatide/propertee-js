@@ -1,0 +1,12 @@
+// spec v0.13.0: the 32-bit integer envelope, in-range behavior
+max = 2147483647
+PRINT(max)
+min = -2147483647 - 1
+PRINT(min)
+PRINT(min + max)
+PRINT(46340 * 46340)
+PRINT(FLOOR(2147483647.9))
+PRINT(CEIL(-2147483648.9))
+PRINT(ROUND(2147483646.5))
+PRINT(ABS(-2147483647))
+PRINT(max / 1)

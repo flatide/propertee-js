@@ -1,0 +1,4 @@
+// spec v0.13.0: integer literals must fit the 32-bit range
+PRINT("before")
+x = 9999999999
+PRINT("unreachable")

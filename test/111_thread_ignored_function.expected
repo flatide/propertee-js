@@ -1,0 +1,4 @@
+[THREAD ERROR] Runtime Error at line 10:14: 'blocked_fn' is not available in this environment
+a: true 7
+b: false Runtime Error at line 10:14: 'blocked_fn' is not available in this environment
+run continues
