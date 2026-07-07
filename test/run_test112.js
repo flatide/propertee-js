@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Test harness for test 111 (thread_ignored_function)
-// Ignores the "blocked_fn" function; spec v0.14.0: naming a blocked function (even via a thread
-// spawn) rejects the whole script at load, before any statement runs.
+// Test harness for test 112 (load_reject_dead_branch)
+// Ignores the "SHELL" function; spec v0.14.0: a blocked construct anywhere — even in a dead
+// branch — rejects the whole script at load, before any statement runs.
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -12,7 +12,7 @@ import ProperTeeCustomVisitor from '../ProperTeeCustomVisitor.js';
 import Scheduler from '../Scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptFile = resolve(__dirname, '111_thread_ignored_function.tee');
+const scriptFile = resolve(__dirname, '112_load_reject_dead_branch.tee');
 const scriptText = readFileSync(scriptFile, 'utf-8');
 
 // Parse
@@ -30,7 +30,7 @@ const ioStreams = {
     stderr: (...args) => console.error(...args)
 };
 const visitor = new ProperTeeCustomVisitor({}, {}, ioStreams, {});
-visitor.setIgnoredFunctions(["blocked_fn"]);
+visitor.setIgnoredFunctions(["SHELL"]);
 
 // Run
 const scheduler = new Scheduler(visitor);

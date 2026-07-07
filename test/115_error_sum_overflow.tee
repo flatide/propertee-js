@@ -1,0 +1,2 @@
+// spec v0.14.0: SUM over integers fails loudly on overflow (consistent with + / *).
+PRINT(SUM(2000000000, 2000000000))

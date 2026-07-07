@@ -1,4 +1,7 @@
-// spec v0.13.0: a blocked function reached via thread spawn fails THAT worker only
+// spec v0.14.0: naming a blocked function rejects the whole script at load — before any
+// statement runs — even when the call is reached only via a thread spawn (this supersedes the
+// v0.13.0 worker-containment behavior). The leading PRINT never produces output.
+PRINT("before")
 function fine() do
     return 7
 end
@@ -9,6 +12,4 @@ multi r do
     thread a: fine()
     thread b: blocked_fn()
 end
-PRINT("a:", r.a.ok, r.a.value)
-PRINT("b:", r.b.ok, r.b.value)
-PRINT("run continues")
+PRINT("after")

@@ -68,6 +68,9 @@ run_test() {
         111_thread_ignored_function)
             actual=$(node "$SCRIPT_DIR/run_test111.js" 2>&1)
             ;;
+        112_load_reject_dead_branch)
+            actual=$(node "$SCRIPT_DIR/run_test112.js" 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;

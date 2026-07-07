@@ -1,0 +1,6 @@
+// spec v0.14.0: load rejection scans the whole tree — a blocked construct in a branch that
+// would never execute still refuses the run, so the reachable PRINT below never prints.
+PRINT("reachable")
+if false then
+    x = SHELL("never runs")
+end

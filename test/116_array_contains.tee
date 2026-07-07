@@ -1,0 +1,13 @@
+// spec v0.15.0: CONTAINS(array, value) — membership via deep == equality; the string form (substring) is unchanged
+PRINT(CONTAINS([1, 2, 3], 2))
+PRINT(CONTAINS([1, 2, 3], 9))
+PRINT(CONTAINS(["a", "b", "c"], "b"))
+PRINT(CONTAINS([1, 2, 3], "2"))
+PRINT(CONTAINS([{"a": 1}], {"a": 1}))
+PRINT(CONTAINS([[1, 2], [3, 4]], [3, 4]))
+PRINT(CONTAINS([1, 1.0], 1))
+PRINT(CONTAINS([], 5))
+PRINT(CONTAINS([null], null))
+PRINT(CONTAINS([true, false], true))
+PRINT(CONTAINS("hello world", "o w"))
+PRINT(CONTAINS("hello", "z"))

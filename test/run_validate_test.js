@@ -47,13 +47,19 @@ end
         "line 6:17: 'SHELL' is not available in this environment",
     ]);
 
-    // Backstop unchanged: the same script still runs (the safe branch is taken).
-    const out = [];
-    const runVisitor = new ProperTeeCustomVisitor({}, {}, {stdout: (...a) => out.push(a.join(' ')), stderr: () => {}}, {});
+    // spec v0.14.0: running the script is now REFUSED at load — the dead-branch violation rejects
+    // the whole run before the "ok" branch executes, on the first violation in document order
+    // (multi at 5:4). "ok" never prints; validate() above still lists every violation.
+    let rejected = null;
+    const runVisitor = new ProperTeeCustomVisitor({}, {}, {stdout: () => {}, stderr: () => {}}, {});
     runVisitor.setHiddenKeywords(['multi']);
     runVisitor.setIgnoredFunctions(['SHELL']);
-    await new Scheduler(runVisitor).run(runVisitor.visitRoot(parse(deadBranch)));
-    expectEqual('runtime backstop', out, ['ok']);
+    try {
+        await new Scheduler(runVisitor).run(runVisitor.visitRoot(parse(deadBranch)));
+    } catch (e) {
+        rejected = e.message;
+    }
+    expectEqual('load-time rejection', rejected, "Runtime Error at line 5:4: 'multi' is not available in this environment");
 }
 
 // 2. All six hideable keywords, each construct reported with its position.

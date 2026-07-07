@@ -5168,7 +5168,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         const defaultFunctions = {
             'PRINT': (...args) => { this.stdout(...args.map(a => formatDisplayValue(a))); return {}; },
-            'SUM': (...args) => args.reduce((a, b) => a + b, 0),
+            'SUM': (...args) => {
+                const sum = args.reduce((a, b) => a + b, 0);   // spec v0.14.0: integer SUM overflow fails loudly (like +/*)
+                if (args.every(a => this._isIntValue(a)) && (sum < -2147483648 || sum > 2147483647)) {
+                    throw new Error('Runtime Error: Integer overflow');
+                }
+                return sum;
+            },
             'MAX': (...args) => Math.max(...args),
             'MIN': (...args) => Math.min(...args),
             // FLOOR/CEIL/ROUND produce an Integer; a result outside the 32-bit range is a loud
@@ -5344,10 +5350,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
             },
             // --- String matching ---
-            'CONTAINS': (str, sub) => {
-                if (typeof str !== 'string') throw new Error('Runtime Error: CONTAINS() first argument must be a string');
-                if (typeof sub !== 'string') throw new Error('Runtime Error: CONTAINS() second argument must be a string');
-                return str.includes(sub);
+            'CONTAINS': (x, item) => {
+                if (Array.isArray(x)) return x.some(e => this._deepEqual(e, item));   // array membership: deep ==, spec v0.15.0
+                if (typeof x === 'string') {
+                    if (typeof item !== 'string') throw new Error('Runtime Error: CONTAINS() second argument must be a string');
+                    return x.includes(item);
+                }
+                throw new Error('Runtime Error: CONTAINS() requires a string or array as its first argument');
             },
             'STARTS_WITH': (str, prefix) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: STARTS_WITH() first argument must be a string');
@@ -5630,12 +5639,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // included — and returns one "line L:C: 'X' is not available in this environment"
     // entry per hidden-keyword construct / ignored-function call (empty array = clean).
     // Runtime enforcement is unchanged (backstop).
-    validate(tree) {
+    // Scan the whole tree (dead branches included) for hidden-keyword constructs / ignored-function
+    // calls; returns structured violations in document order (empty = clean).
+    _blockedConstructs(tree) {
         const out = [];
-        const report = (name, token) =>
-            out.push(`line ${token.line}:${token.column}: '${name}' is not available in this environment`);
+        const check = (name, token) => out.push({ name, line: token.line, column: token.column });
         const checkKeyword = (keyword, ctx) => {
-            if (this.hiddenKeywords.has(keyword)) report(keyword, ctx.start);
+            if (this.hiddenKeywords.has(keyword)) check(keyword, ctx.start);
         };
         const walk = (t) => {
             if (t instanceof ProperTeeParser.IfStatementContext) checkKeyword('if', t);           // covers the elseif chain
@@ -5646,13 +5656,29 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             else if (t instanceof ProperTeeParser.DebugStmtContext) checkKeyword('debug', t);
             else if (t instanceof ProperTeeParser.FunctionCallContext
                     && this.ignoredFunctions.has(t.funcName.text)) {
-                report(t.funcName.text, t.funcName);
+                check(t.funcName.text, t.funcName);
             }
             // Always recurse — a report on a construct does not hide violations nested inside it.
             for (const child of t.children ?? []) walk(child);
         };
         walk(tree);
         return out;
+    }
+
+    // Host API (issue #9): one "line L:C: 'X' is not available in this environment" string per violation.
+    validate(tree) {
+        return this._blockedConstructs(tree).map(
+            v => `line ${v.line}:${v.column}: '${v.name}' is not available in this environment`);
+    }
+
+    // Load-time rejection (spec v0.14.0): throw the first blocked construct (document order) as a
+    // runtime error, matching the runtime backstop's message/position — or return without throwing
+    // when clean. Called before the program runs.
+    _rejectIfBlocked(tree) {
+        if (this.hiddenKeywords.size === 0 && this.ignoredFunctions.size === 0) return;
+        const v = this._blockedConstructs(tree)[0];
+        if (v) throw new Error(
+            `Runtime Error at line ${v.line}:${v.column}: '${v.name}' is not available in this environment`);
     }
 
     _checkKeywordAllowed(keyword, ctx) {
@@ -5753,6 +5779,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // --- Root and Block (statement-level, yield at boundaries) ---
 
     *visitRoot(ctx) {
+        this._rejectIfBlocked(ctx);   // spec v0.14.0: refuse the whole script before any statement runs
         let result = null;
         const statements = ctx.statement();
         let i = 0;
