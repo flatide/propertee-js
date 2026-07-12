@@ -1,0 +1,16 @@
+// Test: the worker/watchdog global snapshot is taken at multi ENTRY — a ::
+// write in the setup phase updates the real globals (visible after the block)
+// but is not visible to the threads
+g = 1
+
+function readg() do
+    return ::g
+end
+
+multi r do
+    ::g = 2
+    thread a: readg()
+end
+
+PRINT(r.a.value)
+PRINT(g)

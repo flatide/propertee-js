@@ -719,7 +719,7 @@ This guarantees no data races — threads never see each other's modifications.
 ### Semantics
 
 1. The multi block body executes as a setup phase in an isolated scope (like a function), collecting `thread` calls
-2. A snapshot of global variables is taken at `multi` entry — all threads see this snapshot
+2. A snapshot of global variables is taken at `multi` entry, **before the setup phase runs** — all threads (and the monitor watchdog) see this snapshot. A `::` write in the setup phase updates the real globals (visible after the block) but is **not** visible to the threads
 3. All spawned functions launch concurrently after setup completes
 4. The result collection is pre-built with `"running"` entries at spawn time
 5. Threads execute cooperatively, interleaving at statement boundaries
@@ -1341,10 +1341,19 @@ as worker threads and observes the other threads through **captured snapshots**:
   finish, `[MONITOR ERROR]` reporting (a failing iteration stops mid-run iterations; the final
   one still runs), and the no-setup-locals rule.
 
+Alongside the re-specification, the batch **pins the snapshot's timing**: it is taken at `multi`
+entry, before the setup phase runs (see [Semantics](#semantics)). The spec always said "at multi
+entry" and v1/js behaved that way, but the reference runtime had silently drifted to
+snapshotting after setup — a setup-phase `::` write was visible to its workers. The reference is
+restored to entry-time; fixture 121 pins it.
+
 **Breaking, mildly**: scripts that *relied on the error* (none realistically) or read globals
 bare inside a monitor must switch to `::`. Everything else is strictly more permissive.
-Migration: none expected; fixture 32 re-pins the global-write error, fixtures 117–118 pin the
-new scope and capture semantics.
+Migration: none expected. Fixture 32 re-pins the global-write error; 117 pins iteration locals,
+loops, and function calls in the body plus the capture read; 118 pins capture-vs-live under
+suspension; 119 pins the nested `::g.x` member-write guard (error, position, and the untouched
+global); 120 is the fresh-scope discriminator (a mid-run iteration's local is undefined in the
+final one); 121 pins the entry-time snapshot.
 
 ### v0.15.0 — CONTAINS checks array membership
 
