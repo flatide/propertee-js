@@ -1,6 +1,6 @@
 // Test: the worker/watchdog global snapshot is taken at multi ENTRY — a ::
 // write in the setup phase updates the real globals (visible after the block)
-// but is not visible to the threads
+// but is not visible to the threads, nor to the monitor watchdog
 g = 1
 
 function readg() do
@@ -10,6 +10,8 @@ end
 multi r do
     ::g = 2
     thread a: readg()
+monitor 40
+    PRINT("watchdog sees " + TO_STRING(::g))
 end
 
 PRINT(r.a.value)
