@@ -1,0 +1,18 @@
+// Test: each watchdog iteration is a fresh scope — locals do not carry over
+function slow() do
+    SLEEP(250)
+    return 1
+end
+
+multi r do
+    thread a: slow()
+monitor 100
+    if r.a.status == "running" then
+        note = "mid"
+        PRINT("set " + note)
+    else
+        PRINT(note)
+    end
+end
+
+PRINT(r.a.value)

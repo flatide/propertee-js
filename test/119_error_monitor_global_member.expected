@@ -1,0 +1,3 @@
+[MONITOR ERROR] Runtime Error at line 13:4: Cannot assign to global variable '::g' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.
+[MONITOR ERROR] Runtime Error at line 13:4: Cannot assign to global variable '::g' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.
+1

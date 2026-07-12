@@ -1,0 +1,16 @@
+// Test: a nested member write rooted at a global (::g.x) is a global write —
+// banned in the monitor watchdog (and workers) alike; the global is untouched
+g = {"x": 1}
+
+function dummy() do
+    SLEEP(50)
+    return
+end
+
+multi do
+    thread : dummy()
+monitor 10
+    ::g.x = 2
+end
+
+PRINT(g.x)

@@ -883,6 +883,19 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Case 2: property assignment
         if (lvalueCtx.constructor.name === 'PropLValueContext') {
+            // Thread purity: a nested write whose lvalue chain is rooted at a global
+            // (::g.x = ...) is a global write — same rule as workers and the monitor
+            // watchdog (mirrors the reference's rootLvalue() guard).
+            let root = lvalueCtx;
+            while (root.constructor.name === 'PropLValueContext') root = root.lvalue();
+            if (root.constructor.name === 'GlobalVarLValueContext' && this._isInThreadContext()) {
+                const rootName = root.ID().getText();
+                throw this.createError(
+                    `Cannot assign to global variable '::${rootName}' inside multi block. ` +
+                    `Functions in multi blocks can only read global variables (via ::) and write to local variables.`,
+                    root
+                );
+            }
             const targetObj = yield* this._evaluateLValueForAssignment(lvalueCtx.lvalue());
             const key = yield* this.visit(lvalueCtx.access());
 

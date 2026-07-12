@@ -1,0 +1,4 @@
+set mid
+set mid
+[MONITOR ERROR] Runtime Error at line 14:14: Variable 'note' is not defined in local scope. Use ::note to access the global variable.
+1

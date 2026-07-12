@@ -212,7 +212,11 @@ export default class Scheduler {
                 blockCtx: monitorSpec.blockCtx,
                 lastRun: Date.now(),
                 parentThreadId: parentThread.id,
-                childIds: [...childIds]
+                childIds: [...childIds],
+                // The watchdog reads globals from the SAME multi-entry snapshot as the workers
+                // (never the live variables), and stops mid-run iterations after a failure.
+                globalSnapshot: globalSnapshot,
+                aborted: false
             });
         }
 
@@ -285,13 +289,15 @@ export default class Scheduler {
     runMonitors() {
         const now = Date.now();
         for (const monitor of this.monitors) {
+            if (monitor.aborted) continue;   // a failed iteration stops mid-run runs; final still runs
             if (now - monitor.lastRun >= monitor.interval) {
-                monitor.lastRun = now;
                 try {
                     this.executeMonitorSync(monitor);
                 } catch (e) {
                     this.visitor.stderr('[MONITOR ERROR]', e.message);
+                    monitor.aborted = true;
                 }
+                monitor.lastRun = Date.now();   // fixed-delay: measure the interval from after the body
             }
         }
     }
@@ -314,9 +320,11 @@ export default class Scheduler {
         }
 
         // A temporary thread context with worker purity (:: writes error) and the
-        // iteration scope as its single local frame.
+        // iteration scope as its single local frame. Globals come from the multi-entry
+        // snapshot stored on the monitor entry — NOT the parent thread, whose "snapshot"
+        // is the live variables when the parent is the main thread.
         const monitorThread = new ThreadContext(-1, 'monitor', null,
-            parentThread.globalSnapshot || this.visitor.variables);
+            monitor.globalSnapshot || this.visitor.variables);
         monitorThread.scopeStack.push(iterationScope);
         monitorThread.inThreadContext = true;
         monitorThread.inMonitorContext = true;
