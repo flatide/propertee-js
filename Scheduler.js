@@ -304,14 +304,21 @@ export default class Scheduler {
         // Save and set monitor context on visitor
         const prevMonitor = this.visitor.activeThread?.inMonitorContext;
 
-        // Create a monitor scope with the result collection injected
-        const monitorScope = {...(parentThread.globalSnapshot || this.visitor.variables)};
+        // spec v0.16.0: the monitor is a watchdog thread. Each iteration runs in a fresh
+        // local scope (like a function invocation) seeded with a deep-copied CAPTURE of the
+        // result collection; globals are the read-only snapshot, reachable via :: only.
+        const iterationScope = {};
         if (parentThread.resultCollectionVarName && parentThread._resultCollection) {
-            monitorScope[parentThread.resultCollectionVarName] = parentThread._resultCollection;
+            iterationScope[parentThread.resultCollectionVarName] =
+                this.visitor.deepCopy(parentThread._resultCollection);
         }
 
-        // Create a temporary thread context for monitor execution
-        const monitorThread = new ThreadContext(-1, 'monitor', null, monitorScope);
+        // A temporary thread context with worker purity (:: writes error) and the
+        // iteration scope as its single local frame.
+        const monitorThread = new ThreadContext(-1, 'monitor', null,
+            parentThread.globalSnapshot || this.visitor.variables);
+        monitorThread.scopeStack.push(iterationScope);
+        monitorThread.inThreadContext = true;
         monitorThread.inMonitorContext = true;
 
         // Set the active thread to the monitor thread

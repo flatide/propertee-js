@@ -836,10 +836,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitAssignment(ctx) {
-        if (this._isInMonitorContext()) {
-            throw this.createError('Cannot assign variables in monitor block (read-only)', ctx);
-        }
-
+        // spec v0.16.0: the monitor is a watchdog thread — assignment follows the same
+        // rules as workers (locals writable, :: writes error); no monitor-specific ban.
         const lvalueCtx = ctx.lvalue();
         const value = yield* this.visit(ctx.expression());
         const scopeStack = this._getScopeStack();

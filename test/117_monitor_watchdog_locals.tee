@@ -1,0 +1,25 @@
+// Test: monitor is a watchdog thread — fresh locals per iteration, loops and
+// function calls usable in the body, captured result snapshot readable
+function quick(n) do
+    return n * 2
+end
+
+function fmt(done, total) do
+    return "done=" + TO_STRING(done) + "/" + TO_STRING(total)
+end
+
+multi result do
+    thread a: quick(3)
+    thread b: quick(4)
+monitor 40
+    done = 0
+    loop key, val in result do
+        if val.status == "done" then
+            done = done + 1
+        end
+    end
+    PRINT(fmt(done, LEN(result)))
+end
+
+PRINT(result.a.value)
+PRINT(result.b.value)

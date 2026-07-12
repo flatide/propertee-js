@@ -1,4 +1,6 @@
-// Test: Assignment inside monitor block should error
+// Test: the monitor watchdog cannot write to globals (same purity as threads)
+g = 1
+
 function dummy() do
     SLEEP(50)
     return
@@ -7,5 +9,5 @@ end
 multi do
     thread : dummy()
 monitor 10
-    x = 1
+    ::g = 2
 end
