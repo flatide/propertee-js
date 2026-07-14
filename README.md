@@ -165,6 +165,35 @@ functions pass their visitor so those names are recognized:
 `checkScript(source, { visitor })`. The name set itself is available as
 `visitor.knownFunctionNames()` (catalog + dispatched `FAIL`/`UNWRAP` + host-registered externals).
 
+### Check-only embedding (validate without running)
+
+An embedding host can pre-flight a script — e.g. before saving a user-submitted one — with the
+same visitor it executes with, so its registered externals are part of the known set (and of the
+"did you mean" suggestions). Nothing is executed:
+
+```javascript
+import checkScript from './checkScript.js';
+import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
+
+// The visitor you embed with — registered externals become known names
+const visitor = new ProperTeeCustomVisitor({}, {}, { stdout() {}, stderr() {} }, {});
+visitor.registerExternal("GET_BALANCE", (user) => ProperTeeCustomVisitor.ok(balanceOf(user)));
+
+const userScript = 'res = GET_BALANC("alice")\nif res.ok == true then\n    PRINT(res.value)\nend\n';
+
+const { ok, problems } = checkScript(userScript, { visitor });
+if (!ok) {
+    // Every reported problem is a guaranteed failure — safe to reject the script outright
+    for (const p of problems) {
+        console.error(`line ${p.line}:${p.column} [${p.kind}] ${p.message}`);
+        // line 1:6 [unknown-function] unknown function 'GET_BALANC' (did you mean 'GET_BALANCE'?)
+    }
+}
+```
+
+In the browser the same call is `window.checkScript(source, { visitor })` — the playground runs
+exactly this before every execution.
+
 ## Project Structure
 
 | File | Role |
