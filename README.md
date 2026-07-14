@@ -140,7 +140,30 @@ visitor.setHiddenKeywords(["multi", "loop"]);
 visitor.setIgnoredFunctions(["SHELL", "SLEEP"]);
 ```
 
-Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`. Both built-in and external functions can be blocked. Using a hidden keyword or blocked function produces a runtime error: `'X' is not available in this environment`.
+Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`. Both built-in and external functions can be blocked. A script that names a hidden keyword or blocked function **anywhere** (dead branches included) is refused at load, before the first statement runs (spec v0.14.0): `Runtime Error at line L:C: 'X' is not available in this environment`. `visitor.validate(tree)` lists every violation without running the script.
+
+## Checking a Script (syntax + built-in typo lint)
+
+`checkScript(source)` answers "does this script have a problem" in one call, without running it —
+the parser plus a **zero-false-positive** unknown-built-in lint (ALL-CAPS names are reserved for
+built-ins/host functions since spec v0.12.0, so an ALL-CAPS call outside the known set is a
+guaranteed call-time failure; lowercase calls are never flagged). The playground runs it before
+every execution; in the browser bundle it is exposed as `window.checkScript`.
+
+```javascript
+import checkScript from './checkScript.js';
+
+checkScript('x = SHEL("echo hi")\n');
+// { ok: false, problems: [{ kind: 'unknown-function', line: 1, column: 4,
+//     message: "unknown function 'SHEL' (did you mean 'SHELL'?)",
+//     name: 'SHEL', suggestion: 'SHELL' }] }
+```
+
+Problems carry `kind: 'syntax' | 'unknown-function'` with 1-based lines / 0-based columns; when
+syntax problems exist the lint is skipped (it needs a clean tree). Hosts that registered external
+functions pass their visitor so those names are recognized:
+`checkScript(source, { visitor })`. The name set itself is available as
+`visitor.knownFunctionNames()` (catalog + dispatched `FAIL`/`UNWRAP` + host-registered externals).
 
 ## Project Structure
 
@@ -150,6 +173,7 @@ Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug
 | `ProperTeeCustomVisitor.js` | Generator-based interpreter |
 | `Scheduler.js` | Round-robin cooperative scheduler |
 | `ThreadContext.js` | Per-thread state management |
+| `checkScript.js` | One-call script check: syntax + built-in typo lint |
 | `pt.js` | CLI runner and REPL |
 | `build-browser.js` | Browser bundle generator |
 | `docs/index.html` | Playground (GitHub Pages) |

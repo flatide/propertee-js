@@ -4715,7 +4715,11 @@ class Scheduler {
                 blockCtx: monitorSpec.blockCtx,
                 lastRun: Date.now(),
                 parentThreadId: parentThread.id,
-                childIds: [...childIds]
+                childIds: [...childIds],
+                // The watchdog reads globals from the SAME multi-entry snapshot as the workers
+                // (never the live variables), and stops mid-run iterations after a failure.
+                globalSnapshot: globalSnapshot,
+                aborted: false
             });
         }
 
@@ -4788,13 +4792,15 @@ class Scheduler {
     runMonitors() {
         const now = Date.now();
         for (const monitor of this.monitors) {
+            if (monitor.aborted) continue;   // a failed iteration stops mid-run runs; final still runs
             if (now - monitor.lastRun >= monitor.interval) {
-                monitor.lastRun = now;
                 try {
                     this.executeMonitorSync(monitor);
                 } catch (e) {
                     this.visitor.stderr('[MONITOR ERROR]', e.message);
+                    monitor.aborted = true;
                 }
+                monitor.lastRun = Date.now();   // fixed-delay: measure the interval from after the body
             }
         }
     }
@@ -4807,14 +4813,23 @@ class Scheduler {
         // Save and set monitor context on visitor
         const prevMonitor = this.visitor.activeThread?.inMonitorContext;
 
-        // Create a monitor scope with the result collection injected
-        const monitorScope = {...(parentThread.globalSnapshot || this.visitor.variables)};
+        // spec v0.16.0: the monitor is a watchdog thread. Each iteration runs in a fresh
+        // local scope (like a function invocation) seeded with a deep-copied CAPTURE of the
+        // result collection; globals are the read-only snapshot, reachable via :: only.
+        const iterationScope = {};
         if (parentThread.resultCollectionVarName && parentThread._resultCollection) {
-            monitorScope[parentThread.resultCollectionVarName] = parentThread._resultCollection;
+            iterationScope[parentThread.resultCollectionVarName] =
+                this.visitor.deepCopy(parentThread._resultCollection);
         }
 
-        // Create a temporary thread context for monitor execution
-        const monitorThread = new ThreadContext(-1, 'monitor', null, monitorScope);
+        // A temporary thread context with worker purity (:: writes error) and the
+        // iteration scope as its single local frame. Globals come from the multi-entry
+        // snapshot stored on the monitor entry — NOT the parent thread, whose "snapshot"
+        // is the live variables when the parent is the main thread.
+        const monitorThread = new ThreadContext(-1, 'monitor', null,
+            monitor.globalSnapshot || this.visitor.variables);
+        monitorThread.scopeStack.push(iterationScope);
+        monitorThread.inThreadContext = true;
         monitorThread.inMonitorContext = true;
 
         // Set the active thread to the monitor thread
@@ -5041,6 +5056,36 @@ function requireReplaceableName(name) {
             'interpreter-dispatched names (PRINT, SLEEP, FAIL, UNWRAP) cannot be replaced');
     }
     return name;
+}
+
+// Nearest known name within edit distance 2, for "did you mean" suggestions (null if none).
+// Smallest distance wins; ties resolve alphabetically for deterministic output.
+function nearestName(name, candidates) {
+    let best = null;
+    let bestDist = 3;
+    for (const c of candidates) {
+        const d = editDistance(name, c);
+        if (d < bestDist || (d === bestDist && best !== null && c < best)) {
+            best = c;
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
+function editDistance(a, b) {
+    const m = a.length, n = b.length;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+            cur[j] = a[i - 1] === b[j - 1]
+                ? prev[j - 1]
+                : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
+        }
+        prev = cur;
+    }
+    return prev[n];
 }
 
 class ProperTeeCustomVisitor extends ProperTeeVisitor {
@@ -5686,6 +5731,46 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw this.createError(`'${keyword}' is not available in this environment`, ctx);
     }
 
+    // ---- Built-in name enumeration & typo lint (host API — reference 0.13.0 / TeeBox 1.13.0 parity) ----
+
+    // Every ALL-CAPS name callable on this instance: the built-in catalog and host-registered
+    // externals (registerExternal/registerExternalAsync write into the same `functions` table),
+    // plus the interpreter-dispatched FAIL/UNWRAP (spec v0.10.0 — dispatched for line:col errors,
+    // never in the table). Wiring-independent: a bare visitor enumerates the full default set.
+    knownFunctionNames() {
+        const names = new Set(['FAIL', 'UNWRAP']);
+        for (const name of Object.keys(this.functions)) {
+            if (/^[A-Z][A-Z0-9_]*$/.test(name)) names.add(name);
+        }
+        return [...names].sort();
+    }
+
+    // Zero-false-positive typo lint: ALL-CAPS names are reserved for built-in/host functions
+    // (spec v0.12.0), so an ALL-CAPS call outside knownFunctionNames() can never be a script
+    // function and is a guaranteed call-time failure. Lowercase calls are never flagged (possible
+    // script functions, forward references included). Scans the whole tree — dead branches and
+    // `thread` spawn calls included. Returns [{name, line, column, suggestion}].
+    lintUnknownFunctions(tree) {
+        const known = new Set(this.knownFunctionNames());
+        const out = [];
+        const walk = (t) => {
+            if (t instanceof ProperTeeParser.FunctionCallContext) {
+                const name = t.funcName.text;
+                if (/^[A-Z][A-Z0-9_]*$/.test(name) && !known.has(name)) {
+                    out.push({
+                        name,
+                        line: t.funcName.line,
+                        column: t.funcName.column,
+                        suggestion: nearestName(name, known)
+                    });
+                }
+            }
+            for (const child of t.children ?? []) walk(child);
+        };
+        walk(tree);
+        return out;
+    }
+
     // Result helper for external functions (genuine-Result branded — spec v0.10.0)
     static ok(value) {
         return makeResult("done", true, value);
@@ -5837,10 +5922,8 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitAssignment(ctx) {
-        if (this._isInMonitorContext()) {
-            throw this.createError('Cannot assign variables in monitor block (read-only)', ctx);
-        }
-
+        // spec v0.16.0: the monitor is a watchdog thread — assignment follows the same
+        // rules as workers (locals writable, :: writes error); no monitor-specific ban.
         const lvalueCtx = ctx.lvalue();
         const value = yield* this.visit(ctx.expression());
         const scopeStack = this._getScopeStack();
@@ -5886,6 +5969,19 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Case 2: property assignment
         if (lvalueCtx.constructor.name === 'PropLValueContext') {
+            // Thread purity: a nested write whose lvalue chain is rooted at a global
+            // (::g.x = ...) is a global write — same rule as workers and the monitor
+            // watchdog (mirrors the reference's rootLvalue() guard).
+            let root = lvalueCtx;
+            while (root.constructor.name === 'PropLValueContext') root = root.lvalue();
+            if (root.constructor.name === 'GlobalVarLValueContext' && this._isInThreadContext()) {
+                const rootName = root.ID().getText();
+                throw this.createError(
+                    `Cannot assign to global variable '::${rootName}' inside multi block. ` +
+                    `Functions in multi blocks can only read global variables (via ::) and write to local variables.`,
+                    root
+                );
+            }
             const targetObj = yield* this._evaluateLValueForAssignment(lvalueCtx.lvalue());
             const key = yield* this.visit(lvalueCtx.access());
 
@@ -7278,4 +7374,77 @@ class AsyncPendingError extends Error {
 
     global.ProperTeeCustomVisitor = ProperTeeCustomVisitor;
     global.TEE_NULL = TEE_NULL;
+})(typeof window !== 'undefined' ? window : this);
+
+
+// checkScript.js - Browser Compatible Version
+(function(global) {
+    const antlr4 = global.antlr4;
+    const ProperTeeLexer = global.ProperTeeLexer;
+    const ProperTeeParser = global.ProperTeeParser;
+    const ProperTeeCustomVisitor = global.ProperTeeCustomVisitor;
+
+// Client-side script check: syntax + built-in typo lint in one call.
+//
+// The user-facing question is "does this script have a problem", not "is the grammar
+// valid" — so this pairs the parser with the zero-false-positive unknown-builtin lint
+// (ALL-CAPS names are reserved for built-ins/host functions since spec v0.12.0, so an
+// ALL-CAPS call outside the known set is a guaranteed call-time failure). Mirrors the
+// judgment of TeeBox's server-side /admin/scripts/validate (TeeBox 1.13.0).
+//
+// Returns { ok, problems } where each problem is
+//   { kind: 'syntax' | 'unknown-function', line, column, message, name?, suggestion? }
+// Lines are 1-based, columns 0-based (ANTLR convention, matching runtime errors).
+// When syntax problems exist the lint is skipped (it needs a clean tree) — fix the
+// syntax first, then the lint pass runs on the next call.
+//
+// options.visitor: an existing ProperTeeCustomVisitor whose known-name set to use —
+// pass the instance you registered host externals on so they are not flagged.
+// Defaults to a bare visitor (the full default built-in set).
+class CollectingErrorListener extends antlr4.error.ErrorListener {
+    constructor(problems) {
+        super();
+        this.problems = problems;
+    }
+    syntaxError(recognizer, offendingSymbol, line, column, msg, err) {
+        this.problems.push({ kind: 'syntax', line, column, message: msg });
+    }
+}
+
+function checkScript(source, options = {}) {
+    const problems = [];
+    const listener = new CollectingErrorListener(problems);
+
+    const chars = new antlr4.InputStream(source);
+    const lexer = new ProperTeeLexer(chars);
+    lexer.removeErrorListeners();
+    lexer.addErrorListener(listener);
+    const tokens = new antlr4.CommonTokenStream(lexer);
+    const parser = new ProperTeeParser(tokens);
+    parser.removeErrorListeners();
+    parser.addErrorListener(listener);
+    const tree = parser.root();
+
+    if (problems.length > 0) return { ok: false, problems };
+
+    const visitor = options.visitor
+        ?? new ProperTeeCustomVisitor({}, {}, { stdout() {}, stderr() {} }, {});
+    for (const p of visitor.lintUnknownFunctions(tree)) {
+        problems.push({
+            kind: 'unknown-function',
+            line: p.line,
+            column: p.column,
+            message: `unknown function '${p.name}'`
+                + (p.suggestion ? ` (did you mean '${p.suggestion}'?)` : ''),
+            name: p.name,
+            suggestion: p.suggestion
+        });
+    }
+    return { ok: problems.length === 0, problems };
+}
+
+checkScript;
+
+
+    global.checkScript = checkScript;
 })(typeof window !== 'undefined' ? window : this);

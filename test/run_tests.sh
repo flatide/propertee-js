@@ -121,6 +121,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # Host-API test: checkScript (syntax + built-in typo lint) & knownFunctionNames
+    actual=$(node "$SCRIPT_DIR/run_check_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} check_script (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} check_script (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""

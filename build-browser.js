@@ -85,6 +85,14 @@ const customVisitorContent = convertToGlobal('ProperTeeCustomVisitor.js', 'Prope
     ProperTeeVisitor: 'ProperTeeVisitor'
 }, ['TEE_NULL']);
 
+// checkScript (syntax + built-in typo lint in one call; depends on the parse chain + visitor)
+const checkScriptContent = convertToGlobal('checkScript.js', 'checkScript', {
+    antlr4: 'antlr4',
+    ProperTeeLexer: 'ProperTeeLexer',
+    ProperTeeParser: 'ProperTeeParser',
+    ProperTeeCustomVisitor: 'ProperTeeCustomVisitor'
+});
+
 // Ensure browser directory exists
 if (!existsSync('browser')) {
     mkdirSync('browser');
@@ -98,6 +106,7 @@ writeFileSync('browser/ProperTeeVisitor.browser.js', visitorContent);
 writeFileSync('browser/ThreadContext.browser.js', threadContextContent);
 writeFileSync('browser/Scheduler.browser.js', schedulerContent);
 writeFileSync('browser/ProperTeeCustomVisitor.browser.js', customVisitorContent);
+writeFileSync('browser/checkScript.browser.js', checkScriptContent);
 
 // Bundle with license header
 const licenseHeader = `/*!
@@ -116,7 +125,7 @@ const licenseHeader = `/*!
 
 `;
 
-const bundle = `${licenseHeader}${antlr4Content}\n${lexerContent}\n${parserContent}\n${visitorContent}\n${threadContextContent}\n${schedulerContent}\n${customVisitorContent}`;
+const bundle = `${licenseHeader}${antlr4Content}\n${lexerContent}\n${parserContent}\n${visitorContent}\n${threadContextContent}\n${schedulerContent}\n${customVisitorContent}\n${checkScriptContent}`;
 writeFileSync('browser/propertee-bundle.js', bundle);
 
 console.log('Browser build complete!');

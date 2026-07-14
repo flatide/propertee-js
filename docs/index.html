@@ -930,6 +930,20 @@ PRINT("Hello, World!")</textarea>
             }
         }
 
+        // Zero-false-positive built-in typo lint (ALL-CAPS names are reserved for
+        // built-ins/host functions — spec v0.12.0): an unknown ALL-CAPS call is a
+        // guaranteed runtime failure, so surface it before running. Returns true
+        // (and reports) when the script should not run.
+        function reportUnknownFunctions(visitor, tree) {
+            const problems = visitor.lintUnknownFunctions(tree);
+            if (problems.length === 0) return false;
+            appendOutput('Unknown function' + (problems.length > 1 ? 's' : '') + ':\n' +
+                problems.map(p => `Line ${p.line}:${p.column} - unknown function '${p.name}'` +
+                    (p.suggestion ? ` (did you mean '${p.suggestion}'?)` : '')).join('\n') + '\n', '#f38ba8');
+            highlightErrorLines(problems.map(p => p.line));
+            return true;
+        }
+
         let errorLineSet = new Set();
         let debugLineSet = new Set();
         let breakpointSet = new Set();
@@ -2311,6 +2325,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
                 installPlaygroundPlatform(visitor);
+                if (reportUnknownFunctions(visitor, tree)) return;
                 const scheduler = new Scheduler(visitor);
                 const mainGenerator = visitor.visitRoot(tree);
                 const result = await scheduler.run(mainGenerator);
@@ -2515,6 +2530,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
                 installPlaygroundPlatform(visitor);
+                if (reportUnknownFunctions(visitor, tree)) return;
                 const scheduler = new Scheduler(visitor);
                 activeScheduler = scheduler;
 

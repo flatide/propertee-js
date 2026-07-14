@@ -42,6 +42,36 @@ function requireReplaceableName(name) {
     return name;
 }
 
+// Nearest known name within edit distance 2, for "did you mean" suggestions (null if none).
+// Smallest distance wins; ties resolve alphabetically for deterministic output.
+function nearestName(name, candidates) {
+    let best = null;
+    let bestDist = 3;
+    for (const c of candidates) {
+        const d = editDistance(name, c);
+        if (d < bestDist || (d === bestDist && best !== null && c < best)) {
+            best = c;
+            bestDist = d;
+        }
+    }
+    return best;
+}
+
+function editDistance(a, b) {
+    const m = a.length, n = b.length;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+            cur[j] = a[i - 1] === b[j - 1]
+                ? prev[j - 1]
+                : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
+        }
+        prev = cur;
+    }
+    return prev[n];
+}
+
 export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
         super();
@@ -683,6 +713,46 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     _checkKeywordAllowed(keyword, ctx) {
         if (this.hiddenKeywords.has(keyword))
             throw this.createError(`'${keyword}' is not available in this environment`, ctx);
+    }
+
+    // ---- Built-in name enumeration & typo lint (host API — reference 0.13.0 / TeeBox 1.13.0 parity) ----
+
+    // Every ALL-CAPS name callable on this instance: the built-in catalog and host-registered
+    // externals (registerExternal/registerExternalAsync write into the same `functions` table),
+    // plus the interpreter-dispatched FAIL/UNWRAP (spec v0.10.0 — dispatched for line:col errors,
+    // never in the table). Wiring-independent: a bare visitor enumerates the full default set.
+    knownFunctionNames() {
+        const names = new Set(['FAIL', 'UNWRAP']);
+        for (const name of Object.keys(this.functions)) {
+            if (/^[A-Z][A-Z0-9_]*$/.test(name)) names.add(name);
+        }
+        return [...names].sort();
+    }
+
+    // Zero-false-positive typo lint: ALL-CAPS names are reserved for built-in/host functions
+    // (spec v0.12.0), so an ALL-CAPS call outside knownFunctionNames() can never be a script
+    // function and is a guaranteed call-time failure. Lowercase calls are never flagged (possible
+    // script functions, forward references included). Scans the whole tree — dead branches and
+    // `thread` spawn calls included. Returns [{name, line, column, suggestion}].
+    lintUnknownFunctions(tree) {
+        const known = new Set(this.knownFunctionNames());
+        const out = [];
+        const walk = (t) => {
+            if (t instanceof ProperTeeParser.FunctionCallContext) {
+                const name = t.funcName.text;
+                if (/^[A-Z][A-Z0-9_]*$/.test(name) && !known.has(name)) {
+                    out.push({
+                        name,
+                        line: t.funcName.line,
+                        column: t.funcName.column,
+                        suggestion: nearestName(name, known)
+                    });
+                }
+            }
+            for (const child of t.children ?? []) walk(child);
+        };
+        walk(tree);
+        return out;
     }
 
     // Result helper for external functions (genuine-Result branded — spec v0.10.0)
