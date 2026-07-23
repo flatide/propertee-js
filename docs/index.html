@@ -612,6 +612,8 @@
             background: transparent;
             z-index: 0;
             color: #cdd6f4;
+            tab-size: 4;        /* must match #script or columns drift on tab characters */
+            -moz-tab-size: 4;
         }
 
         .syn-kw { color: #cba6f7; }
@@ -2689,8 +2691,13 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
         }
 
         function updateSyntaxHighlight() {
-            var code = document.getElementById('script').value;
-            document.getElementById('editorSyntax').innerHTML = highlightSyntax(code);
+            var script = document.getElementById('script');
+            var syntax = document.getElementById('editorSyntax');
+            syntax.innerHTML = highlightSyntax(script.value);
+            // Rebuilding the <pre> can reset its scroll position; keep it locked to the
+            // textarea so the caret stays over the visible characters.
+            syntax.scrollTop = script.scrollTop;
+            syntax.scrollLeft = script.scrollLeft;
         }
 
         // Code editor features
@@ -2785,17 +2792,27 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
             const script = document.getElementById('script');
             const lineNumbers = document.getElementById('lineNumbers');
+            const editorHighlight = document.getElementById('editorHighlight');
+            const editorSyntax = document.getElementById('editorSyntax');
+            // The textarea's text is transparent — the visible text lives in the syntax <pre>
+            // behind it, so both axes must track the textarea scroll or the caret and the
+            // visible characters drift apart on long lines.
+            const syncEditorScroll = () => {
+                lineNumbers.scrollTop = script.scrollTop;
+                editorHighlight.scrollTop = script.scrollTop;
+                editorSyntax.scrollTop = script.scrollTop;
+                editorSyntax.scrollLeft = script.scrollLeft;
+            };
             script.addEventListener('input', () => {
                 clearErrorHighlights();
                 updateLineNumbers();
                 updateSyntaxHighlight();
+                // Safari can move scrollLeft on caret jumps (e.g. Enter on a scrolled long
+                // line) without a timely scroll event — re-sync right after the input.
+                syncEditorScroll();
             });
-            const editorHighlight = document.getElementById('editorHighlight');
-            const editorSyntax = document.getElementById('editorSyntax');
             script.addEventListener('scroll', () => {
-                lineNumbers.scrollTop = script.scrollTop;
-                editorHighlight.scrollTop = script.scrollTop;
-                editorSyntax.scrollTop = script.scrollTop;
+                syncEditorScroll();
                 hideFnTooltip();
             });
 
