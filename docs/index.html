@@ -119,6 +119,21 @@
             color: #374151;
         }
 
+        .btn-fn-toggle {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .btn-fn-toggle:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-fn-toggle.active {
+            background: #4f46e5;
+            color: #fff;
+        }
+
         .toolbar-divider {
             width: 1px;
             height: 24px;
@@ -250,6 +265,33 @@
         .fn-resizer:hover,
         .fn-resizer.dragging {
             background: #89b4fa;
+        }
+
+        /* Function panel toggled off (Functions button in the toolbar / ✕ in the header) */
+        .editor-row.fn-collapsed .fn-panel,
+        .editor-row.fn-collapsed .fn-resizer {
+            display: none;
+        }
+
+        /* Narrow screens: a side-by-side split leaves no usable editor, so the panel
+           becomes a full-width overlay over the editor and the drag handle goes away.
+           (Defaults to collapsed on load — see setFnPanelOpen.) */
+        @media (max-width: 768px) {
+            .fn-resizer {
+                display: none;
+            }
+
+            .editor-row {
+                position: relative;
+            }
+
+            .fn-panel {
+                position: absolute;
+                inset: 0;
+                width: auto !important;   /* beat the inline width set by desktop drags */
+                border-left: none;
+                z-index: 10;
+            }
         }
 
         /* Built-in function panel (right of editor) */
@@ -813,6 +855,8 @@
             <option value="21_http">21 HTTP</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-fn-toggle" id="fnToggleBtn" onclick="toggleFnPanel()">Functions</button>
     </div>
 
     <div class="main">
@@ -859,6 +903,7 @@ PRINT("Hello, World!")</textarea>
                         <div class="fn-lang-toggle">
                             <button class="fn-lang-btn active" id="fnLangEn" onclick="setFnLang('en')">EN</button>
                             <button class="fn-lang-btn" id="fnLangKo" onclick="setFnLang('ko')">KR</button>
+                            <button class="fn-lang-btn" onclick="setFnPanelOpen(false)" title="Close panel">✕</button>
                         </div>
                     </div>
                     <div class="fn-list" id="fnList"></div>
@@ -2801,7 +2846,23 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
             renderFnList();
             initFnPanelResizer();
+            // Phones default to a full-width editor; the panel opens on demand as an overlay.
+            setFnPanelOpen(!window.matchMedia('(max-width: 768px)').matches);
         });
+
+        // Show/hide the built-in function panel (toolbar "Functions" button + header ✕).
+        function setFnPanelOpen(open) {
+            const row = document.querySelector('.editor-row');
+            const btn = document.getElementById('fnToggleBtn');
+            if (!row) return;
+            row.classList.toggle('fn-collapsed', !open);
+            if (btn) btn.classList.toggle('active', open);
+        }
+
+        function toggleFnPanel() {
+            const row = document.querySelector('.editor-row');
+            setFnPanelOpen(row && row.classList.contains('fn-collapsed'));
+        }
 
         // Drag the divider to resize the built-in function panel.
         function initFnPanelResizer() {
