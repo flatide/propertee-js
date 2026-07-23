@@ -594,15 +594,18 @@
             background: rgba(250, 204, 21, 0.18);
         }
 
-        /* Syntax highlight overlay */
+        /* Syntax highlight overlay.
+           The 12px gap left of the code is the offset from the gutter (left: 48px + 12px),
+           NOT padding-left: scrollable left padding gets consumed when the browser scrolls
+           the caret back into view, leaving the text stuck flush against the gutter. */
         .editor-syntax {
             position: absolute;
             top: 0;
-            left: 48px;
+            left: 60px;
             right: 0;
             bottom: 0;
             margin: 0;
-            padding: 8px 12px 16px;
+            padding: 8px 12px 16px 0;
             font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
             font-size: 14px;
             line-height: 1.7;
@@ -630,7 +633,8 @@
             flex: 1;
             width: 100%;
             border: none;
-            padding: 8px 12px 16px;
+            margin-left: 12px;             /* fixed gap — see .editor-syntax comment */
+            padding: 8px 12px 16px 0;
             font-family: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
             font-size: 14px;
             line-height: 1.7;
