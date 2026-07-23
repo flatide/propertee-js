@@ -233,6 +233,18 @@
             cursor: col-resize;
             background: #313244;
             transition: background 0.12s;
+            touch-action: none;   /* keep Safari from claiming the drag as a scroll gesture */
+            position: relative;
+        }
+
+        /* Invisible wider hit area so the 6px handle is grabbable by touch */
+        .fn-resizer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -8px;
+            right: -8px;
         }
 
         .fn-resizer:hover,
@@ -2810,21 +2822,26 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
                 panel.style.width = width + 'px';
             };
 
-            resizer.addEventListener('mousedown', (e) => {
+            // Pointer Events cover mouse and touch (iOS Safari included); capture keeps
+            // the drag alive when the finger/cursor leaves the 6px handle.
+            resizer.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 dragging = true;
+                resizer.setPointerCapture(e.pointerId);
                 resizer.classList.add('dragging');
                 document.body.style.cursor = 'col-resize';
                 document.body.style.userSelect = 'none';
             });
-            document.addEventListener('mousemove', (e) => { if (dragging) onMove(e.clientX); });
-            document.addEventListener('mouseup', () => {
+            resizer.addEventListener('pointermove', (e) => { if (dragging) onMove(e.clientX); });
+            const endDrag = () => {
                 if (!dragging) return;
                 dragging = false;
                 resizer.classList.remove('dragging');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
-            });
+            };
+            resizer.addEventListener('pointerup', endDrag);
+            resizer.addEventListener('pointercancel', endDrag);
         }
     </script>
 </body>
