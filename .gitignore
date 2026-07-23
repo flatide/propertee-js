@@ -38,3 +38,7 @@ temp/
 # 백업 파일
 *.bak
 *~
+
+# Local agent instructions (untracked by policy)
+CLAUDE.md
+AGENTS.md
