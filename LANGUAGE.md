@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.16.0
+# ProperTee Language Specification v0.17.0
 
 ## Overview
 
@@ -856,6 +856,9 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 | `CONTAINS(s, sub)` | Returns `true` if string `s` contains substring `sub`. Also accepts an array as the first argument — see [Array Functions](#array-functions). |
 | `STARTS_WITH(s, prefix)` | Returns `true` if `s` starts with `prefix` |
 | `ENDS_WITH(s, suffix)` | Returns `true` if `s` ends with `suffix` |
+| `FIND(s, sub)` | Array of **all** 1-based positions where `sub` occurs in `s`, ascending, overlapping occurrences included — `FIND("aaa", "aa")` → `[1, 2]`; no occurrence → `[]`. Literal string match, not regex (spec v0.17.0). An empty `sub` is a runtime error. |
+| `FIND_FIRST(s, sub)` | 1-based position of the first occurrence of `sub` in `s`, or `0` if absent (spec v0.17.0). Always equals the first element of `FIND(s, sub)`. Empty `sub` is a runtime error. |
+| `FIND_LAST(s, sub)` | 1-based position of the last occurrence of `sub` in `s`, or `0` if absent (spec v0.17.0). Always equals the last element of `FIND(s, sub)`. Empty `sub` is a runtime error. |
 | `MATCHES(s, pattern)` | Returns `true` if regex `pattern` matches anywhere in `s` |
 | `REGEX_FIND(s, pattern)` | Returns array of [fullMatch, group1, group2, ...] or `{}` if no match. 1-based array. |
 | `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
@@ -1316,6 +1319,19 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.17.0 — plain-text position search: FIND, FIND_FIRST, FIND_LAST
+
+Additive, non-breaking. Three literal (non-regex) string-search built-ins that report **1-based
+positions**: `FIND(s, sub)` returns an array of *all* start positions of `sub` in `s`, ascending,
+**overlapping occurrences included** — `FIND("aaa", "aa")` → `[1, 2]`; no occurrence → `[]`.
+`FIND_FIRST(s, sub)` / `FIND_LAST(s, sub)` return the first / last position, or `0` when absent
+(under 1-based indexing `0` can never be a valid position, so `if FIND_FIRST(s, sub) > 0` is the
+presence idiom — or just use `CONTAINS`). Counting overlaps is what keeps the trio mutually
+consistent: `FIND_FIRST`/`FIND_LAST` are by definition the first/last element of `FIND`, and
+`FIND_LAST` agrees with the conventional `lastIndexOf` (which scans overlapping). Both arguments
+must be strings; the search string must be **non-empty** — an empty `sub` is a runtime error
+(every boundary would "match", so no useful position list exists).
 
 ### v0.16.0 — the monitor is a watchdog thread
 

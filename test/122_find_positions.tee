@@ -1,0 +1,30 @@
+// spec v0.17.0: FIND / FIND_FIRST / FIND_LAST — literal (non-regex) search, 1-based positions.
+// FIND returns ALL start positions ascending, overlapping included; FIND_FIRST/FIND_LAST are
+// always its first/last element, 0 when absent.
+PRINT(FIND("abcd", "c"))
+PRINT(FIND("banana", "an"))
+PRINT(FIND("aaa", "aa"))
+PRINT(FIND("abc", "abc"))
+PRINT(FIND("abc", "z"))
+PRINT(FIND("a", "ab"))
+PRINT(LEN(FIND("banana", "a")))
+
+PRINT(FIND_FIRST("abcd", "c"))
+PRINT(FIND_FIRST("banana", "an"))
+PRINT(FIND_FIRST("abc", "z"))
+
+PRINT(FIND_LAST("abcd", "c"))
+PRINT(FIND_LAST("banana", "an"))
+PRINT(FIND_LAST("aaa", "aa"))
+PRINT(FIND_LAST("abc", "z"))
+
+// positions feed SUBSTRING directly (both 1-based)
+s = "key=value"
+p = FIND_FIRST(s, "=")
+PRINT(SUBSTRING(s, 1, p - 1))
+PRINT(SUBSTRING(s, p + 1))
+
+// loop over every occurrence
+loop pos in FIND("mississippi", "ss") do
+    PRINT(pos)
+end

@@ -397,6 +397,24 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (typeof suffix !== 'string') throw new Error('Runtime Error: ENDS_WITH() second argument must be a string');
                 return str.endsWith(suffix);
             },
+            // FIND family (spec v0.17.0) — literal search, 1-based positions. FIND returns ALL
+            // start positions ascending, overlapping included (advance by 1), so FIND_FIRST /
+            // FIND_LAST are always its first/last element. Not found -> [] / 0; empty search
+            // strings are rejected (every boundary would "match").
+            'FIND': (str, sub) => {
+                this._checkFindArgs('FIND', str, sub);
+                const out = [];
+                for (let i = str.indexOf(sub); i >= 0; i = str.indexOf(sub, i + 1)) out.push(i + 1);
+                return out;
+            },
+            'FIND_FIRST': (str, sub) => {
+                this._checkFindArgs('FIND_FIRST', str, sub);
+                return str.indexOf(sub) + 1;
+            },
+            'FIND_LAST': (str, sub) => {
+                this._checkFindArgs('FIND_LAST', str, sub);
+                return str.lastIndexOf(sub) + 1;
+            },
             'MATCHES': (str, pattern) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: MATCHES() first argument must be a string');
                 if (typeof pattern !== 'string') throw new Error('Runtime Error: MATCHES() second argument must be a string');
@@ -534,6 +552,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     // --- Helper methods (non-generators) ---
+
+    // Shared argument check for the FIND family (spec v0.17.0)
+    _checkFindArgs(fn, str, sub) {
+        if (typeof str !== 'string') throw new Error('Runtime Error: ' + fn + '() first argument must be a string');
+        if (typeof sub !== 'string') throw new Error('Runtime Error: ' + fn + '() second argument must be a string');
+        if (sub === '') throw new Error('Runtime Error: ' + fn + '() requires a non-empty search string');
+    }
 
     // Deep equality for objects and arrays (language-level == comparison)
     _deepEqual(a, b) {
