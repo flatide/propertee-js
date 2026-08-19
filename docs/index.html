@@ -859,6 +859,7 @@
             <option value="19_json_file">19 JSON File</option>
             <option value="20_shell">20 Shell</option>
             <option value="21_http">21 HTTP</option>
+            <option value="22_worker_pool">22 Worker Pool</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
         <div style="flex:1"></div>
@@ -2355,7 +2356,63 @@ PRINT("GEN status:", res.value.status)
 
 // Transport failure (not a real URL) -> status 0
 res = HTTP_GET("not-a-url")
-PRINT("bad ok:", res.ok, "status:", res.value.status)`
+PRINT("bad ok:", res.ok, "status:", res.value.status)`,
+
+            '22_worker_pool': `// 22 - Worker Pool
+// Run an arbitrary list of jobs on a fixed number of threads.
+// multi workers see globals as a read-only snapshot (::) and share no
+// mutable state (no shared job queue), so jobs are STRIPED across the
+// workers up front: worker w takes jobs w, w+K, w+2K, ... of the list.
+
+// Input: any number of jobs + the number of worker threads
+jobs = [
+    {"name": "resize-image",  "ms": 400},
+    {"name": "send-mail",     "ms": 250},
+    {"name": "build-report",  "ms": 600},
+    {"name": "sync-db",       "ms": 300},
+    {"name": "compress-logs", "ms": 200},
+    {"name": "warm-cache",    "ms": 350},
+    {"name": "scan-files",    "ms": 150}
+]
+workerCount = 3
+
+// One job (SLEEP simulates the work — swap in SHELL / HTTP_GET on a real host)
+function runJob(job) do
+    SLEEP(job.ms)
+    return job.name + " (" + TO_STRING(job.ms) + "ms)"
+end
+
+// Worker w's share: jobs w, w+K, w+2K, ... processed in order
+function runSlice(w) do
+    done = []
+    i = w
+    loop i <= LEN(::jobs) infinite do
+        done = PUSH(done, runJob(::jobs.$i))
+        i = i + ::workerCount
+    end
+    return done
+end
+
+// Spawn exactly workerCount threads, each with a dynamic result key
+started = MILTIME()
+multi result do
+    loop w in [1..::workerCount] do
+        thread $("worker" + TO_STRING(w)): runSlice(w)
+    end
+end
+elapsed = MILTIME() - started
+
+// Aggregate the results ({status, ok, value} per worker)
+total = 0
+loop key, r in result do
+    PRINT(key, "->", r.value)
+    total = total + LEN(r.value)
+end
+PRINT("jobs done:", total, "/", LEN(jobs), "( workers:", workerCount, ")")
+
+// Sequential would take the sum of all job times (2250ms); parallel
+// converges on the slowest worker's share (950ms here).
+PRINT("ran in parallel:", elapsed < 2250)`
         };
 
         let currentExample = '01_hello';
