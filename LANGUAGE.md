@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.17.0
+# ProperTee Language Specification v0.18.0
 
 ## Overview
 
@@ -922,8 +922,11 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 | `FILE_EXISTS(path)` | Returns `true` if file or directory exists. |
 | `FILE_INFO(path)` | Returns Result: `ok` with `{type, size, modified}`, `error` if not found. |
 | `READ_LINES(path, [start], [count])` | Read lines from file. `start` is 1-based (default 1). `count` limits lines read. Returns Result with string array. |
+| `READ_FILE(path)` | Read the whole file as one string (spec v0.18.0). Returns Result: `ok` with the file content (UTF-8, content-exact), `error` on a read failure. The counterpart of `WRITE_FILE`; for large files prefer `READ_LINES` windows. |
+| `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure or invalid JSON. A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
 | `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
 | `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
+| `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. |
 | `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
 | `MKDIR(path)` | Create directory (including parents). Returns Result. |
 | `LIST_DIR(path)` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. |
@@ -1319,6 +1322,26 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.18.0 — whole-file and JSON file I/O: READ_FILE, READ_JSON_FILE, WRITE_JSON_FILE
+
+Additive, non-breaking. Three File-I/O built-ins that complete the group's symmetry, all
+host-gated and Result-returning like the rest of it:
+
+- `READ_FILE(path)` — the counterpart `WRITE_FILE` never had: the whole file as one string
+  (UTF-8, content-exact). `ok` with the content, `error` on a read failure. For large files the
+  windowed `READ_LINES` remains the right tool.
+- `READ_JSON_FILE(path)` — read + JSON-parse in one call. `ok` with the parsed value — the same
+  conversion `JSON_PARSE` performs (objects, arrays, scalars, first-class `null`) — or `error`
+  when the file cannot be read or its content is not valid JSON (the message is the read
+  failure's or the parser's). A leading UTF-8 BOM is ignored, as RFC 8259 permits. Replaces the
+  three-step `JSON_PARSE(JOIN(UNWRAP(READ_LINES(path)), "\n"))` idiom, which silently
+  normalized the file's newlines and failed with unrelated positioned errors instead of a Result.
+- `WRITE_JSON_FILE(path, value)` — the counterpart of `READ_JSON_FILE`: serialize `value` exactly
+  as `JSON_FORMAT` would and write it (overwrite) with a trailing newline (a POSIX text file).
+  The `WRITE_JSON_FILE` → `READ_JSON_FILE` round-trip is lossless, first-class `null` included.
+  For byte-exact output without the trailing newline, `WRITE_FILE(path, JSON_FORMAT(value))`
+  remains available.
 
 ### v0.17.0 — plain-text position search: FIND, FIND_FIRST, FIND_LAST
 

@@ -1197,8 +1197,11 @@ PRINT("Hello, World!")</textarea>
             { cat: 'File I/O', fns: [
                 { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'Existence test. (Playground uses an in-memory FS.)', returns: 'A boolean (true if a file or directory exists at path).', fails: 'Returns a Result with .ok=false if path is not a string. Missing path is not a failure — it returns false.', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))' },
                 { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Metadata for a path.', returns: RESULT_NOTE + ' .value = {type: "file"|"dir", size, modified}.', fails: 'Returns .ok=false with an error message if path is not a string or does not exist.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)' },
+                { name: 'READ_FILE', sig: 'READ_FILE(path)', desc: 'Read the whole file as one string (spec v0.18.0). The counterpart of WRITE_FILE; for large files prefer READ_LINES windows.', returns: RESULT_NOTE + ' .value = the file content (content-exact).', fails: 'Returns .ok=false if the file cannot be read.', sample: 'WRITE_FILE("/d/a.txt", "hi\\nthere")\nres = READ_FILE("/d/a.txt")\nPRINT(res.ok, LEN(res.value))' },
                 { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit).', returns: RESULT_NOTE + ' .value = an array of line strings.', fails: 'Returns .ok=false if path is missing, or start/count are non-integers or < 1.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.ok, res.value.1)' },
+                { name: 'READ_JSON_FILE', sig: 'READ_JSON_FILE(path)', desc: 'Read a JSON file and parse it in one call (spec v0.18.0). Same conversion as JSON_PARSE; a leading UTF-8 BOM is ignored. Replaces the READ_LINES + JOIN + JSON_PARSE idiom.', returns: RESULT_NOTE + ' .value = the parsed value (object, array, or scalar; JSON null preserved).', fails: 'Returns .ok=false if the file cannot be read or its content is not valid JSON. Does NOT stop the script.', sample: 'WRITE_FILE("/d/cfg.json", "{\\"port\\": 8080}")\nres = READ_JSON_FILE("/d/cfg.json")\nPRINT(res.ok, res.value.port)' },
                 { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false with an error message if path is not a string, or the write fails (e.g. bad path / permission on a real host).', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)' },
+                { name: 'WRITE_JSON_FILE', sig: 'WRITE_JSON_FILE(path, value)', desc: 'Serialize value as JSON (same output as JSON_FORMAT) and write it with a trailing newline, overwriting (spec v0.18.0). The counterpart of READ_JSON_FILE — the round-trip is lossless, null included.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the write fails.', sample: 'WRITE_JSON_FILE("/d/cfg.json", {"port": 8080})\nPRINT(READ_JSON_FILE("/d/cfg.json").value.port)' },
                 { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string or lines is not an array, or the write fails.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nres = READ_LINES("/d/a.txt")\nPRINT(LEN(res.value))' },
                 { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the append fails.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
                 { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or creation fails on a real host.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
@@ -1281,7 +1284,10 @@ PRINT("Hello, World!")</textarea>
             ENV: { desc: '환경 변수 읽기. (Playground는 USER/HOME/LANG/PT_ENV 기본 제공.)', returns: '변수 값(문자열); 없으면 default; default도 없으면 {}.', fails: '없는 변수는 실패가 아님(default 또는 {} 반환). name이 문자열이 아닐 때만 런타임 에러.' },
             FILE_EXISTS: { desc: '존재 여부 확인. (Playground는 메모리 내 FS 사용.)', returns: '불리언(path에 파일/디렉토리가 있으면 true).', fails: 'path가 문자열이 아니면 .ok=false 인 Result 반환. 없는 경로는 실패가 아니라 false 반환.' },
             FILE_INFO: { desc: '경로의 메타데이터.', returns: RESULT_NOTE_KO + ' .value = {type: "file"|"dir", size, modified}.', fails: 'path가 문자열이 아니거나 존재하지 않으면 .ok=false 와 에러 메시지.' },
+            READ_FILE: { desc: '파일 전체를 하나의 문자열로 읽기 (스펙 v0.18.0). WRITE_FILE의 대응 함수; 큰 파일에는 READ_LINES가 적합.', returns: RESULT_NOTE_KO + ' .value = 파일 내용(내용 그대로).', fails: '파일을 읽을 수 없으면 .ok=false.' },
             READ_LINES: { desc: '줄 읽기(start 1부터, count 제한).', returns: RESULT_NOTE_KO + ' .value = 줄 문자열 배열.', fails: 'path가 없거나 start/count가 정수가 아니거나 < 1이면 .ok=false.' },
+            WRITE_JSON_FILE: { desc: 'value를 JSON으로 직렬화(JSON_FORMAT과 동일 출력)해 끝 줄바꿈 하나와 함께 쓰기(덮어쓰기) (스펙 v0.18.0). READ_JSON_FILE의 대응 함수 — 왕복은 null 포함 무손실.', returns: RESULT_NOTE_KO + ' .value = 성공 시 {}.', fails: 'path가 문자열이 아니거나 쓰기 실패면 .ok=false.' },
+            READ_JSON_FILE: { desc: 'JSON 파일을 읽어 한 번에 파싱 (스펙 v0.18.0). JSON_PARSE와 동일한 변환; 선행 UTF-8 BOM 무시. READ_LINES + JOIN + JSON_PARSE 관용구를 대체.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(객체·배열·스칼라; JSON null 보존).', fails: '파일을 읽을 수 없거나 유효한 JSON이 아니면 .ok=false. 스크립트를 중단하지 않음.' },
             WRITE_FILE: { desc: '문자열을 파일에 쓰기(덮어쓰기).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 쓰기 실패 시(실제 호스트에서 잘못된 경로/권한 등) .ok=false 와 에러 메시지.' },
             WRITE_LINES: { desc: '문자열 배열을 줄 단위로 쓰기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 lines가 배열이 아니거나 쓰기 실패 시 .ok=false.' },
             APPEND_FILE: { desc: '문자열을 파일에 덧붙이기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 덧붙이기 실패 시 .ok=false.' },
@@ -1482,6 +1488,48 @@ PRINT("Hello, World!")</textarea>
                 const s = start !== undefined ? start : 1;
                 const slice = count !== undefined ? lines.slice(s - 1, s - 1 + count) : lines.slice(s - 1);
                 return ok(slice);
+            });
+
+            // READ_FILE (spec v0.18.0): the whole file as one string — WRITE_FILE's counterpart.
+            visitor.registerExternal('READ_FILE', (p) => {
+                if (typeof p !== 'string') return err('READ_FILE() requires a string argument');
+                p = norm(p);
+                if (!(p in files)) return err('READ_FILE() file not found: ' + p);
+                return ok(files[p]);
+            });
+
+            // WRITE_JSON_FILE (spec v0.18.0): READ_JSON_FILE's counterpart — JSON_FORMAT output
+            // + one trailing newline, overwrite.
+            visitor.registerExternal('WRITE_JSON_FILE', (p, value) => {
+                if (typeof p !== 'string') return err('WRITE_JSON_FILE() first argument must be a string path');
+                p = norm(p); mkdirp(parentOf(p));
+                files[p] = teeStringify(value) + '\n';
+                return ok({});
+            });
+
+            // READ_JSON_FILE (spec v0.18.0): read + JSON-parse in one call. Same value conversion
+            // as JSON_PARSE (first-class null -> TEE_NULL); a leading UTF-8 BOM is ignored.
+            visitor.registerExternal('READ_JSON_FILE', (p) => {
+                if (typeof p !== 'string') return err('READ_JSON_FILE() requires a string argument');
+                p = norm(p);
+                if (!(p in files)) return err('READ_JSON_FILE() file not found: ' + p);
+                let content = files[p];
+                if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+                try {
+                    const convert = (v) => {
+                        if (v === null || v === undefined) return TEE_NULL;
+                        if (Array.isArray(v)) return v.map(convert);
+                        if (typeof v === 'object') {
+                            const result = {};
+                            for (const [k, val] of Object.entries(v)) result[k] = convert(val);
+                            return result;
+                        }
+                        return v;
+                    };
+                    return ok(convert(JSON.parse(content)));
+                } catch (e) {
+                    return err('Invalid JSON: ' + e.message);
+                }
             });
 
             visitor.registerExternal('FILE_INFO', (p) => {
@@ -2165,6 +2213,10 @@ PRINT("first line:", res.value.1)
 res = READ_LINES("/data/notes.txt", 2, 1)
 PRINT("slice:", res.value.1)
 
+// Read the whole file as ONE string — WRITE_FILE's counterpart (spec v0.18.0)
+res = READ_FILE("/data/notes.txt")
+PRINT("whole file chars:", LEN(res.value))
+
 // Append, then re-read
 APPEND_FILE("/data/notes.txt", "delta\\n")
 res = READ_LINES("/data/notes.txt")
@@ -2211,8 +2263,9 @@ MKDIR(logDir)
 PRINT("created:", FILE_EXISTS(logDir))`,
 
             '19_json_file': `// 19 - JSON File Round-Trip
-// Build an object, write it to a file as JSON, read it back, parse it,
-// print the contents, and RETURN the parsed object as the script result.
+// Write an object to a JSON file and read it back with the one-call
+// built-ins WRITE_JSON_FILE / READ_JSON_FILE (spec v0.18.0), then
+// RETURN the parsed object as the script result.
 // (The playground uses an in-memory filesystem.)
 
 // 1) Build an object (null is a first-class JSON value — spec v0.8.0)
@@ -2223,24 +2276,19 @@ config = {
     "owner": null
 }
 
-// 2) Serialize to JSON and write it to a file
-json = JSON_FORMAT(config)
-WRITE_FILE("/data/config.json", json)
-PRINT("wrote:", json)
+// 2) Write it as JSON in one call (JSON_FORMAT output + a trailing newline)
+res = WRITE_JSON_FILE("/data/config.json", config)
+PRINT("write ok:", res.ok)
+PRINT("on disk:", TRIM(READ_FILE("/data/config.json").value))
 
-// 3) Read the file back (rejoin lines into the full text)
-res = READ_LINES("/data/config.json")
-text = JOIN(res.value, "\\n")
-PRINT("read:", text)
-
-// 4) Parse the JSON text back into an object (JSON_PARSE returns a Result)
-parsed = JSON_PARSE(text)
+// 3) Read + parse in one call — replaces READ_LINES + JOIN + JSON_PARSE
+parsed = READ_JSON_FILE("/data/config.json")
 PRINT("service:", parsed.value.service)
 PRINT("port:", parsed.value.port)
 PRINT("first tag:", parsed.value.tags.1)
 PRINT("owner is null:", parsed.value.owner == null)   // null survives the round-trip
 
-// 5) Return the parsed object — shown as the script's result
+// 4) Return the parsed object — shown as the script's result
 return parsed.value`,
 
             '20_shell': `// 20 - Shell Commands
@@ -2659,7 +2707,7 @@ PRINT("bad ok:", res.ok, "status:", res.value.status)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_LINES|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
             var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments

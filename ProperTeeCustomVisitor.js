@@ -541,7 +541,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const fileStub = (name) => (...args) => {
             return makeResult("error", false, name + "() is not available in this environment");
         };
-        for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_LINES', 'WRITE_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'DELETE_FILE']) {
+        for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_FILE', 'READ_LINES', 'READ_JSON_FILE', 'WRITE_FILE', 'WRITE_JSON_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'DELETE_FILE']) {
             this.registerExternal(name, fileStub(name));
         }
 
