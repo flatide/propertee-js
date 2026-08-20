@@ -1,0 +1,28 @@
+// spec v0.19.0: multi ... limit K — at most K workers run concurrently.
+// 4 jobs on 2 slots: 1 and 2 admitted at multi start; 3 admitted only when a
+// slot frees (end 2), then 4 (end 3). Without the limit, all four "start"
+// lines would print together before any "end".
+
+function job(n, ms) do
+    PRINT("start", n)
+    SLEEP(ms)
+    PRINT("end", n)
+    return n
+end
+
+multi result limit 2 do
+    thread a: job(1, 500)
+    thread b: job(2, 200)
+    thread c: job(3, 200)
+    thread d: job(4, 200)
+end
+PRINT(result.a.value, result.b.value, result.c.value, result.d.value)
+
+// limit is an expression (evaluated once at multi entry), and limit >= spawn
+// count behaves exactly like no limit — both workers start together
+k = 10
+multi r2 limit k do
+    thread x: job(5, 100)
+    thread y: job(6, 200)
+end
+PRINT(r2.x.value, r2.y.value)

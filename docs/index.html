@@ -2358,13 +2358,14 @@ PRINT("GEN status:", res.value.status)
 res = HTTP_GET("not-a-url")
 PRINT("bad ok:", res.ok, "status:", res.value.status)`,
 
-            '22_worker_pool': `// 22 - Worker Pool
-// Run an arbitrary list of jobs on a fixed number of threads.
-// multi workers see globals as a read-only snapshot (::) and share no
-// mutable state (no shared job queue), so jobs are STRIPED across the
-// workers up front: worker w takes jobs w, w+K, w+2K, ... of the list.
+            '22_worker_pool': `// 22 - Worker Pool (limit)
+// Run an arbitrary list of jobs on a fixed number of threads with the
+// "limit K" clause (spec v0.19.0): one thread per job, at most K running
+// at once. A finishing job admits the next, in spawn order — the runtime
+// balances the load, and at most K blocking calls (SLEEP/SHELL/HTTP) are
+// in flight at any moment.
 
-// Input: any number of jobs + the number of worker threads
+// Input: any number of jobs + the concurrency cap
 jobs = [
     {"name": "resize-image",  "ms": 400},
     {"name": "send-mail",     "ms": 250},
@@ -2382,36 +2383,26 @@ function runJob(job) do
     return job.name + " (" + TO_STRING(job.ms) + "ms)"
 end
 
-// Worker w's share: jobs w, w+K, w+2K, ... processed in order
-function runSlice(w) do
-    done = []
-    i = w
-    loop i <= LEN(::jobs) infinite do
-        done = PUSH(done, runJob(::jobs.$i))
-        i = i + ::workerCount
-    end
-    return done
-end
-
-// Spawn exactly workerCount threads, each with a dynamic result key
+// One thread per job — the limit clause does the pooling
 started = MILTIME()
-multi result do
-    loop w in [1..::workerCount] do
-        thread $("worker" + TO_STRING(w)): runSlice(w)
+multi result limit workerCount do
+    loop job in ::jobs do
+        thread $(job.name): runJob(job)
     end
 end
 elapsed = MILTIME() - started
 
-// Aggregate the results ({status, ok, value} per worker)
-total = 0
+// Results are per job, in spawn (= list) order
+done = 0
 loop key, r in result do
     PRINT(key, "->", r.value)
-    total = total + LEN(r.value)
+    done = done + 1
 end
-PRINT("jobs done:", total, "/", LEN(jobs), "( workers:", workerCount, ")")
+PRINT("jobs done:", done, "/", LEN(jobs), "( limit:", workerCount, ")")
 
-// Sequential would take the sum of all job times (2250ms); parallel
-// converges on the slowest worker's share (950ms here).
+// Sequential would take the sum of all job times (2250ms); with limit 3
+// the pool finishes in ~900ms — and unlike a fixed per-worker split, a
+// long job never strands the queue behind it.
 PRINT("ran in parallel:", elapsed < 2250)`
         };
 
@@ -2765,7 +2756,7 @@ PRINT("ran in parallel:", elapsed < 2250)`
         // Syntax highlighting
         function highlightSyntax(code) {
             var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
-            var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
+            var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
                 + '|(\\/\\/[^\\n]*)'                               // line comments

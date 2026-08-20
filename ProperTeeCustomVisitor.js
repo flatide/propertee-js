@@ -2142,6 +2142,19 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Extract optional result collection variable name: multi result do
         const resultVarName = ctx.resultVar ? ctx.resultVar.text : null;
 
+        // spec v0.19.0: optional concurrency cap — evaluated once at multi entry, in textual
+        // order (before the global snapshot and the setup phase). Must be a positive integer;
+        // there is no "0 = unlimited". (Nominal identity is value-based here, like the rest of
+        // this runtime — the `limit 2.0` corner tracks fixture 114's pending status.)
+        let limit = Infinity;
+        if (ctx.limitExpr) {
+            const v = yield* this.visit(ctx.limitExpr);
+            if (!this._isIntValue(v) || v <= 0) {
+                throw this.createError('multi limit must be a positive integer', ctx.limitExpr);
+            }
+            limit = v;
+        }
+
         // Deep-copy snapshot of globals for thread purity
         const globalSnapshot = {};
         for (const key of Object.keys(variables)) {
@@ -2285,7 +2298,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             monitorSpec: monitorSpec,
             globalSnapshot: globalSnapshot,
             resultKeyNames: resultKeyNames,
-            resultVarName: resultVarName
+            resultVarName: resultVarName,
+            limit: limit
         };
 
         // When we resume, collectedResults contains the payload from child threads

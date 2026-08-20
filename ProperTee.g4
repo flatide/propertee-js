@@ -40,7 +40,7 @@ parameterList
     ;
 
 parallelStmt
-    : K_MULTI resultVar=ID? K_DO block monitorClause? K_END
+    : K_MULTI resultVar=ID? (K_LIMIT limitExpr=expression)? K_DO block monitorClause? K_END
     ;
 
 monitorClause
@@ -145,6 +145,7 @@ K_TRUE      : 'true';
 K_FALSE     : 'false';
 K_NULL      : 'null';
 K_INFINITE  : 'infinite';
+K_LIMIT     : 'limit';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
 K_DEBUG     : 'debug';

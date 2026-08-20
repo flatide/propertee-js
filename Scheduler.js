@@ -83,7 +83,7 @@ export default class Scheduler {
         for (let i = 1; i <= ids.length; i++) {
             const idx = (startIdx + i) % ids.length;
             const thread = this.threads.get(ids[idx]);
-            if (thread.state === ThreadState.READY) {
+            if (thread.state === ThreadState.READY && !thread._awaitingSlot) {   // limit gate (spec v0.19.0)
                 return thread;
             }
         }
@@ -184,13 +184,17 @@ export default class Scheduler {
 
     // Handle SPAWN_THREADS command from a MULTI block
     handleSpawnThreads(parentThread, command) {
-        const { specs, monitorSpec, globalSnapshot, resultKeyNames, resultVarName } = command;
+        const { specs, monitorSpec, globalSnapshot, resultKeyNames, resultVarName, limit } = command;
         const childIds = [];
 
         // Store resultCollectionVarName on parent thread
         parentThread.resultCollectionVarName = resultVarName;
 
-        // Create child threads
+        // Create child threads. Under `limit K` (spec v0.19.0) every thread is still created
+        // and announced (its Result entry reads "running" — a waiting thread is externally
+        // indistinguishable), but only the first K are admitted; the rest carry _awaitingSlot
+        // and are skipped by selectNextThread until a finishing sibling admits them.
+        const cap = limit ?? Infinity;
         for (let i = 0; i < specs.length; i++) {
             const spec = specs[i];
             const childThread = this.createThread(
@@ -202,6 +206,7 @@ export default class Scheduler {
             childThread.inThreadContext = true;
             childThread._resultKeyName = resultKeyNames[i];  // Track which result key
             childThread._localScope = spec.localScope;        // The scope ref for local capture
+            if (i >= cap) childThread._awaitingSlot = true;   // admission gate (spec v0.19.0)
             childIds.push(childThread.id);
         }
 
@@ -265,6 +270,14 @@ export default class Scheduler {
                         [TEE_RESULT]: true
                     };
                 }
+            }
+        }
+
+        // spec v0.19.0 `limit K`: the freed slot admits the next waiting sibling, in spawn order
+        if (parent._childIds) {
+            for (const cid of parent._childIds) {
+                const sib = this.threads.get(cid);
+                if (sib && sib._awaitingSlot) { sib._awaitingSlot = false; break; }
             }
         }
 

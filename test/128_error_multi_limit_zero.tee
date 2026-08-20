@@ -1,0 +1,13 @@
+// spec v0.19.0: the limit must be a positive integer — 0 is an error, not
+// "unlimited". The limit is evaluated at multi entry, so the error fires
+// before the setup block runs.
+
+function f() do
+    return 1
+end
+
+PRINT("before")
+multi r limit 0 do
+    thread a: f()
+end
+PRINT("after")

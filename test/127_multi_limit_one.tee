@@ -1,0 +1,18 @@
+// spec v0.19.0: limit 1 runs the workers sequentially, in spawn order —
+// each worker finishes completely before the next is admitted.
+
+function tick(n) do
+    PRINT("run", n)
+    SLEEP(50)
+    return n * 10
+end
+
+multi r limit 1 do
+    loop n in [1..4] do
+        thread $("t" + TO_STRING(n)): tick(n)
+    end
+end
+
+loop key, v in r do
+    PRINT(key, "=", v.value)
+end

@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.18.0
+# ProperTee Language Specification v0.19.0
 
 ## Overview
 
@@ -586,7 +586,7 @@ PRINT(result.resultB.value)   // "B done"
 ### Syntax
 
 ```
-multi resultVar do             // resultVar is optional
+multi resultVar limit K do     // resultVar and the limit clause are optional
     thread key: funcCall()     // named result entry
     thread : funcCall()        // unnamed (auto-keyed by position)
 monitor intervalMs             // optional monitor clause
@@ -595,7 +595,8 @@ end
 ```
 
 - `resultVar` — the variable that receives the result collection after all threads complete. Optional; omit for fire-and-forget (`multi do ... end`).
-- `do` — required keyword after the optional result variable.
+- `limit K` — optional concurrency cap (spec v0.19.0): at most `K` threads run concurrently; the rest wait in spawn order. See [Concurrency Limit](#concurrency-limit-limit).
+- `do` — required keyword after the optional result variable and limit clause.
 
 ### thread
 
@@ -630,7 +631,7 @@ end
 // i is not defined here
 ```
 
-All collected `thread` calls fire simultaneously when the setup phase ends (at `end` or `monitor`).
+All collected `thread` calls fire simultaneously when the setup phase ends (at `end` or `monitor`) — unless a `limit` clause caps how many run at once (see [Concurrency Limit](#concurrency-limit-limit)).
 
 ### Result Collection
 
@@ -705,6 +706,47 @@ PRINT(result.delta.value)
 - **Empty string** is treated as unnamed (auto-keyed `"#1"`, `"#2"`, etc.)
 - Must be **unique** within the multi block — duplicate keys (including duplicates between static and dynamic keys) are a runtime error
 
+### Concurrency Limit (`limit`)
+
+An optional `limit K` clause between the result variable and `do` caps how many threads run
+concurrently (spec v0.19.0). Threads beyond the cap wait, and each finishing thread **admits the
+next waiting one, in spawn order** — deterministically, like everything else in the model.
+
+Because ProperTee threads only overlap on *waits* (see above), the cap is really a bound on
+concurrent blocking operations: `limit 3` over a list of `SHELL` jobs means at most 3 processes
+exist at once. This makes the natural one-thread-per-job shape safe for arbitrarily long job
+lists — the runtime balances the load (a freed slot immediately takes the next job), which a
+script cannot do itself under thread purity:
+
+```
+multi result limit 3 do
+    loop job in ::jobs do
+        thread $(job.name): runJob(job)    // N jobs, at most 3 in flight
+    end
+end
+```
+
+Rules:
+
+- The limit expression is evaluated **once, at `multi` entry** — in textual order: before the
+  global snapshot is taken and before the setup phase runs.
+- It must evaluate to a **positive integer**. Zero, negative, decimal, or non-number values are
+  a runtime error (`multi limit must be a positive integer`) — there is no "0 = unlimited".
+  Nominal number identity applies (spec v0.14.0): `limit 2.0` is an error even though the value
+  is whole.
+- `limit K` where `K >=` the number of spawned threads behaves exactly like no limit.
+  `limit 1` runs the threads sequentially, in spawn order.
+- The setup phase is unchanged: every `thread` statement still evaluates (and deep-copies) its
+  arguments at the spawn statement and pre-registers its `"running"` result entry. Only the
+  *start* of the thread's body is deferred. A waiting thread is externally indistinguishable
+  from a running one — its Result entry reads `"running"`; there is no new status.
+- The [monitor watchdog](#monitor-clause) does **not** consume a slot: it is spawned and ticks
+  regardless of the cap.
+- A thread that ends in an error frees its slot like any other completion; `[THREAD ERROR]`
+  reporting and admission both continue.
+- `limit` is a reserved word (like `elseif` since v0.9.0): scripts using it as an identifier
+  must rename.
+
 ### Thread Purity
 
 Functions running inside multi blocks enforce a purity model:
@@ -720,7 +762,7 @@ This guarantees no data races — threads never see each other's modifications.
 
 1. The multi block body executes as a setup phase in an isolated scope (like a function), collecting `thread` calls
 2. A snapshot of global variables is taken at `multi` entry, **before the setup phase runs** — all threads (and the monitor watchdog) see this snapshot. A `::` write in the setup phase updates the real globals (visible after the block) but is **not** visible to the threads
-3. All spawned functions launch concurrently after setup completes
+3. All spawned functions launch concurrently after setup completes — under a `limit K` clause, at most `K` at a time, each finishing thread admitting the next in spawn order (spec v0.19.0)
 4. The result collection is pre-built with `"running"` entries at spawn time
 5. Threads execute cooperatively, interleaving at statement boundaries
 6. As each thread completes, its result entry is updated in-place to `"done"` or `"error"`
@@ -747,6 +789,7 @@ end
 - Each iteration runs like a function invocation, in a **fresh local scope** — locals do not carry over between iterations. Local assignment, loops, and function calls are all allowed in the body.
 - The iteration's scope starts with one binding: the result collection variable, holding a **captured snapshot** (deep copy) of the collection taken as the iteration starts.
 - If an iteration fails, the error is reported (`[MONITOR ERROR] ...`), remaining mid-run iterations are skipped, and the final iteration still runs.
+- The watchdog is exempt from the block's `limit` clause (spec v0.19.0): it does not consume a concurrency slot, and it observes waiting-for-admission threads as ordinary `"running"` entries.
 
 ```
 multi result do
@@ -1322,6 +1365,28 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.19.0 — `multi ... limit K`: a concurrency cap on the multi block
+
+Nearly non-breaking (`limit` becomes a reserved word — scripts using it as an identifier must
+rename, the same class as `elseif` in v0.9.0). Design arc in
+`docs/design-draft-multi-limit.md`.
+
+An optional `limit K` clause on `multi` caps how many threads run concurrently: the first `K`
+start at spawn, each finishing thread admits the next **in spawn order**, deterministically.
+This makes the natural one-thread-per-job worker pool safe and self-balancing — previously the
+only way to run N jobs on K threads was a hand-written striping idiom (stride arithmetic,
+dynamic indexing, per-worker slice functions), which also could not rebalance load and put no
+bound on concurrent `SHELL`/`HTTP` operations.
+
+- The limit expression is evaluated once at `multi` entry (textual order: before the global
+  snapshot and setup); it must be a positive integer — zero/negative/decimal/non-number are a
+  runtime error, and nominal identity (v0.14.0) makes `limit 2.0` an error too.
+- Setup is unchanged: arguments are still captured at the `thread` statement and `"running"`
+  entries pre-registered. Only body start is deferred; a waiting thread reads `"running"` — no
+  new Result status.
+- `K >=` spawn count ≡ no limit; `limit 1` = sequential in spawn order.
+- The monitor watchdog does not consume a slot.
 
 ### v0.18.0 — whole-file and JSON file I/O: READ_FILE, READ_JSON_FILE, WRITE_JSON_FILE
 
