@@ -5164,6 +5164,15 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             this.properties = { ...incoming, _PROPS: { ...incoming } };
         }
 
+        // Reserved `_ARGS` (spec v0.20.0): the positional invocation arguments as a string array.
+        // Always present — the empty array when none (never absent); a caller-supplied `_ARGS`
+        // property wins, the same precedence rule as `_PROPS`. Deliberately NOT part of _PROPS,
+        // so the iterate/dump patterns above stay pure.
+        this._argsFromProps = Object.prototype.hasOwnProperty.call(this.properties, '_ARGS');
+        if (!this._argsFromProps) {
+            this.properties = { ...this.properties, _ARGS: [] };
+        }
+
         this.stdin = ioStreams.stdin || null;
         this.stdout = ioStreams.stdout || ((...args) => console.log(...args));
         this.stderr = ioStreams.stderr || ((...args) => console.error(...args));
@@ -5800,6 +5809,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // externals (registerExternal/registerExternalAsync write into the same `functions` table),
     // plus the interpreter-dispatched FAIL/UNWRAP (spec v0.10.0 — dispatched for line:col errors,
     // never in the table). Wiring-independent: a bare visitor enumerates the full default set.
+    /** Host entry for `_ARGS` (spec v0.20.0) — ignored when a props key named _ARGS was supplied. */
+    setArgs(args) {
+        if (this._argsFromProps || !args) return;
+        this.properties._ARGS = args.map(a => String(a));
+    }
+
     knownFunctionNames() {
         const names = new Set(['FAIL', 'UNWRAP']);
         for (const name of Object.keys(this.functions)) {

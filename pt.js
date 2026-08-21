@@ -19,7 +19,8 @@ if (args.includes('--version') || args.includes('-v')) {
 }
 
 if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: node pt.js [options] [script.tee]');
+    console.log('Usage: node pt.js [options] [script.tee] [args...]');
+    console.log('Arguments after the script are exposed to it as the _ARGS array.');
     console.log('');
     console.log('  If no script file is given (or the file does not exist),');
     console.log('  starts an interactive REPL.');
@@ -38,8 +39,14 @@ let propsJson = '{}';
 let maxIterations = 1000;
 let iterationLimitBehavior = 'error';
 let scriptFile = null;
+let scriptArgs = [];
 
 for (let i = 0; i < args.length; i++) {
+    if (scriptFile !== null) {
+        // Everything after the script goes to the script as _ARGS (spec v0.20.0)
+        scriptArgs.push(args[i]);
+        continue;
+    }
     switch (args[i]) {
         case '-p':
         case '--props':
@@ -130,6 +137,7 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     }
 
     const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+    visitor.setArgs(scriptArgs);
     const scheduler = new Scheduler(visitor);
     const mainGenerator = visitor.visitRoot(tree);
 

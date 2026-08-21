@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.19.0
+# ProperTee Language Specification v0.20.0
 
 ## Overview
 
@@ -1098,6 +1098,36 @@ return { "echo": _PROPS }                // forward all inputs to a caller/syste
 
 `_PROPS` is a snapshot of the inputs (it does not contain itself, so `JSON_FORMAT(_PROPS)` is safe). Inside a function or `multi` setup it follows the same rule as other properties — use `::_PROPS`. If an input is literally named `_PROPS`, that caller-supplied value is used as-is.
 
+### `_ARGS` — positional invocation arguments
+
+The reserved array **`_ARGS`** (spec v0.20.0) carries the positional arguments of the invocation
+— on the CLI, everything after the script path (option parsing stops there):
+
+```
+$ propertee2 deploy.tee prod eu-west 42
+```
+
+```
+PRINT(LEN(_ARGS))                 // 3
+PRINT(_ARGS.1)                    // "prod"      — 1-based, like all arrays
+target = _ARGS.2                  // "eu-west"
+n = TO_NUMBER(_ARGS.3)            // arguments are STRINGS; number entry is explicit
+loop a in _ARGS do PRINT(a) end   // iterate them all
+```
+
+- `_ARGS` is **always present**: with no arguments it is the empty array `[]` (never absent —
+  `LEN(_ARGS)` is always safe). All elements are strings, in invocation order.
+- It is an ordinary global otherwise: `::_ARGS` inside functions and `multi` setup; workers and
+  the monitor watchdog read it from the multi-entry snapshot like any global.
+- Arguments are **positional and separate from properties**: they do not appear in `_PROPS`, so
+  the iterate/dump patterns above stay pure. Named configuration belongs in `-p` properties;
+  `_ARGS` is for what a caller would put on the command line.
+- If an input property is literally named `_ARGS`, that caller-supplied value is used as-is —
+  the same precedence rule as `_PROPS`.
+- How arguments are supplied is host-defined: the reference CLI takes them after the script
+  path (`-i` included, shared with the REPL session); its DAP server takes the launch
+  configuration's `args`; embedding hosts call `Engine.setArgs`.
+
 ## External Functions and the Result Pattern
 
 Host applications can register custom functions. These use the **Result pattern** for error handling instead of throwing runtime errors:
@@ -1365,6 +1395,16 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.20.0 — `_ARGS`: positional invocation arguments
+
+Additive, non-breaking (no new grammar; `_ARGS` joins `_PROPS` as a reserved global). The
+positional arguments of the invocation — on the reference CLI, everything after the script path
+— are exposed as the string array `_ARGS`: 1-based, iterable, always present (empty array when
+none). Arguments deliberately stay out of `_PROPS` (the documented iterate/dump patterns remain
+pure), and a caller-supplied property named `_ARGS` wins, the same precedence rule as `_PROPS`.
+Elements are strings; converting to numbers is explicit (`TO_NUMBER`), consistent with nominal
+number identity (v0.14.0).
 
 ### v0.19.0 — `multi ... limit K`: a concurrency cap on the multi block
 

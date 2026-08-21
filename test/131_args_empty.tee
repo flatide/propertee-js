@@ -1,0 +1,9 @@
+// spec v0.20.0: with no invocation arguments _ARGS is the empty array — present
+// and iterable, never absent (no implicit null).
+PRINT(TYPE_OF(_ARGS))
+PRINT(LEN(_ARGS))
+count = 0
+loop a in _ARGS do
+    count = count + 1
+end
+PRINT(count)

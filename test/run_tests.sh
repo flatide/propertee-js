@@ -71,6 +71,9 @@ run_test() {
         112_load_reject_dead_branch)
             actual=$(node "$SCRIPT_DIR/run_test112.js" 2>&1)
             ;;
+        130_args)
+            actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" alpha beta 42 2>&1)
+            ;;
         *)
             actual=$(node "$PROJECT_DIR/pt.js" "$pt_file" 2>&1)
             ;;

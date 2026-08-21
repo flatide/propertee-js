@@ -1,0 +1,9 @@
+3
+alpha
+beta 42
+string
+43
+- alpha
+- beta
+- 42
+worker: beta

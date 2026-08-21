@@ -1,0 +1,22 @@
+// spec v0.20.0: _ARGS — the positional invocation arguments (everything after the
+// script on the CLI) as a string array. Harness-injected here as alpha, beta, 42.
+PRINT(LEN(_ARGS))
+PRINT(_ARGS.1)
+PRINT(_ARGS.2, _ARGS.3)
+
+// arguments are strings — data entry into numbers is explicit (nominal identity)
+PRINT(TYPE_OF(_ARGS.3))
+PRINT(TO_NUMBER(_ARGS.3) + 1)
+
+loop a in _ARGS do
+    PRINT("-", a)
+end
+
+// visible in workers like any global, via the :: snapshot
+function nth(i) do
+    return ::_ARGS.$i
+end
+multi r do
+    thread w: nth(2)
+end
+PRINT("worker:", r.w.value)
