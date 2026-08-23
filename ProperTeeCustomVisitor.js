@@ -604,11 +604,17 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     registerExternal(name, func) {
         requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         this.functions[name] = (...args) => {
+            const shellThread = name === 'SHELL' ? this.activeThread : null;
+            if (shellThread) this._startShellObservation(shellThread);
             try {
-                return func(...args);
+                const result = func(...args);
+                if (shellThread) this._completeShellObservation(shellThread, result);
+                return result;
             } catch (e) {
                 // Keep the historical key shape (no `status`); brand only (spec v0.10.0).
-                return { ok: false, value: e.message, [TEE_RESULT]: true };
+                const result = { ok: false, value: e.message, [TEE_RESULT]: true };
+                if (shellThread) this._completeShellObservation(shellThread, result);
+                return result;
             }
         };
     }
@@ -645,8 +651,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
             // Check cache first (result from completed async operation)
             if (cacheKey in thread.asyncResultCache) {
-                return thread.asyncResultCache[cacheKey];
+                const cached = thread.asyncResultCache[cacheKey];
+                if (name === 'SHELL') self._completeShellObservation(thread, cached);
+                return cached;
             }
+
+            if (name === 'SHELL') self._startShellObservation(thread);
 
             // Deep-copy args for safety
             const safeCopyArgs = args.map(a => self.deepCopy(a));
@@ -677,6 +687,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (thread.asyncCacheKey === currentCacheKey) {
                     thread.asyncResolved = true;
                     thread.asyncResolvedValue = result;
+                    if (name === 'SHELL') self._completeShellObservation(thread, result);
                 }
             });
 
@@ -688,6 +699,31 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             // Throw to unwind expression evaluation
             throw new AsyncPendingError();
         };
+    }
+
+    _startShellObservation(thread) {
+        thread.shellObservation = {
+            active: true,
+            status: 'running',
+            taskId: {},
+            pid: {},
+            exitCode: {},
+            startedAt: Date.now(),
+            endedAt: 0,
+            result: {},
+            lastLine: '',
+            outputRevision: 0,
+            deliveredRevision: 0
+        };
+    }
+
+    _completeShellObservation(thread, result) {
+        const shell = thread?.shellObservation;
+        if (!shell || !shell.active) return;
+        shell.active = false;
+        shell.status = result && result.ok === true ? 'completed' : 'failed';
+        shell.endedAt = Date.now();
+        shell.result = this.deepCopy(result === undefined ? {} : result);
     }
 
     // No-op in JS (Promises self-clean, no executor to shut down)
@@ -2240,6 +2276,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 const blocked = this.createError(`'${spawn.funcName}' is not available in this environment`, spawn.ctx);
                 specs.push({
                     name: `blocked-${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: (function*() { throw blocked; })(),
                     localScope: null
                 });
@@ -2269,6 +2306,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
                 specs.push({
                     name: `${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: gen,
                     localScope: localScope
                 });
@@ -2278,6 +2316,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 const capturedArgs = spawn.args;
                 specs.push({
                     name: `builtin-${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: (function*() {
                         return builtInFunc(...capturedArgs);
                     })(),

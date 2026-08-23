@@ -55,6 +55,11 @@ class ThreadContext {
         this.asyncCacheKey = null;
         this.asyncTimeoutMs = 0;
         this.asyncSubmitTime = 0;
+
+        // Monitor-only worker projection. One slot is reused for sequential SHELL calls; no
+        // per-command history is retained by the language runtime.
+        this.shellObservation = null;
+        this.functionName = null;
     }
 
     // --- Scope management ---

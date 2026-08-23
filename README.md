@@ -33,6 +33,12 @@ Thread functions are **pure** with respect to global state:
 - Return results via `thread key: func()` syntax; results assigned only after all threads complete
 - No locks, no shared mutable state
 
+With a `monitor` clause, each captured thread Result keeps its `status`/`ok`, while its copied
+`value` becomes `{id, key, functionName, state, returnValue, shell}` for that monitor iteration.
+`shell.output` is a default one-line progress tail when the host can provide it; no `tail` syntax
+is required. The ordinary worker value is restored after `multi ... end` because the live result
+collection is never mutated.
+
 ## External Functions & Result Pattern
 
 Host applications can register external functions that return result objects:
@@ -88,7 +94,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 100 tests (99 fixtures + host-API tests)
+# Run all 123 tests (120 fixtures + 3 host-API tests)
 npm test
 
 # Run a single test

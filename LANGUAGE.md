@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.20.0
+# ProperTee Language Specification v0.21.0
 
 ## Overview
 
@@ -801,6 +801,48 @@ end
 
 **How the watchdog sees `result`:** In the code above, the monitor body references `result` even though `result` is only assigned after all threads finish (at `end`). Each watchdog iteration starts by **capturing** the in-progress result collection — a deep-copied snapshot bound under the `resultVar` name in the iteration's scope. The capture is consistent for the whole iteration, even if the body suspends (e.g. `SLEEP`, a blocking call) while workers keep completing; the next iteration takes a fresh capture, which is how the watchdog sees `"running"` entries become `"done"` across iterations. The guaranteed final iteration captures the finished collection. (Before spec v0.16.0 the monitor read a live view instead and could not assign at all — see the changelog.)
 
+**Monitor-only thread values (spec v0.21.0):** The capture keeps every collection entry as a
+genuine Result and keeps its `status`/`ok` fields unchanged, but replaces that copied entry's
+`value` with a thread-information object for the duration of the monitor iteration:
+
+```
+{
+    "id": 1,
+    "key": "build",
+    "functionName": "build_worker",
+    "state": "running",
+    "returnValue": {},
+    "shell": {
+        "active": true,
+        "taskId": "task-1",
+        "pid": 1234,
+        "status": "running",
+        "elapsedMs": 850,
+        "exitCode": {},
+        "output": "compiling module 42",
+        "updated": true,
+        "result": {}
+    }
+}
+```
+
+- `state` repeats the enclosing Result's `status`; `returnValue` is that Result's ordinary
+  semantic `value` at capture time. Thus `UNWRAP(result.build)` inside the monitor returns the
+  thread-information object, while `result.build.value.returnValue` reaches the ordinary value.
+- `shell` is `{}` until that worker calls `SHELL`. It is one observation slot, not a history:
+  a later sequential `SHELL` replaces it, and the last call remains observable through the final
+  monitor iteration.
+- `output` is a default **one-line tail**; there is no monitor-tail syntax or line-count option.
+  When bounded SHELL output changed since the previous monitor capture, it contains the newest
+  logical line (a not-yet-newline-terminated partial line counts). With no change it is `""` and
+  `updated` is `false`. `updated` distinguishes no update from a newly emitted empty line.
+- `taskId`, `pid`, `exitCode`, and live output are host capabilities. A runtime/host that cannot
+  provide one uses `{}`; the remaining fields and final SHELL Result still apply. The standard
+  JavaScript runtime's SHELL stub therefore reports the portable fields but no process metadata.
+- This is a projection, not a temporary mutation of the live collection. After `multi ... end`,
+  the assigned result collection has the ordinary Result shape and ordinary worker value; no
+  thread-information object leaks into the script result or host result data.
+
 ### Sequential Multi Blocks
 
 Multiple `multi` blocks can chain results:
@@ -1021,6 +1063,12 @@ end
 | `SHELL(ctx, cmd)` | Execute a shell command using a context from `SHELL_CTX()`. Pass the Result directly — `SHELL` auto-unwraps it. |
 | `SHELL_CTX(cwd)` | Create a shell context with working directory `cwd`. Returns Result: `ok` with context object, `error` if directory doesn't exist. |
 | `SHELL_CTX(cwd, env)` | Create a shell context with working directory and environment variables. `env` is an object of key-value pairs. |
+
+SHELL output capture is bounded by the host/runtime. When that bound is exceeded, the oldest
+captured bytes may be omitted and the returned Result contains the newest retained suffix. A
+script that needs complete large output should redirect the command to a file (or use a
+host-provided streaming facility) and read it explicitly. The monitor's `shell.output` is only a
+one-line progress tail and is never a complete-output contract.
 
 Each `SHELL()` call creates a fresh process via `/bin/sh -c <cmd>`. There are no persistent sessions. The context from `SHELL_CTX()` is just a configuration object — it doesn't hold any process state. When passing a context to `SHELL()`, pass the Result from `SHELL_CTX()` directly — `SHELL` auto-unwraps the Result to extract the context.
 
@@ -1395,6 +1443,18 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.21.0 — monitor thread information and one-line SHELL progress
+
+Mildly breaking for code that reads a thread Result's `value` *inside* a monitor; grammar and
+post-`multi` results are unchanged. Every monitor capture now projects each copied Result value to
+`{id, key, functionName, state, returnValue, shell}`. The worker's actual value remains under
+`returnValue`, and the live/final semantic collection is never mutated. `shell` keeps only the
+worker's current or most recent SHELL call. Its `output` is the newest one-line tail only when
+output changed since the preceding capture (`updated=true`), otherwise `""`; no `tail` clause
+was added. Process fields unavailable from a host are `{}`. Bounded SHELL capture keeps the newest
+suffix when its limit is exceeded, so earlier output may be omitted. The active Java 25 and
+JavaScript runtimes implement this batch; the frozen Java 7/8 runtime does not.
 
 ### v0.20.0 — `_ARGS`: positional invocation arguments
 

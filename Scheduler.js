@@ -107,7 +107,11 @@ export default class Scheduler {
             if (thread.state === ThreadState.BLOCKED) {
                 // Check timeout
                 if (thread.asyncTimeoutMs > 0 && (now - thread.asyncSubmitTime) > thread.asyncTimeoutMs) {
-                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout", [TEE_RESULT]: true };
+                    const timeoutResult = { status: "error", ok: false, value: "timeout", [TEE_RESULT]: true };
+                    thread.asyncResultCache[thread.asyncCacheKey] = timeoutResult;
+                    if (thread.asyncCacheKey && thread.asyncCacheKey.startsWith('SHELL|')) {
+                        this.visitor._completeShellObservation(thread, timeoutResult);
+                    }
                     thread.clearAsyncState();
                     thread.markReady();
                     continue;
@@ -204,6 +208,7 @@ export default class Scheduler {
             );
             childThread.parentId = parentThread.id;
             childThread.inThreadContext = true;
+            childThread.functionName = spec.functionName || spec.name || '';
             childThread._resultKeyName = resultKeyNames[i];  // Track which result key
             childThread._localScope = spec.localScope;        // The scope ref for local capture
             if (i >= cap) childThread._awaitingSlot = true;   // admission gate (spec v0.19.0)
@@ -329,7 +334,7 @@ export default class Scheduler {
         const iterationScope = {};
         if (parentThread.resultCollectionVarName && parentThread._resultCollection) {
             iterationScope[parentThread.resultCollectionVarName] =
-                this.visitor.deepCopy(parentThread._resultCollection);
+                this._monitorCollection(parentThread);
         }
 
         // A temporary thread context with worker purity (:: writes error) and the
@@ -359,6 +364,47 @@ export default class Scheduler {
                 prevActiveThread.inMonitorContext = prevMonitor;
             }
         }
+    }
+
+    // Monitor-only projection: the semantic collection is never mutated. Each copied Result keeps
+    // its brand and fields, while value becomes a thread snapshot for this watchdog iteration.
+    _monitorCollection(parentThread) {
+        const capture = this.visitor.deepCopy(parentThread._resultCollection);
+        for (let i = 0; i < parentThread._childIds.length; i++) {
+            const child = this.threads.get(parentThread._childIds[i]);
+            const key = parentThread._resultKeyNames[i];
+            const entry = capture[key];
+            if (!child || !entry) continue;
+            const returnValue = entry.value;
+            entry.value = {
+                id: child.id,
+                key: key,
+                functionName: child.functionName || child.name,
+                state: entry.status,
+                returnValue: returnValue,
+                shell: this._monitorShell(child)
+            };
+        }
+        return capture;
+    }
+
+    _monitorShell(thread) {
+        const shell = thread.shellObservation;
+        if (!shell) return {};
+        const updated = shell.outputRevision > shell.deliveredRevision;
+        if (updated) shell.deliveredRevision = shell.outputRevision;
+        const end = shell.endedAt > 0 ? shell.endedAt : Date.now();
+        return {
+            active: shell.active,
+            taskId: this.visitor.deepCopy(shell.taskId),
+            pid: this.visitor.deepCopy(shell.pid),
+            status: shell.status,
+            elapsedMs: Math.max(0, Math.min(2147483647, end - shell.startedAt)),
+            exitCode: this.visitor.deepCopy(shell.exitCode),
+            output: updated ? shell.lastLine : '',
+            updated: updated,
+            result: this.visitor.deepCopy(shell.result)
+        };
     }
 
     // Run final monitor after all children complete

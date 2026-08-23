@@ -4403,6 +4403,11 @@ class ThreadContext {
         this.asyncCacheKey = null;
         this.asyncTimeoutMs = 0;
         this.asyncSubmitTime = 0;
+
+        // Monitor-only worker projection. One slot is reused for sequential SHELL calls; no
+        // per-command history is retained by the language runtime.
+        this.shellObservation = null;
+        this.functionName = null;
     }
 
     // --- Scope management ---
@@ -4635,7 +4640,11 @@ class Scheduler {
             if (thread.state === ThreadState.BLOCKED) {
                 // Check timeout
                 if (thread.asyncTimeoutMs > 0 && (now - thread.asyncSubmitTime) > thread.asyncTimeoutMs) {
-                    thread.asyncResultCache[thread.asyncCacheKey] = { status: "error", ok: false, value: "timeout", [TEE_RESULT]: true };
+                    const timeoutResult = { status: "error", ok: false, value: "timeout", [TEE_RESULT]: true };
+                    thread.asyncResultCache[thread.asyncCacheKey] = timeoutResult;
+                    if (thread.asyncCacheKey && thread.asyncCacheKey.startsWith('SHELL|')) {
+                        this.visitor._completeShellObservation(thread, timeoutResult);
+                    }
                     thread.clearAsyncState();
                     thread.markReady();
                     continue;
@@ -4732,6 +4741,7 @@ class Scheduler {
             );
             childThread.parentId = parentThread.id;
             childThread.inThreadContext = true;
+            childThread.functionName = spec.functionName || spec.name || '';
             childThread._resultKeyName = resultKeyNames[i];  // Track which result key
             childThread._localScope = spec.localScope;        // The scope ref for local capture
             if (i >= cap) childThread._awaitingSlot = true;   // admission gate (spec v0.19.0)
@@ -4857,7 +4867,7 @@ class Scheduler {
         const iterationScope = {};
         if (parentThread.resultCollectionVarName && parentThread._resultCollection) {
             iterationScope[parentThread.resultCollectionVarName] =
-                this.visitor.deepCopy(parentThread._resultCollection);
+                this._monitorCollection(parentThread);
         }
 
         // A temporary thread context with worker purity (:: writes error) and the
@@ -4887,6 +4897,47 @@ class Scheduler {
                 prevActiveThread.inMonitorContext = prevMonitor;
             }
         }
+    }
+
+    // Monitor-only projection: the semantic collection is never mutated. Each copied Result keeps
+    // its brand and fields, while value becomes a thread snapshot for this watchdog iteration.
+    _monitorCollection(parentThread) {
+        const capture = this.visitor.deepCopy(parentThread._resultCollection);
+        for (let i = 0; i < parentThread._childIds.length; i++) {
+            const child = this.threads.get(parentThread._childIds[i]);
+            const key = parentThread._resultKeyNames[i];
+            const entry = capture[key];
+            if (!child || !entry) continue;
+            const returnValue = entry.value;
+            entry.value = {
+                id: child.id,
+                key: key,
+                functionName: child.functionName || child.name,
+                state: entry.status,
+                returnValue: returnValue,
+                shell: this._monitorShell(child)
+            };
+        }
+        return capture;
+    }
+
+    _monitorShell(thread) {
+        const shell = thread.shellObservation;
+        if (!shell) return {};
+        const updated = shell.outputRevision > shell.deliveredRevision;
+        if (updated) shell.deliveredRevision = shell.outputRevision;
+        const end = shell.endedAt > 0 ? shell.endedAt : Date.now();
+        return {
+            active: shell.active,
+            taskId: this.visitor.deepCopy(shell.taskId),
+            pid: this.visitor.deepCopy(shell.pid),
+            status: shell.status,
+            elapsedMs: Math.max(0, Math.min(2147483647, end - shell.startedAt)),
+            exitCode: this.visitor.deepCopy(shell.exitCode),
+            output: updated ? shell.lastLine : '',
+            updated: updated,
+            result: this.visitor.deepCopy(shell.result)
+        };
     }
 
     // Run final monitor after all children complete
@@ -5658,11 +5709,17 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     registerExternal(name, func) {
         requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         this.functions[name] = (...args) => {
+            const shellThread = name === 'SHELL' ? this.activeThread : null;
+            if (shellThread) this._startShellObservation(shellThread);
             try {
-                return func(...args);
+                const result = func(...args);
+                if (shellThread) this._completeShellObservation(shellThread, result);
+                return result;
             } catch (e) {
                 // Keep the historical key shape (no `status`); brand only (spec v0.10.0).
-                return { ok: false, value: e.message, [TEE_RESULT]: true };
+                const result = { ok: false, value: e.message, [TEE_RESULT]: true };
+                if (shellThread) this._completeShellObservation(shellThread, result);
+                return result;
             }
         };
     }
@@ -5699,8 +5756,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
             // Check cache first (result from completed async operation)
             if (cacheKey in thread.asyncResultCache) {
-                return thread.asyncResultCache[cacheKey];
+                const cached = thread.asyncResultCache[cacheKey];
+                if (name === 'SHELL') self._completeShellObservation(thread, cached);
+                return cached;
             }
+
+            if (name === 'SHELL') self._startShellObservation(thread);
 
             // Deep-copy args for safety
             const safeCopyArgs = args.map(a => self.deepCopy(a));
@@ -5731,6 +5792,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (thread.asyncCacheKey === currentCacheKey) {
                     thread.asyncResolved = true;
                     thread.asyncResolvedValue = result;
+                    if (name === 'SHELL') self._completeShellObservation(thread, result);
                 }
             });
 
@@ -5742,6 +5804,31 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             // Throw to unwind expression evaluation
             throw new AsyncPendingError();
         };
+    }
+
+    _startShellObservation(thread) {
+        thread.shellObservation = {
+            active: true,
+            status: 'running',
+            taskId: {},
+            pid: {},
+            exitCode: {},
+            startedAt: Date.now(),
+            endedAt: 0,
+            result: {},
+            lastLine: '',
+            outputRevision: 0,
+            deliveredRevision: 0
+        };
+    }
+
+    _completeShellObservation(thread, result) {
+        const shell = thread?.shellObservation;
+        if (!shell || !shell.active) return;
+        shell.active = false;
+        shell.status = result && result.ok === true ? 'completed' : 'failed';
+        shell.endedAt = Date.now();
+        shell.result = this.deepCopy(result === undefined ? {} : result);
     }
 
     // No-op in JS (Promises self-clean, no executor to shut down)
@@ -7294,6 +7381,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 const blocked = this.createError(`'${spawn.funcName}' is not available in this environment`, spawn.ctx);
                 specs.push({
                     name: `blocked-${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: (function*() { throw blocked; })(),
                     localScope: null
                 });
@@ -7323,6 +7411,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
                 specs.push({
                     name: `${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: gen,
                     localScope: localScope
                 });
@@ -7332,6 +7421,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 const capturedArgs = spawn.args;
                 specs.push({
                     name: `builtin-${spawn.funcName}-${i}`,
+                    functionName: spawn.funcName,
                     generator: (function*() {
                         return builtInFunc(...capturedArgs);
                     })(),

@@ -1,0 +1,26 @@
+// spec v0.21.0: monitor captures project each worker value to thread information.
+function shell_worker() do
+    return SHELL("not-executed-by-core-only-host")
+end
+
+multi result do
+    thread job: shell_worker()
+monitor 1000
+    info = result.job.value
+    PRINT(IS_RESULT(result.job))
+    PRINT(UNWRAP(result.job).key)
+    PRINT(info.id)
+    PRINT(info.key)
+    PRINT(info.functionName)
+    PRINT(info.state)
+    PRINT(info.returnValue.ok)
+    PRINT(info.shell.active)
+    PRINT(info.shell.status)
+    PRINT(info.shell.output == "")
+    PRINT(info.shell.updated)
+    PRINT(info.shell.result.ok)
+end
+
+// Outside the monitor, the ordinary semantic Result is unchanged.
+PRINT(result.job.status)
+PRINT(result.job.value.ok)
