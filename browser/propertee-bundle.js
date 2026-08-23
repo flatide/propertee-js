@@ -4408,6 +4408,10 @@ class ThreadContext {
         // per-command history is retained by the language runtime.
         this.shellObservation = null;
         this.functionName = null;
+
+        // Per-thread source position for debugger callbacks. Keeping it off the Scheduler avoids
+        // an async/worker yield inheriting another logical thread's last line.
+        this.debugLine = null;
     }
 
     // --- Scope management ---
@@ -4550,11 +4554,15 @@ class Scheduler {
         // Debug state
         this._debugMode = false;
         this._stepping = true;       // true = pause every step; false = run to breakpoint
+        this._stepThreadId = null;   // null = initial any-thread stop; otherwise stay on this thread
+        this._pausedThreadId = null;
         this._breakpoints = new Set();
         this._stopped = false;
         this._debugResolve = null;
         this._lastLine = null;
-        this.onStep = null;          // callback({threadId, threadName, line, variables, scopeStack, done})
+        // callback({threadId, threadName, threadResultKey, line, variables, scopeStack,
+        //           reason, willPause, done})
+        this.onStep = null;
     }
 
     // --- Debug API ---
@@ -4562,6 +4570,8 @@ class Scheduler {
     setDebugMode(enabled) {
         this._debugMode = enabled;
         this._stepping = true;
+        this._stepThreadId = null;
+        this._pausedThreadId = null;
         this._stopped = false;
         this._debugResolve = null;
         this._lastLine = null;
@@ -4573,6 +4583,7 @@ class Scheduler {
 
     debugStep() {
         this._stepping = true;
+        this._stepThreadId = this._pausedThreadId;
         if (this._debugResolve) {
             this._debugResolve();
             this._debugResolve = null;
@@ -4581,6 +4592,7 @@ class Scheduler {
 
     debugContinue() {
         this._stepping = false;
+        this._stepThreadId = null;
         if (this._debugResolve) {
             this._debugResolve();
             this._debugResolve = null;
@@ -5039,33 +5051,49 @@ class Scheduler {
 
                         // Extract line number from yield value (integers are line numbers)
                         if (typeof step.value === 'number') {
-                            this._lastLine = step.value;
+                            thread.debugLine = step.value;
                         }
                         // Detect explicit debug break statement
                         let forceBreak = false;
                         if (step.value && step.value.__debugBreak) {
-                            this._lastLine = step.value.line;
+                            thread.debugLine = step.value.line;
                             forceBreak = true;
                         }
+
+                        this._lastLine = thread.debugLine;
+                        const stepBreak = this._stepping &&
+                            (this._stepThreadId === null || this._stepThreadId === thread.id);
+                        const breakpointBreak = this._breakpoints.has(thread.debugLine);
+                        const reason = forceBreak ? 'debug'
+                            : (stepBreak ? 'step' : (breakpointBreak ? 'breakpoint' : null));
 
                         // Fire onStep callback with current state
                         if (this.onStep) {
                             const { variables, scopeStack } = this._getDebugVariables(thread);
                             this.onStep({
                                 threadId: thread.id,
-                                threadName: thread.name,
-                                line: this._lastLine,
+                                threadName: thread.functionName || thread.name,
+                                threadResultKey: thread._resultKeyName || null,
+                                line: thread.debugLine,
                                 variables,
                                 scopeStack,
+                                reason,
+                                willPause: reason !== null,
                                 done: false
                             });
                         }
 
-                        // Pause if stepping, at a breakpoint, or hit debug statement
-                        if (this._stepping || forceBreak || this._breakpoints.has(this._lastLine)) {
-                            await new Promise(resolve => { this._debugResolve = resolve; });
-                            if (this._stopped) {
-                                throw new Error('Execution stopped by user');
+                        // Explicit debug/breakpoints can stop any worker. A step stays on the
+                        // logical thread that armed it, so a ready sibling cannot steal it.
+                        if (reason !== null) {
+                            this._pausedThreadId = thread.id;
+                            try {
+                                await new Promise(resolve => { this._debugResolve = resolve; });
+                                if (this._stopped) {
+                                    throw new Error('Execution stopped by user');
+                                }
+                            } finally {
+                                this._pausedThreadId = null;
                             }
                         }
                     }

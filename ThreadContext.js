@@ -60,6 +60,10 @@ class ThreadContext {
         // per-command history is retained by the language runtime.
         this.shellObservation = null;
         this.functionName = null;
+
+        // Per-thread source position for debugger callbacks. Keeping it off the Scheduler avoids
+        // an async/worker yield inheriting another logical thread's last line.
+        this.debugLine = null;
     }
 
     // --- Scope management ---

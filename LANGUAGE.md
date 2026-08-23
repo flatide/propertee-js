@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.21.0
+# ProperTee Language Specification v0.22.0
 
 ## Overview
 
@@ -451,6 +451,12 @@ end
 `debug` — Explicit breakpoint for the debugger. In the playground's debug mode,
 execution pauses at each `debug` statement. In normal execution, `debug` is a
 no-op (does nothing). Can be placed anywhere a statement is valid.
+
+In debug mode, explicit `debug` statements and line breakpoints apply to the main logical thread
+and to functions running as `multi` workers. Each stop identifies the logical thread and exposes
+that worker's own locals, global snapshot, and call stack. A step stays scoped to the worker that
+armed it, although an explicit breakpoint may still stop another worker. Monitor iterations are
+deliberately excluded: `debug` in a monitor body remains a no-op even in debug mode.
 
 ## Functions
 
@@ -1443,6 +1449,15 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.22.0 — worker-thread debugging; monitor excluded
+
+Additive, no grammar or normal-execution change. In a host debug mode, `debug` statements and
+line breakpoints apply to the main logical thread and every `multi` worker. A stop identifies its
+logical thread and exposes that worker's locals, global snapshot, and call stack. A step remains
+scoped to the worker that armed it, while explicit breaks may still stop any worker. Monitor
+iterations never stop and their `debug` statements remain no-ops. The active Java 25 and
+JavaScript runtimes implement this behavior; the frozen Java 7/8 runtime does not.
 
 ### v0.21.0 — monitor thread information and one-line SHELL progress
 

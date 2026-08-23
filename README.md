@@ -39,6 +39,10 @@ With a `monitor` clause, each captured thread Result keeps its `status`/`ok`, wh
 is required. The ordinary worker value is restored after `multi ... end` because the live result
 collection is never mutated.
 
+In scheduler debug mode, `debug` statements and breakpoints also stop inside `multi` workers.
+Debug callbacks carry the worker's thread id/name/result key and pause reason; a requested step
+stays on that worker. Monitor bodies are intentionally not debugged.
+
 ## External Functions & Result Pattern
 
 Host applications can register external functions that return result objects:
@@ -94,7 +98,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 123 tests (120 fixtures + 3 host-API tests)
+# Run all 124 tests (120 fixtures + 4 host-API tests)
 npm test
 
 # Run a single test

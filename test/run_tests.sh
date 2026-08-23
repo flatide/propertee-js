@@ -135,6 +135,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # Host-API debugger test: workers stop/step with identity; monitors remain excluded.
+    actual=$(node "$SCRIPT_DIR/run_debug_worker_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} debug_worker (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} debug_worker (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""
