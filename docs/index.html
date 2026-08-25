@@ -860,6 +860,10 @@
             <option value="20_shell">20 Shell</option>
             <option value="21_http">21 HTTP</option>
             <option value="22_worker_pool">22 Worker Pool</option>
+            <option value="23_import">23 Imports and Modules</option>
+            <option value="mod:util.strings">&nbsp;&nbsp;module: util.strings</option>
+            <option value="mod:util.tax.2">&nbsp;&nbsp;module: util.tax (v2)</option>
+            <option value="mod:util.tax.1">&nbsp;&nbsp;module: util.tax.1</option>
         </select>
         <button class="btn btn-restore" onclick="restoreExample()">Restore</button>
         <div style="flex:1"></div>
@@ -1412,6 +1416,90 @@ PRINT("Hello, World!")</textarea>
             if (top < 8) top = 8;
             fnTooltipEl.style.left = left + 'px';
             fnTooltipEl.style.top = top + 'px';
+        }
+
+        // --- Playground virtual module repository (import) ---------------------------------------
+        // The core knows nothing about where module source lives — a host resolver maps a module
+        // request to source (spec v0.23.0). The playground's "repository" is this in-memory map,
+        // keyed by module identity: an unversioned id ("util.strings") or an exact one
+        // ("util.tax.1"). These entries are editable from the examples dropdown (the "module:"
+        // items), so you can change a module and re-run an importing example to see the effect.
+        const PLAYGROUND_MODULES_ORIGINAL = {
+            'util.strings': `// util.strings — a small, unversioned string helper module.
+// A module is just a script whose top-level code is skipped on import;
+// only its root functions become callable as strings::name(...).
+
+function shout(text) do
+    return UPPERCASE(text) + "!"
+end
+
+function repeat(text, n) do
+    out = ""
+    i = 0
+    loop i < n do
+        out = out + text
+        i = i + 1
+    end
+    return out
+end`,
+            'util.tax.1': `// util.tax version 1 — a flat rate. Imported as "util.tax.1" (exact),
+// or as "util.tax" only if no higher version exists.
+
+function rate() do
+    return 0.10
+end
+
+function apply(amount) do
+    return amount + amount * rate()
+end`,
+            'util.tax.2': `// util.tax version 2 — the active/latest version. "import util.tax"
+// (no version) resolves here because 2 is the greatest numeric version.
+// Module globals are private and per-run: configure() must be called
+// before rate(), just like an explicit init.
+
+function configure(pct) do
+    ::pct = pct
+end
+
+function rate() do
+    return ::pct
+end
+
+function apply(amount) do
+    return amount + amount * rate()
+end`
+        };
+        // The live, editable repository (a per-session copy of the originals above).
+        const PLAYGROUND_MODULES = Object.assign({}, PLAYGROUND_MODULES_ORIGINAL);
+
+        // Resolve a module request against the virtual repository, mirroring the CLI's file
+        // resolver: an exact ".N" must match that identity; an unversioned import picks the
+        // greatest numeric version, falling back to the bare id only when none exists.
+        function playgroundModuleResolver({ moduleId, version }) {
+            if (version !== null && version !== undefined) {
+                const identity = moduleId + '.' + version;
+                const source = PLAYGROUND_MODULES[identity];
+                if (source === undefined) {
+                    throw new Error("Module '" + identity + "' was not found");
+                }
+                return { moduleId, version, sourceId: 'module:' + identity, source };
+            }
+            let newest = null;
+            const prefix = moduleId + '.';
+            for (const key of Object.keys(PLAYGROUND_MODULES)) {
+                if (!key.startsWith(prefix)) continue;
+                const tail = key.slice(prefix.length);
+                if (!/^[1-9][0-9]*$/.test(tail)) continue;
+                const n = Number(tail);
+                if (n <= 2147483647 && (newest === null || n > newest)) newest = n;
+            }
+            if (newest !== null) {
+                return { moduleId, version: newest, sourceId: 'module:' + moduleId + '.' + newest,
+                    source: PLAYGROUND_MODULES[moduleId + '.' + newest] };
+            }
+            const source = PLAYGROUND_MODULES[moduleId];
+            if (source === undefined) throw new Error("Module '" + moduleId + "' was not found");
+            return { moduleId, version: null, sourceId: 'module:' + moduleId, source };
         }
 
         // --- Playground in-memory platform (File I/O + ENV) ---------------------------------------
@@ -2403,19 +2491,75 @@ PRINT("jobs done:", done, "/", LEN(jobs), "( limit:", workerCount, ")")
 // Sequential would take the sum of all job times (2250ms); with limit 3
 // the pool finishes in ~900ms — and unlike a fixed per-worker split, a
 // long job never strands the queue behind it.
-PRINT("ran in parallel:", elapsed < 2250)`
+PRINT("ran in parallel:", elapsed < 2250)`,
+
+            '23_import': `// 23 - Imports and Modules (spec v0.23.0)
+// An import binds another script's root functions under an alias, without
+// exposing that script's globals. Call them as alias::function(...).
+//
+// The playground resolves imports from a virtual repository. Pick a
+// "module: ..." entry in the examples dropdown to view or EDIT a module,
+// then come back here and Run again to see your change take effect.
+//
+// Available modules in the repository:
+//   util.strings        shout(text), repeat(text, n)
+//   util.tax    (v2)     configure(pct), rate(), apply(amount)
+//   util.tax.1  (exact)  rate(), apply(amount)   // the older flat rate
+
+// No version -> the repository's latest (util.tax is at v2).
+import util.strings as str
+import util.tax as tax
+// A trailing .N pins an exact version, side by side with the latest.
+import util.tax.1 as tax_v1
+
+// Imported functions run against their OWN module globals. Initialize
+// them explicitly through an ordinary function — there is no shared state.
+tax::configure(0.20)
+
+PRINT(str::shout("hello"))            // HELLO!
+PRINT(str::repeat("ab", 3))           // ababab
+
+PRINT("v2 rate:", tax::rate())        // 0.2 (configured above)
+PRINT("v2 on 100:", tax::apply(100))  // 120
+PRINT("v1 rate:", tax_v1::rate())     // 0.1 (a separate module instance)
+PRINT("v1 on 100:", tax_v1::apply(100)) // 110
+
+// Arguments and return values are deep-copied at the module boundary,
+// and imported functions can run as multi workers too.
+multi totals do
+    thread a: tax::apply(50)
+    thread b: tax_v1::apply(50)
+end
+PRINT("parallel:", totals.a.value, totals.b.value)`
         };
 
         let currentExample = '01_hello';
         const scriptCache = {};
 
+        // A "mod:<identity>" entry edits the live virtual repository directly, so imports pick up
+        // the change; ordinary examples are cached per session in scriptCache.
+        function isModuleKey(name) { return typeof name === 'string' && name.startsWith('mod:'); }
+        function moduleIdentity(name) { return name.slice('mod:'.length); }
+
+        function stashCurrent(value) {
+            if (!currentExample) return;
+            if (isModuleKey(currentExample)) {
+                PLAYGROUND_MODULES[moduleIdentity(currentExample)] = value;   // persist module edits
+            } else {
+                scriptCache[currentExample] = value;
+            }
+        }
+
+        function contentFor(name) {
+            if (isModuleKey(name)) return PLAYGROUND_MODULES[moduleIdentity(name)];
+            return scriptCache[name] !== undefined ? scriptCache[name] : examples[name];
+        }
+
         function loadExample(name) {
             if (!name) return;
             const scriptEl = document.getElementById('script');
-            if (currentExample) {
-                scriptCache[currentExample] = scriptEl.value;
-            }
-            const content = scriptCache[name] !== undefined ? scriptCache[name] : examples[name];
+            stashCurrent(scriptEl.value);
+            const content = contentFor(name);
             if (content !== undefined) {
                 scriptEl.value = content;
                 currentExample = name;
@@ -2426,9 +2570,17 @@ PRINT("ran in parallel:", elapsed < 2250)`
         }
 
         function restoreExample() {
-            if (!currentExample || !examples[currentExample]) return;
-            delete scriptCache[currentExample];
-            document.getElementById('script').value = examples[currentExample];
+            if (!currentExample) return;
+            if (isModuleKey(currentExample)) {
+                const id = moduleIdentity(currentExample);
+                if (PLAYGROUND_MODULES_ORIGINAL[id] === undefined) return;
+                PLAYGROUND_MODULES[id] = PLAYGROUND_MODULES_ORIGINAL[id];
+                document.getElementById('script').value = PLAYGROUND_MODULES[id];
+            } else {
+                if (!examples[currentExample]) return;
+                delete scriptCache[currentExample];
+                document.getElementById('script').value = examples[currentExample];
+            }
             clearErrorHighlights();
             updateLineNumbers();
             updateSyntaxHighlight();
@@ -2485,7 +2637,8 @@ PRINT("ran in parallel:", elapsed < 2250)`
 
                 const options = {
                     maxIterations: 1000,
-                    iterationLimitBehavior: 'error'
+                    iterationLimitBehavior: 'error',
+                    moduleResolver: playgroundModuleResolver
                 };
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
@@ -2690,7 +2843,8 @@ PRINT("ran in parallel:", elapsed < 2250)`
 
                 const options = {
                     maxIterations: 1000,
-                    iterationLimitBehavior: 'error'
+                    iterationLimitBehavior: 'error',
+                    moduleResolver: playgroundModuleResolver
                 };
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
