@@ -1,0 +1,17 @@
+import util.file as file
+import util.file.1 as old
+
+file::init(4)
+PRINT(file::bump())
+PRINT(old::version())
+
+a = [1, 2]
+b = file::touch(a)
+b.2 = 8
+PRINT(a)
+PRINT(b)
+
+multi r do
+    thread read: file::read()
+end
+PRINT(r.read.value)

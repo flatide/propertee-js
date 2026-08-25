@@ -1,4 +1,4 @@
-# ProperTee for JavaScript v0.3.0
+# ProperTee for JavaScript v0.5.0
 
 A JavaScript implementation of the [ProperTee](https://github.com/flatide/ProperTee) language using **generator-based cooperative multithreading**. Built with ANTLR4 for parsing and JavaScript generators for scheduling — every interpreter method is a generator function, enabling a central scheduler to round-robin between threads at statement boundaries.
 
@@ -43,6 +43,22 @@ In scheduler debug mode, `debug` statements and breakpoints also stop inside `mu
 Debug callbacks carry the worker's thread id/name/result key and pause reason; a requested step
 stays on that worker. Monitor bodies are intentionally not debugged.
 
+## Imports
+
+```propertee
+import util.file as file
+import util.file.1 as old_file
+
+file::init("/data")
+PRINT(file::read("input.txt"))
+```
+
+Imported sources expose only root-level functions: top-level test code is skipped, globals are
+private, and nested imports are rejected. The Node CLI resolves modules below the entry directory
+by default (`--module-root` overrides it), selecting the greatest numeric `file.N.tee` or falling
+back to `file.tee` only when no numeric version exists. Browser embedders provide a synchronous
+`moduleResolver({moduleId, version})` returning `{moduleId, version, sourceId, source}`.
+
 ## External Functions & Result Pattern
 
 Host applications can register external functions that return result objects:
@@ -75,6 +91,7 @@ node pt.js script.tee                          # run a script
 node pt.js -p '{"width":100}' script.tee       # with built-in properties
 node pt.js -f props.json script.tee             # properties from JSON file
 node pt.js --max-iterations 5000 script.tee     # custom loop limit
+node pt.js --module-root ./modules script.tee   # import root override
 node pt.js                                     # interactive REPL
 ```
 
@@ -98,7 +115,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 124 tests (120 fixtures + 4 host-API tests)
+# Run all 126 tests (121 fixtures + 5 host-API tests)
 npm test
 
 # Run a single test

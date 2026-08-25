@@ -1,6 +1,14 @@
 grammar ProperTee ;
 
-root : statement* EOF ;
+root : importStmt* statement* EOF ;
+
+importStmt
+    : K_IMPORT modulePath ('.' version=INTEGER)? K_AS alias=ID
+    ;
+
+modulePath
+    : ID ('.' ID)*
+    ;
 
 statement
     : assignment    # AssignStmt
@@ -100,7 +108,7 @@ atom
     ;
 
 functionCall
-    : funcName=ID '(' (expression (',' expression)*)? ')'
+    : (moduleAlias=ID GLOBAL_PREFIX)? funcName=ID '(' (expression (',' expression)*)? ')'
     ;
 
 objectLiteral
@@ -149,6 +157,8 @@ K_LIMIT     : 'limit';
 K_MULTI     : 'multi';
 K_MONITOR   : 'monitor';
 K_DEBUG     : 'debug';
+K_IMPORT    : 'import';
+K_AS        : 'as';
 
 GLOBAL_PREFIX : '::' ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;

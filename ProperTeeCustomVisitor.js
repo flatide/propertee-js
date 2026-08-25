@@ -1,5 +1,7 @@
 import ProperTeeVisitor from './ProperTeeVisitor.js';
 import ProperTeeParser from './ProperTeeParser.js';
+import ProperTeeLexer from './ProperTeeLexer.js';
+import antlr4 from 'antlr4';
 
 // Spec v0.8.0 (#4): the ProperTee null value. A Symbol, NOT JS null — the visitor
 // uses JS null internally as a statement sentinel, and a Symbol naturally falls
@@ -22,6 +24,16 @@ function makeResult(status, ok, value) {
 
 function isGenuineResult(v) {
     return v !== null && typeof v === 'object' && v[TEE_RESULT] === true;
+}
+
+class ModuleErrorListener extends antlr4.error.ErrorListener {
+    constructor(errors) {
+        super();
+        this.errors = errors;
+    }
+    syntaxError(_recognizer, _offendingSymbol, line, column, msg) {
+        this.errors.push({ line, column, msg });
+    }
 }
 
 // The 32-bit integer envelope for integer-producing builtins (spec v0.13.0).
@@ -76,7 +88,10 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     constructor(builtInProperties = {}, builtInFunctions = {}, ioStreams = {}, options = {}) {
         super();
         this.variables = {};
-        this.userDefinedFunctions = {};
+        this.userDefinedFunctions = Object.create(null);
+        this.moduleAliases = Object.create(null);
+        this.modulesByIdentity = Object.create(null);
+        this.currentModule = null;
         this.scopeStack = [];
 
         // Threading context flags (used by main thread when no scheduler)
@@ -125,6 +140,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         this.maxIterations = options.maxIterations || 1000;
         this.iterationLimitBehavior = options.iterationLimitBehavior || 'error';
+        this.moduleResolver = options.moduleResolver || null;
+        this.sourceId = options.sourceId || '<memory>';
 
         // Deep-copy helper for value semantics at sharing boundaries
         this.deepCopy = (value) => {
@@ -848,8 +865,17 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     createError(message, ctx) {
-        const location = this.getLocation(ctx);
-        return new Error(`Runtime Error at ${location}: ${message}`);
+        const module = this._getCurrentModule();
+        return this._sourceError(message, ctx, module?.sourceId || this.sourceId);
+    }
+
+    _sourceError(message, ctx, sourceId) {
+        const line = ctx?.start?.line;
+        const column = ctx?.start?.column;
+        if (sourceId && sourceId !== '<memory>') {
+            return new Error(`Runtime Error at ${sourceId} line ${line}:${column}: ${message}`);
+        }
+        return new Error(`Runtime Error at line ${line}:${column}: ${message}`);
     }
 
     // ProperTee type name for error messages (same names as TYPE_OF).
@@ -879,10 +905,32 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     // Get current variables store (from activeThread snapshot or this.variables)
     _getVariables() {
-        if (this.activeThread && this.activeThread.globalSnapshot) {
-            return this.activeThread.globalSnapshot;
+        const module = this._getCurrentModule();
+        if (this.activeThread) {
+            if (module) {
+                return this.activeThread.moduleSnapshots?.[module.identity] || module.variables;
+            }
+            if (this.activeThread.globalSnapshot) return this.activeThread.globalSnapshot;
         }
+        if (module) return module.variables;
         return this.variables;
+    }
+
+    _getCurrentModule() {
+        return this.activeThread ? this.activeThread.currentModule : this.currentModule;
+    }
+
+    _functionMap() {
+        const module = this._getCurrentModule();
+        return module ? module.functions : this.userDefinedFunctions;
+    }
+
+    _liveModuleGlobals() {
+        const out = {};
+        for (const [identity, module] of Object.entries(this.modulesByIdentity)) {
+            out[identity] = module.variables;
+        }
+        return out;
     }
 
     // Check if in thread context
@@ -924,6 +972,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // --- Root and Block (statement-level, yield at boundaries) ---
 
     *visitRoot(ctx) {
+        this._loadImports(ctx);
         this._rejectIfBlocked(ctx);   // spec v0.14.0: refuse the whole script before any statement runs
         let result = null;
         const statements = ctx.statement();
@@ -951,6 +1000,130 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
             throw e;
         }
+    }
+
+    _loadImports(root) {
+        const imports = root.importStmt ? root.importStmt() : [];
+        if (!imports || imports.length === 0) return;
+        if (!this.moduleResolver) {
+            throw this.createError('import requires a module resolver', imports[0]);
+        }
+        const seenThisRoot = new Set();
+        const seenAliases = new Set();
+        const pending = [];
+        for (const imp of imports) {
+            const alias = imp.alias.text;
+            if (Object.prototype.hasOwnProperty.call(this.moduleAliases, alias) || seenAliases.has(alias)) {
+                throw this.createError(`Duplicate import alias '${alias}'`, imp);
+            }
+            seenAliases.add(alias);
+            const moduleId = imp.modulePath().getText();
+            let version = null;
+            if (imp.version) {
+                const text = imp.version.text;
+                if (!/^[1-9][0-9]*$/.test(text) || Number(text) > 2147483647) {
+                    throw this.createError('Module version must be a canonical positive integer', imp);
+                }
+                version = Number(text);
+            }
+            const request = { moduleId, version };
+            let source;
+            try {
+                source = typeof this.moduleResolver === 'function'
+                    ? this.moduleResolver(request) : this.moduleResolver.resolve(request);
+            } catch (e) {
+                throw this.createError(e?.message || `Cannot resolve module '${moduleId}'`, imp);
+            }
+            if (!source) throw this.createError(`Module '${moduleId}${version ? '.' + version : ''}' was not found`, imp);
+            if (source && typeof source.then === 'function') {
+                throw this.createError('JavaScript module resolvers must return source synchronously', imp);
+            }
+            const resolvedModuleId = source.moduleId || moduleId;
+            const resolvedVersion = source.version ?? null;
+            if (resolvedModuleId !== moduleId) {
+                throw this.createError(`Resolver returned module '${resolvedModuleId}' for '${moduleId}'`, imp);
+            }
+            if (version !== null && resolvedVersion !== version) {
+                throw this.createError(`Resolver returned version '${resolvedVersion}' for exact module '${moduleId}.${version}'`, imp);
+            }
+            if (resolvedVersion !== null && (!Number.isInteger(resolvedVersion)
+                    || resolvedVersion <= 0 || resolvedVersion > 2147483647)) {
+                throw this.createError(`Resolver returned invalid module version '${resolvedVersion}'`, imp);
+            }
+            if (typeof source.source !== 'string') {
+                throw this.createError(`Resolver returned no source for module '${moduleId}'`, imp);
+            }
+            const identity = resolvedVersion === null ? resolvedModuleId : `${resolvedModuleId}.${resolvedVersion}`;
+            if (seenThisRoot.has(identity)
+                    || Object.prototype.hasOwnProperty.call(this.modulesByIdentity, identity)) {
+                throw this.createError(`Duplicate import of module '${identity}'`, imp);
+            }
+            const sourceId = source.sourceId || identity;
+            const moduleRoot = this._parseModule(String(source.source ?? ''), sourceId, identity);
+            const nested = moduleRoot.importStmt ? moduleRoot.importStmt() : [];
+            if (nested.length > 0) {
+                throw this._sourceError(`Imported module '${identity}' cannot contain import statements`, nested[0], sourceId);
+            }
+            this._rejectModuleIfBlocked(moduleRoot, sourceId);
+            const module = { identity, moduleId: resolvedModuleId, version: resolvedVersion,
+                sourceId, variables: {}, functions: Object.create(null) };
+            for (const statement of moduleRoot.statement()) {
+                if (statement instanceof ProperTeeParser.FuncDefStmtContext) {
+                    const def = statement.functionDef();
+                    module.functions[def.funcName.text] = this._makeFunctionDef(def, module);
+                }
+            }
+            seenThisRoot.add(identity);
+            pending.push({ alias, identity, module });
+        }
+        // Commit only after every source resolves, parses, and validates. This also keeps a
+        // persistent REPL visitor unchanged when a later import in one snippet is invalid.
+        for (const { alias, identity, module } of pending) {
+            this.modulesByIdentity[identity] = module;
+            this.moduleAliases[alias] = module;
+            if (this.activeThread && !this.activeThread.inThreadContext) {
+                this.activeThread.moduleSnapshots[identity] = module.variables;
+            }
+        }
+    }
+
+    _parseModule(source, sourceId, identity) {
+        const chars = new antlr4.InputStream(source);
+        const lexer = new ProperTeeLexer(chars);
+        const tokens = new antlr4.CommonTokenStream(lexer);
+        const parser = new ProperTeeParser(tokens);
+        lexer.removeErrorListeners();
+        parser.removeErrorListeners();
+        const errors = [];
+        const listener = new ModuleErrorListener(errors);
+        lexer.addErrorListener(listener);
+        parser.addErrorListener(listener);
+        const root = parser.root();
+        if (errors.length > 0) {
+            const e = errors[0];
+            throw new Error(`Runtime Error at ${sourceId} line ${e.line}:${e.column}: ` +
+                `Invalid module '${identity}': syntax error - ${e.msg}`);
+        }
+        return root;
+    }
+
+    _rejectModuleIfBlocked(root, sourceId) {
+        if (this.hiddenKeywords.size === 0 && this.ignoredFunctions.size === 0) return;
+        const v = this._blockedConstructs(root)[0];
+        if (v) throw new Error(`Runtime Error at ${sourceId} line ${v.line}:${v.column}: ` +
+            `'${v.name}' is not available in this environment`);
+    }
+
+    _makeFunctionDef(ctx, module) {
+        const funcName = ctx.funcName.text;
+        if (/^[A-Z][A-Z0-9_]*$/.test(funcName)) {
+            throw this._sourceError(
+                `Cannot define function '${funcName}': all-uppercase names are reserved for built-in and host functions`,
+                ctx, module?.sourceId || this.sourceId);
+        }
+        const params = ctx.parameterList()
+            ? ctx.parameterList().ID().map(id => id.getText()) : [];
+        return { params, body: ctx.block(), module };
     }
 
     *visitBlock(ctx) {
@@ -1002,7 +1175,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
 
             // Write directly to globals (bypasses local scopes)
-            this.variables[varName] = this.deepCopy(value);
+            variables[varName] = this.deepCopy(value);
             return value;
         }
 
@@ -1430,25 +1603,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitFunctionDef(ctx) {
-        const funcName = ctx.funcName.text;
-        // spec v0.12.0: the all-uppercase namespace is reserved for built-in/host functions
-        if (/^[A-Z][A-Z0-9_]*$/.test(funcName)) {
-            throw this.createError(
-                `Cannot define function '${funcName}': all-uppercase names are reserved for built-in and host functions`,
-                ctx
-            );
-        }
-        const params = [];
-        if (ctx.parameterList()) {
-            for (const idToken of ctx.parameterList().ID()) {
-                params.push(idToken.getText());
-            }
-        }
-
-        this.userDefinedFunctions[funcName] = {
-            params: params,
-            body: ctx.block()
-        };
+        const module = this._getCurrentModule();
+        const def = this._makeFunctionDef(ctx, module);
+        (module ? module.functions : this.userDefinedFunctions)[ctx.funcName.text] = def;
         return null;
     }
 
@@ -1500,6 +1657,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
         const funcCallCtx = ctx.functionCall();
         const funcName = funcCallCtx.funcName.text;
+        const module = funcCallCtx.moduleAlias
+            ? this._resolveModuleAlias(funcCallCtx.moduleAlias.text, funcCallCtx)
+            : this._getCurrentModule();
 
         // Resolve key using access rule (same as property access)
         let keyName = null;
@@ -1575,7 +1735,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         }
 
-        this._collectedSpawns.push({ funcName, args, resultKey: keyName, ctx: funcCallCtx });
+        this._collectedSpawns.push({ funcName, module, args, resultKey: keyName, ctx: funcCallCtx });
         return null;
     }
 
@@ -2078,11 +2238,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
         }
 
+        if (ctx.moduleAlias) {
+            const module = this._resolveModuleAlias(ctx.moduleAlias.text, ctx);
+            const funcDef = module.functions[funcName];
+            if (!funcDef) {
+                throw this.createError(`Unknown function '${ctx.moduleAlias.text}::${funcName}'`, ctx);
+            }
+            // _callUserFunction performs the return copy when crossing into the module context.
+            return yield* this._callUserFunction(funcName, args, ctx, module);
+        }
+
         // User-defined function (spec v0.11.0: name resolution is host-blocked ->
         // script-defined functions -> built-ins/externals, so a script function
         // shadows any same-named built-in or external)
-        if (this.userDefinedFunctions[funcName]) {
-            return yield* this._callUserFunction(funcName, args, ctx);
+        const functionMap = this._functionMap();
+        if (functionMap[funcName]) {
+            return yield* this._callUserFunction(funcName, args, ctx, this._getCurrentModule());
         }
 
         // FAIL/UNWRAP (spec v0.10.0) are dispatched here — not via the builtin table —
@@ -2118,20 +2289,44 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         throw this.createError(`Unknown function '${funcName}'`, ctx);
     }
 
+    _resolveModuleAlias(alias, ctx) {
+        if (this._getCurrentModule()) {
+            throw this.createError('Imported modules cannot call entry import aliases', ctx);
+        }
+        const module = this.moduleAliases[alias];
+        if (!module) throw this.createError(`Unknown module alias '${alias}'`, ctx);
+        return module;
+    }
+
     // Generator-based user function call
-    *_callUserFunction(funcName, args, callCtx) {
-        const funcDef = this.userDefinedFunctions[funcName];
+    *_callUserFunction(funcName, args, callCtx, module = this._getCurrentModule()) {
+        const funcDef = (module ? module.functions : this.userDefinedFunctions)[funcName];
         const params = funcDef.params;
         const body = funcDef.body;
-        const scopeStack = this._getScopeStack();
 
-        // Argument count validation
+        // Validate at the caller before switching source/module context; an arity error belongs
+        // to the call site, not to the callee source.
         if (args.length > params.length) {
             throw this.createError(
                 `Function '${funcName}' expects ${params.length} argument(s), but ${args.length} were provided`,
                 callCtx
             );
         }
+        const previousModule = this._getCurrentModule();
+        const crossingModuleBoundary = previousModule !== module;
+        let previousScopeStack = null;
+        if (crossingModuleBoundary) {
+            if (this.activeThread) {
+                previousScopeStack = this.activeThread.scopeStack;
+                this.activeThread.scopeStack = [];
+                this.activeThread.currentModule = module;
+            } else {
+                previousScopeStack = this.scopeStack;
+                this.scopeStack = [];
+                this.currentModule = module;
+            }
+        }
+        const scopeStack = this._getScopeStack();
 
         // Create local scope with parameters
         const localScope = {};
@@ -2170,11 +2365,20 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         } catch (e) {
             if (e instanceof ReturnException) {
-                return e.value;
+                return crossingModuleBoundary ? this.deepCopy(e.value) : e.value;
             }
             throw e;
         } finally {
             scopeStack.pop();
+            if (crossingModuleBoundary) {
+                if (this.activeThread) {
+                    this.activeThread.scopeStack = previousScopeStack;
+                    this.activeThread.currentModule = previousModule;
+                } else {
+                    this.scopeStack = previousScopeStack;
+                    this.currentModule = previousModule;
+                }
+            }
             this.currentFunctionContext = previousFunctionContext;
         }
     }
@@ -2189,6 +2393,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this._checkKeywordAllowed('multi', ctx);
         const variables = this._getVariables();
         const scopeStack = this._getScopeStack();
+        const enclosingModule = this._getCurrentModule();
 
         // Extract optional result collection variable name: multi result do
         const resultVarName = ctx.resultVar ? ctx.resultVar.text : null;
@@ -2207,9 +2412,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         // Deep-copy snapshot of globals for thread purity
+        const rootVariables = this.activeThread?.rootGlobalSnapshot || this.variables;
         const globalSnapshot = {};
-        for (const key of Object.keys(variables)) {
-            globalSnapshot[key] = this.deepCopy(variables[key]);
+        for (const key of Object.keys(rootVariables)) {
+            globalSnapshot[key] = this.deepCopy(rootVariables[key]);
+        }
+        const sourceModuleViews = this.activeThread?.moduleSnapshots || this._liveModuleGlobals();
+        const moduleSnapshots = {};
+        for (const [identity, moduleGlobals] of Object.entries(sourceModuleViews)) {
+            moduleSnapshots[identity] = this.deepCopy(moduleGlobals);
         }
 
         // Setup phase: execute the block body, collecting SPAWN specs
@@ -2278,13 +2489,15 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     name: `blocked-${spawn.funcName}-${i}`,
                     functionName: spawn.funcName,
                     generator: (function*() { throw blocked; })(),
-                    localScope: null
+                    localScope: null,
+                    module: spawn.module
                 });
                 continue;
             }
 
-            if (this.userDefinedFunctions[spawn.funcName]) {
-                const funcDef = this.userDefinedFunctions[spawn.funcName];
+            const spawnFunctionMap = spawn.module ? spawn.module.functions : this.userDefinedFunctions;
+            if (spawnFunctionMap[spawn.funcName]) {
+                const funcDef = spawnFunctionMap[spawn.funcName];
                 const params = funcDef.params;
 
                 // Argument count validation
@@ -2302,13 +2515,14 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
 
                 // Create a generator for this thread's execution
-                const gen = this._createThreadGenerator(funcDef, localScope, globalSnapshot);
+                const gen = this._createThreadGenerator(funcDef, localScope);
 
                 specs.push({
                     name: `${spawn.funcName}-${i}`,
                     functionName: spawn.funcName,
                     generator: gen,
-                    localScope: localScope
+                    localScope: localScope,
+                    module: spawn.module
                 });
             } else if (this.functions[spawn.funcName]) {
                 // Built-in function: wrap in a trivial generator
@@ -2320,7 +2534,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     generator: (function*() {
                         return builtInFunc(...capturedArgs);
                     })(),
-                    localScope: null
+                    localScope: null,
+                    module: spawn.module
                 });
             } else {
                 throw this.createError(`Unknown function '${spawn.funcName}'`, spawn.ctx);
@@ -2351,6 +2566,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             specs: specs,
             monitorSpec: monitorSpec,
             globalSnapshot: globalSnapshot,
+            moduleSnapshots: moduleSnapshots,
+            enclosingModule: enclosingModule,
             resultKeyNames: resultKeyNames,
             resultVarName: resultVarName,
             limit: limit
@@ -2376,7 +2593,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     // Create a generator for a thread function execution
-    *_createThreadGenerator(funcDef, localScope, globalSnapshot) {
+    *_createThreadGenerator(funcDef, localScope) {
         const body = funcDef.body;
 
         // The activeThread will be set by the scheduler when this runs

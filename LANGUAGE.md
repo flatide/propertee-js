@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.22.0
+# ProperTee Language Specification v0.23.0
 
 ## Overview
 
@@ -526,6 +526,62 @@ end                   //   and host functions
 ```
 
 The rule applies to **every** all-uppercase name, not just names that currently exist as built-ins — so a future spec release can add new built-ins without ever colliding with script code. What this buys: an ALL-CAPS call is always a built-in or host-provided function, guaranteed — the naming convention is a fact, not a custom. Mixed-case and lowercase names (`Foo`, `getBalance`, `get_balance`) are unrestricted. Variable names are unaffected (`MAX = 10` is legal — variables and functions are separate namespaces).
+
+## Imports and Modules
+
+Imports let an entry script call reusable functions from another ProperTee source without exposing
+that source's globals:
+
+```
+import util.file as file
+import util.file.1 as file_v1
+
+file::init("/data")
+text = file::read("input.txt")
+```
+
+### Syntax and load rules
+
+- An import is `import ID ('.' ID)* ('.' N)? as alias`. Segments are unquoted identifiers;
+  dynamic and quoted segments are not allowed.
+- A final numeric segment is an exact version. `N` is a canonical positive 32-bit integer:
+  `.1` is valid; `.0` and `.01` are invalid.
+- Imports may appear only at the start of a source, before all statements. `import` and `as`
+  are reserved words.
+- An imported source may not contain imports. Import depth is exactly one.
+- There is no `library` declaration. Any source with no imports can be either executed directly
+  or imported.
+- Every import is resolved, parsed, and validated before the entry's first statement runs. A
+  missing resolver/module, invalid module, duplicate alias, or duplicate resolved module/version
+  refuses the whole run before output or side effects.
+
+A host resolver maps `(moduleId, requestedVersion)` to immutable source plus a stable source id
+and resolved version. Omitting a version means the host chooses its active/latest version; writing
+`.N` requires that exact version. The reference CLI maps `util.file` to `util/file.N.tee`,
+chooses the greatest numeric `N`, and falls back to `util/file.tee` only when no versioned file
+exists. TeeBox maps the module id directly to `scriptId`, uses the active version when omitted,
+and accepts only numeric script versions.
+
+### Execution and visibility
+
+Direct execution is unchanged: all top-level statements run. Import mode executes no top-level
+statements; it registers only function definitions directly under the source root. This lets the
+same source keep top-level self-test code without running that code when imported. Initialization
+is explicit through an ordinary function such as `file::init(...)`.
+
+Only `alias::function(...)` is visible across the boundary. Imported globals cannot be read or
+written by the entry, and imported code cannot call entry functions or import aliases. Each
+resolved module/version has isolated globals, initially empty, and same-module unqualified helper
+calls resolve within that module. Arguments and return values are deep-copied at the module
+boundary.
+
+A `multi` entry snapshots the entry globals and every loaded module's globals together. A worker
+calling an imported function reads that module snapshot and cannot write module globals, under the
+same purity error as `::` writes in entry functions. Monitor iterations use the same snapshots
+and remain excluded from debugging. Debug-capable hosts identify stops, errors, and call sites by
+source id plus line and column, so imported functions—including functions running as workers—can
+be inspected without confusing their lines with the entry source.
+
 
 ## Variable Scope
 
@@ -1449,6 +1505,19 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.23.0 — imports and function-only modules
+
+Adds top-level `import module.path[.N] as alias` and qualified `alias::function(...)` calls.
+Imported sources expose only root-level functions; top-level code is skipped, globals are isolated,
+and nested imports are rejected before entry execution. Module boundaries deep-copy arguments and
+returns, and `multi` snapshots module globals under the existing worker/monitor purity model. Hosts
+own module/version resolution; the active Java 25 and JavaScript runtimes implement imports, while
+the frozen Java 7/8 runtime does not.
+
+Mildly breaking at the grammar level: `import` and `as` become reserved words. Scripts that used
+either as a variable, function, parameter, or other identifier must rename it. This is the same
+compatibility class as `elseif` in v0.9.0 and `limit` in v0.19.0.
 
 ### v0.22.0 — worker-thread debugging; monitor excluded
 

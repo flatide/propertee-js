@@ -146,6 +146,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # Host-API import test: load atomicity, depth-one restriction, source identity, scope isolation.
+    actual=$(node "$SCRIPT_DIR/run_import_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} import_modules (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} import_modules (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""

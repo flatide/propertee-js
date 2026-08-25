@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, existsSync, readdirSync, realpathSync, statSync } from 'fs';
+import { resolve, dirname, join, relative, isAbsolute, sep } from 'path';
 import { createInterface } from 'readline';
 import antlr4 from 'antlr4';
 import ProperTeeLexer from './ProperTeeLexer.js';
@@ -8,7 +8,7 @@ import ProperTeeParser from './ProperTeeParser.js';
 import ProperTeeCustomVisitor, { TEE_NULL } from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -30,6 +30,7 @@ if (args.includes('--help') || args.includes('-h')) {
     console.log('  -f, --props-file <f>  Built-in properties from JSON file');
     console.log('  --max-iterations <n>  Max loop iterations (default: 1000)');
     console.log('  --warn-loops          Warn instead of error on loop limit');
+    console.log('  --module-root <dir>   Module root (default: entry file directory)');
     console.log('  -v, --version         Show version');
     console.log('  -h, --help            Show this help');
     process.exit(0);
@@ -40,6 +41,7 @@ let maxIterations = 1000;
 let iterationLimitBehavior = 'error';
 let scriptFile = null;
 let scriptArgs = [];
+let moduleRootArg = null;
 
 for (let i = 0; i < args.length; i++) {
     if (scriptFile !== null) {
@@ -61,6 +63,9 @@ for (let i = 0; i < args.length; i++) {
             break;
         case '--warn-loops':
             iterationLimitBehavior = 'warn';
+            break;
+        case '--module-root':
+            moduleRootArg = args[++i];
             break;
         default:
             scriptFile = args[i];
@@ -93,6 +98,42 @@ const ioStreams = {
     stderr: (...args) => console.error(...args)
 };
 const options = { maxIterations, iterationLimitBehavior };
+
+function createFileModuleResolver(rootDir) {
+    const root = realpathSync(resolve(rootDir));
+    if (!statSync(root).isDirectory()) throw new Error(`Module root is not a directory: ${root}`);
+    const read = (moduleId, version, candidate, requested) => {
+        if (!existsSync(candidate)) throw new Error(`Module '${requested}' was not found`);
+        const real = realpathSync(candidate);
+        const rel = relative(root, real);
+        if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) {
+            throw new Error(`Module '${requested}' escapes module root`);
+        }
+        if (!statSync(real).isFile()) throw new Error(`Module '${requested}' is not a regular file`);
+        return { moduleId, version, sourceId: real, source: readFileSync(real, 'utf-8') };
+    };
+    return ({ moduleId, version }) => {
+        const segments = moduleId.split('.');
+        const base = segments.pop();
+        const directory = join(root, ...segments);
+        const requested = version === null ? moduleId : `${moduleId}.${version}`;
+        if (version !== null) return read(moduleId, version,
+            join(directory, `${base}.${version}.tee`), requested);
+        let newest = null;
+        if (existsSync(directory) && statSync(directory).isDirectory()) {
+            const pattern = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.([1-9][0-9]*)\\.tee$');
+            for (const name of readdirSync(directory)) {
+                const match = pattern.exec(name);
+                if (!match) continue;
+                const n = Number(match[1]);
+                if (n <= 2147483647 && (newest === null || n > newest)) newest = n;
+            }
+        }
+        return newest !== null
+            ? read(moduleId, newest, join(directory, `${base}.${newest}.tee`), requested)
+            : read(moduleId, null, join(directory, `${base}.tee`), requested);
+    };
+}
 
 // --- Parse and run a script string, returning the result ---
 function parseScript(scriptText) {
@@ -136,7 +177,18 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         process.exit(1);
     }
 
-    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+    const entryPath = realpathSync(resolve(scriptFile));
+    let moduleResolver;
+    try {
+        moduleResolver = createFileModuleResolver(moduleRootArg || dirname(entryPath));
+    } catch (e) {
+        console.error(`Error: ${e.message}`);
+        process.exit(1);
+    }
+    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, {
+        ...options,
+        moduleResolver
+    });
     visitor.setArgs(scriptArgs);
     const scheduler = new Scheduler(visitor);
     const mainGenerator = visitor.visitRoot(tree);
@@ -165,7 +217,17 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     });
 
     // Single persistent visitor so state carries across lines
-    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
+    let moduleResolver;
+    try {
+        moduleResolver = createFileModuleResolver(moduleRootArg || process.cwd());
+    } catch (e) {
+        console.error(`Error: ${e.message}`);
+        process.exit(1);
+    }
+    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, {
+        ...options,
+        moduleResolver
+    });
 
     let buffer = '';
     let depth = 0;

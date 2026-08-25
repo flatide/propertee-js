@@ -1,0 +1,23 @@
+PRINT("module top level must not run")
+
+function init(n) do
+    ::n = n
+end
+
+function bump() do
+    ::n = ::n + 1
+    return helper()
+end
+
+function helper() do
+    return ::n
+end
+
+function read() do
+    return ::n
+end
+
+function touch(a) do
+    a.1 = 9
+    return a
+end

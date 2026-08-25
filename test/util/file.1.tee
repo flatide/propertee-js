@@ -1,0 +1,5 @@
+PRINT("old top level must not run")
+
+function version() do
+    return 1
+end

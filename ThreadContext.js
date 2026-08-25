@@ -10,7 +10,7 @@ const ThreadState = {
 };
 
 class ThreadContext {
-    constructor(id, name, generator, globalSnapshot = null) {
+    constructor(id, name, generator, globalSnapshot = null, moduleSnapshots = null, currentModule = null) {
         this.id = id;
         this.name = name;
         this.generator = generator;
@@ -21,6 +21,9 @@ class ThreadContext {
 
         // Global snapshot (read-only for threads, mutable for main)
         this.globalSnapshot = globalSnapshot;
+        this.rootGlobalSnapshot = globalSnapshot;
+        this.moduleSnapshots = moduleSnapshots || {};
+        this.currentModule = currentModule;
 
         // Sleep tracking
         this.sleepUntil = null;  // timestamp when sleep ends
@@ -64,6 +67,7 @@ class ThreadContext {
         // Per-thread source position for debugger callbacks. Keeping it off the Scheduler avoids
         // an async/worker yield inheriting another logical thread's last line.
         this.debugLine = null;
+        this.debugSourceId = null;
     }
 
     // --- Scope management ---

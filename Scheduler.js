@@ -20,6 +20,7 @@ export default class Scheduler {
         this._stepThreadId = null;   // null = initial any-thread stop; otherwise stay on this thread
         this._pausedThreadId = null;
         this._breakpoints = new Set();
+        this._sourceBreakpoints = new Map();
         this._stopped = false;
         this._debugResolve = null;
         this._lastLine = null;
@@ -40,8 +41,9 @@ export default class Scheduler {
         this._lastLine = null;
     }
 
-    setBreakpoints(lineSet) {
-        this._breakpoints = lineSet;
+    setBreakpoints(lineSet, sourceId = null) {
+        if (sourceId === null) this._breakpoints = lineSet;
+        else this._sourceBreakpoints.set(sourceId, lineSet);
     }
 
     debugStep() {
@@ -71,9 +73,9 @@ export default class Scheduler {
     }
 
     // Create a new thread and register it
-    createThread(name, generator, globalSnapshot = null) {
+    createThread(name, generator, globalSnapshot = null, moduleSnapshots = null, currentModule = null) {
         const id = this.nextThreadId++;
-        const thread = new ThreadContext(id, name, generator, globalSnapshot);
+        const thread = new ThreadContext(id, name, generator, globalSnapshot, moduleSnapshots, currentModule);
         this.threads.set(id, thread);
         return thread;
     }
@@ -196,7 +198,8 @@ export default class Scheduler {
 
     // Handle SPAWN_THREADS command from a MULTI block
     handleSpawnThreads(parentThread, command) {
-        const { specs, monitorSpec, globalSnapshot, resultKeyNames, resultVarName, limit } = command;
+        const { specs, monitorSpec, globalSnapshot, moduleSnapshots, enclosingModule,
+            resultKeyNames, resultVarName, limit } = command;
         const childIds = [];
 
         // Store resultCollectionVarName on parent thread
@@ -212,7 +215,9 @@ export default class Scheduler {
             const childThread = this.createThread(
                 spec.name || `child-${parentThread.id}-${i}`,
                 spec.generator,
-                globalSnapshot
+                globalSnapshot,
+                moduleSnapshots,
+                spec.module || null
             );
             childThread.parentId = parentThread.id;
             childThread.inThreadContext = true;
@@ -234,6 +239,8 @@ export default class Scheduler {
                 // The watchdog reads globals from the SAME multi-entry snapshot as the workers
                 // (never the live variables), and stops mid-run iterations after a failure.
                 globalSnapshot: globalSnapshot,
+                moduleSnapshots: moduleSnapshots,
+                enclosingModule: enclosingModule,
                 aborted: false
             });
         }
@@ -350,7 +357,9 @@ export default class Scheduler {
         // snapshot stored on the monitor entry — NOT the parent thread, whose "snapshot"
         // is the live variables when the parent is the main thread.
         const monitorThread = new ThreadContext(-1, 'monitor', null,
-            monitor.globalSnapshot || this.visitor.variables);
+            monitor.globalSnapshot || this.visitor.variables,
+            monitor.moduleSnapshots || this.visitor._liveModuleGlobals(),
+            monitor.enclosingModule || null);
         monitorThread.scopeStack.push(iterationScope);
         monitorThread.inThreadContext = true;
         monitorThread.inMonitorContext = true;
@@ -437,7 +446,8 @@ export default class Scheduler {
     // Main scheduler loop
     async run(mainGenerator) {
         // Create main thread
-        const mainThread = this.createThread('main', mainGenerator, this.visitor.variables);
+        const mainThread = this.createThread('main', mainGenerator, this.visitor.variables,
+            this.visitor._liveModuleGlobals(), null);
 
         while (this.hasActiveThreads()) {
             // Check debug stop signal
@@ -516,6 +526,7 @@ export default class Scheduler {
                         if (typeof step.value === 'number') {
                             thread.debugLine = step.value;
                         }
+                        thread.debugSourceId = thread.currentModule?.sourceId || this.visitor.sourceId;
                         // Detect explicit debug break statement
                         let forceBreak = false;
                         if (step.value && step.value.__debugBreak) {
@@ -526,7 +537,10 @@ export default class Scheduler {
                         this._lastLine = thread.debugLine;
                         const stepBreak = this._stepping &&
                             (this._stepThreadId === null || this._stepThreadId === thread.id);
-                        const breakpointBreak = this._breakpoints.has(thread.debugLine);
+                        const sourceBreakpoints = this._sourceBreakpoints.get(thread.debugSourceId);
+                        const breakpointBreak = (thread.debugSourceId === this.visitor.sourceId
+                                && this._breakpoints.has(thread.debugLine))
+                            || (sourceBreakpoints?.has(thread.debugLine) ?? false);
                         const reason = forceBreak ? 'debug'
                             : (stepBreak ? 'step' : (breakpointBreak ? 'breakpoint' : null));
 
@@ -538,6 +552,7 @@ export default class Scheduler {
                                 threadName: thread.functionName || thread.name,
                                 threadResultKey: thread._resultKeyName || null,
                                 line: thread.debugLine,
+                                sourceId: thread.debugSourceId,
                                 variables,
                                 scopeStack,
                                 reason,
