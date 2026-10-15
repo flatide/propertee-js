@@ -5702,10 +5702,26 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (typeof str !== 'string') throw new Error('Runtime Error: CHARS() requires a string argument');
                 return Array.from(str);
             },
+            // SPLIT keeps every field — leading, interior and trailing empties — so JOIN(SPLIT(s, d), d)
+            // == s; the delimiter is literal and, since spec v0.24.0, non-empty (CHARS splits characters).
             'SPLIT': (str, delimiter) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: SPLIT() first argument must be a string');
                 if (typeof delimiter !== 'string') throw new Error('Runtime Error: SPLIT() second argument must be a string');
+                if (delimiter === '') throw new Error('Runtime Error: SPLIT() requires a non-empty delimiter');
                 return str.split(delimiter);
+            },
+            // WORDS (spec v0.24.0): the maximal runs of non-whitespace, in order — never an empty string.
+            'WORDS': (str) => {
+                if (typeof str !== 'string') throw new Error('Runtime Error: WORDS() requires a string argument');
+                const out = [];
+                let i = 0;
+                while (i < str.length) {
+                    while (i < str.length && this._isWhitespace(str.charCodeAt(i))) i++;
+                    const start = i;
+                    while (i < str.length && !this._isWhitespace(str.charCodeAt(i))) i++;
+                    if (i > start) out.push(str.slice(start, i));
+                }
+                return out;
             },
             'JOIN': (arr, separator = '') => {
                 if (!Array.isArray(arr)) throw new Error('Runtime Error: JOIN() first argument must be an array');
@@ -5729,7 +5745,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             },
             'TRIM': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TRIM() requires a string argument');
-                return str.trim();
+                let from = 0, to = str.length;
+                while (from < to && this._isWhitespace(str.charCodeAt(from))) from++;
+                while (to > from && this._isWhitespace(str.charCodeAt(to - 1))) to--;
+                return str.slice(from, to);
             },
             'HAS_KEY': (obj, key) => {
                 if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
@@ -5983,6 +6002,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (typeof str !== 'string') throw new Error('Runtime Error: ' + fn + '() first argument must be a string');
         if (typeof sub !== 'string') throw new Error('Runtime Error: ' + fn + '() second argument must be a string');
         if (sub === '') throw new Error('Runtime Error: ' + fn + '() requires a non-empty search string');
+    }
+
+    // Spec v0.24.0 whitespace (TRIM, WORDS): exactly space, \t, \n, VT, \f, \r. String.prototype.trim()
+    // would also strip U+00A0, the other Unicode spaces and the BOM — characters the Java runtime keeps.
+    _isWhitespace(code) {
+        return code === 32 || (code >= 9 && code <= 13);
     }
 
     // Deep equality for objects and arrays (language-level == comparison)

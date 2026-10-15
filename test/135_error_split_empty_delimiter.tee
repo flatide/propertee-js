@@ -1,0 +1,4 @@
+// spec v0.24.0: an empty SPLIT delimiter is a runtime error (the case was unspecified and the
+// runtimes diverged); CHARS is how a string splits into characters
+PRINT(CHARS("abc"))
+PRINT(SPLIT("abc", ""))

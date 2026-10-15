@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.23.0
+# ProperTee Language Specification v0.24.0
 
 ## Overview
 
@@ -995,9 +995,10 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 | `LEN(s)` | Length of a string, array, or object (number of entries). Any other type is a runtime error. |
 | `UPPERCASE(s)` | Convert to uppercase |
 | `LOWERCASE(s)` | Convert to lowercase |
-| `TRIM(s)` | Remove leading/trailing whitespace |
+| `TRIM(s)` | Remove leading/trailing whitespace — the six ASCII characters defined [below](#whitespace) (spec v0.24.0). |
 | `SUBSTRING(s, start, [length])` | Extract substring. `start` is 1-based. |
-| `SPLIT(s, delimiter)` | Split string into array. Preserves trailing empty strings. |
+| `SPLIT(s, delimiter)` | Split `s` at every occurrence of the literal `delimiter` (not regex; occurrences are found left to right without overlap — `SPLIT("aaa", "aa")` → `["", "a"]`). **Every** field is kept — leading, interior, and trailing empty strings included — so `SPLIT(",a,,b,", ",")` → `["", "a", "", "b", ""]`, `SPLIT("", ",")` → `[""]`, and `JOIN(SPLIT(s, d), d) == s` always holds. An empty `delimiter` is a runtime error (spec v0.24.0) — use `CHARS` to split into characters. |
+| `WORDS(s)` | Split `s` into its whitespace-separated words (spec v0.24.0): runs of [whitespace](#whitespace) separate words and leading/trailing whitespace is ignored, so no element is ever an empty string — `WORDS("    test 1  2")` → `["test", "1", "2"]`. Empty or all-whitespace `s` → `[]`. |
 | `JOIN(arr, [separator])` | Join array elements into string. Default separator is `""`. |
 | `CHARS(s)` | Split string into array of single characters |
 | `CONTAINS(s, sub)` | Returns `true` if string `s` contains substring `sub`. Also accepts an array as the first argument — see [Array Functions](#array-functions). |
@@ -1009,6 +1010,18 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 | `MATCHES(s, pattern)` | Returns `true` if regex `pattern` matches anywhere in `s` |
 | `REGEX_FIND(s, pattern)` | Returns array of [fullMatch, group1, group2, ...] or `{}` if no match. 1-based array. |
 | `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
+
+#### Whitespace
+
+For `TRIM` and `WORDS`, whitespace is exactly six ASCII characters (spec v0.24.0): space
+(U+0020), tab `\t` (U+0009), line feed `\n` (U+000A), vertical tab (U+000B), form feed (U+000C),
+and carriage return `\r` (U+000D). No other character counts — not the no-break space U+00A0,
+not the other control characters, not the other Unicode spaces, and not the byte-order mark
+U+FEFF — so both functions behave identically in every runtime.
+
+`SPLIT(s, " ")` and `WORDS(s)` answer different questions: `SPLIT` is lossless field splitting
+(every empty field kept — what CSV-style data needs), while `WORDS` tokenizes text into words
+(never an empty string).
 
 ### Array Functions
 
@@ -1505,6 +1518,35 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.24.0 — `WORDS`, a pinned whitespace set, and no empty `SPLIT` delimiter
+
+Mildly breaking, no grammar change. Three string-function items, prompted by
+`SPLIT("    test 1  2", " ")` returning `["", "", "", "", "test", "1", "", "2"]` when the words
+`["test", "1", "2"]` were wanted:
+
+- **`WORDS(s)`** (additive) splits at runs of whitespace and ignores leading/trailing
+  whitespace, so it never yields an empty string: `WORDS("    test 1  2")` → `["test", "1", "2"]`;
+  empty or all-whitespace input → `[]`. `SPLIT` itself keeps its lossless contract — every empty
+  field is kept, so `JOIN(SPLIT(s, d), d) == s` holds and CSV-style empty fields survive — and its
+  row now spells that contract out (the old text mentioned only trailing empty strings). A
+  one-argument `SPLIT(s)` was rejected: its empty-field policy would hinge on the argument count,
+  the kind of arity-dependent rule v0.7.0 removed from `RANDOM`.
+- **Whitespace is pinned** for `TRIM` and `WORDS` to six ASCII characters: space, `\t`, `\n`,
+  vertical tab U+000B, form feed U+000C, `\r`. `TRIM` used to say only "whitespace", and the
+  runtimes disagreed beyond these six: the Java 25 runtime also stripped the other C0 control
+  characters (U+0000–U+0008, U+000E–U+001F), while the JavaScript runtime also stripped the
+  no-break space U+00A0, the Unicode spaces U+1680, U+2000–U+200A, U+202F, U+205F, U+3000, the
+  separators U+2028/U+2029, and the BOM U+FEFF. The six are exactly the characters both runtimes
+  already stripped, so only the disagreements change; a script that relied on the extra
+  stripping must remove those characters itself (e.g. with `REPLACE`) before calling `TRIM`.
+- **An empty `SPLIT` delimiter is a runtime error** (`SPLIT() requires a non-empty delimiter`),
+  like the empty search string of `FIND` (v0.17.0). The case was unspecified and the runtimes
+  diverged — `SPLIT("abc", "")` gave `["a", "b", "c", ""]` on Java 25 but `["a", "b", "c"]` on
+  JavaScript, and `SPLIT("", "")` gave `[""]` vs `[]`. Use `CHARS(s)` to split into characters.
+
+The active Java 25 and JavaScript runtimes implement this batch; the frozen Java 7/8 runtime does
+not.
 
 ### v0.23.0 — imports and function-only modules
 

@@ -1145,9 +1145,10 @@ PRINT("Hello, World!")</textarea>
                 { name: 'LEN', sig: 'LEN(s)', desc: 'Length of a string, array, or object.', returns: 'A number.', fails: 'Runtime error for other types (spec v0.7.0).', sample: 'PRINT(LEN("hello"))' },
                 { name: 'UPPERCASE', sig: 'UPPERCASE(s)', desc: 'Convert to uppercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(UPPERCASE("hi"))' },
                 { name: 'LOWERCASE', sig: 'LOWERCASE(s)', desc: 'Convert to lowercase.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(LOWERCASE("HI"))' },
-                { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace.', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(TRIM("  hi  "))' },
+                { name: 'TRIM', sig: 'TRIM(s)', desc: 'Remove leading/trailing whitespace — exactly the six ASCII characters space, \\t, \\n, \\r, vertical tab and form feed (spec v0.24.0).', returns: 'A string.', fails: 'Runtime error if s is not a string.', sample: 'PRINT("[" + TRIM(" \\t hi \\n") + "]")' },
                 { name: 'SUBSTRING', sig: 'SUBSTRING(s, start, [length])', desc: 'Extract a substring (start is 1-based).', returns: 'A string (clamped to the string bounds).', fails: 'Runtime error if s is not a string or start/length are not numbers.', sample: 'PRINT(SUBSTRING("ProperTee", 1, 6))' },
-                { name: 'SPLIT', sig: 'SPLIT(s, delimiter)', desc: 'Split a string into an array.', returns: 'An array of strings (trailing empty parts kept).', fails: 'Runtime error if either argument is not a string.', sample: 'PRINT(SPLIT("a,b,c", ","))' },
+                { name: 'SPLIT', sig: 'SPLIT(s, delimiter)', desc: 'Split s at every occurrence of the literal delimiter (not regex). Every field is kept — leading, interior and trailing empty strings — so JOIN(SPLIT(s, d), d) == s. For words, use WORDS.', returns: 'An array of strings.', fails: 'Runtime error if either argument is not a string, or the delimiter is empty (spec v0.24.0 — use CHARS for characters).', sample: 'PRINT(SPLIT("a,b,c", ","))\nPRINT(SPLIT(",a,,b,", ","))' },
+                { name: 'WORDS', sig: 'WORDS(s)', desc: 'Split s into its whitespace-separated words (spec v0.24.0): runs of whitespace separate words and leading/trailing whitespace is ignored. Whitespace is the same six characters as TRIM.', returns: 'An array of non-empty strings ([] for an empty or all-whitespace string).', fails: 'Runtime error if s is not a string.', sample: 'PRINT(WORDS("    test 1  2"))' },
                 { name: 'JOIN', sig: 'JOIN(arr, [separator])', desc: 'Join array elements into a string.', returns: 'A string (default separator is "").', fails: 'Runtime error if arr is not an array or separator is not a string.', sample: 'PRINT(JOIN(["a", "b"], "-"))' },
                 { name: 'CHARS', sig: 'CHARS(s)', desc: 'Split a string into characters.', returns: 'An array of single-character strings.', fails: 'Runtime error if s is not a string.', sample: 'PRINT(CHARS("hi"))' },
                 { name: 'CONTAINS', sig: 'CONTAINS(s, sub) / CONTAINS(arr, item)', desc: 'Substring test on a string, or array membership test (spec v0.15.0) — elements compared with == (by value, deep for objects/arrays, strict across types).', returns: 'A boolean.', fails: 'Runtime error if the first argument is not a string or array, or if it is a string and sub is not a string.', sample: 'PRINT(CONTAINS("hello", "ell"))\nPRINT(CONTAINS([1, 2, 3], 2))' },
@@ -1246,9 +1247,10 @@ PRINT("Hello, World!")</textarea>
             LEN: { desc: '문자열/배열/객체의 길이.', returns: '숫자(그 외 타입은 0).', fails: '실패하지 않음(미지원 타입은 0 반환).' },
             UPPERCASE: { desc: '대문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
             LOWERCASE: { desc: '소문자로 변환.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
-            TRIM: { desc: '앞뒤 공백 제거.', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
+            TRIM: { desc: '앞뒤 공백 제거 — 공백은 스페이스, \\t, \\n, \\r, 수직 탭, 폼 피드의 ASCII 문자 6개뿐(스펙 v0.24.0).', returns: '문자열.', fails: 's가 문자열이 아니면 런타임 에러.' },
             SUBSTRING: { desc: '부분 문자열 추출(start는 1부터).', returns: '문자열(범위로 보정).', fails: 's가 문자열이 아니거나 start/length가 숫자가 아니면 런타임 에러.' },
-            SPLIT: { desc: '문자열을 배열로 분할.', returns: '문자열 배열(끝의 빈 부분 유지).', fails: '두 인자 중 문자열이 아닌 것이 있으면 런타임 에러.' },
+            SPLIT: { desc: 's를 리터럴 delimiter(정규식 아님)가 나타나는 모든 위치에서 분할. 앞·중간·뒤의 빈 문자열까지 모든 필드를 유지하므로 JOIN(SPLIT(s, d), d) == s. 단어 단위 분할은 WORDS.', returns: '문자열 배열.', fails: '두 인자 중 문자열이 아닌 것이 있거나 delimiter가 빈 문자열이면 런타임 에러(스펙 v0.24.0 — 문자 단위 분할은 CHARS).' },
+            WORDS: { desc: 's를 공백으로 구분된 단어로 분할(스펙 v0.24.0). 연속된 공백은 하나의 구분으로 보고 앞뒤 공백은 무시. 공백은 TRIM과 같은 6개 문자.', returns: '빈 문자열이 없는 문자열 배열(빈 문자열이나 공백뿐이면 []).', fails: 's가 문자열이 아니면 런타임 에러.' },
             JOIN: { desc: '배열 요소를 문자열로 결합.', returns: '문자열(기본 구분자는 "").', fails: 'arr가 배열이 아니거나 separator가 문자열이 아니면 런타임 에러.' },
             CHARS: { desc: '문자열을 문자 배열로 분할.', returns: '한 글자 문자열의 배열.', fails: 's가 문자열이 아니면 런타임 에러.' },
             CONTAINS: { desc: '문자열이면 부분 문자열 포함 여부, 배열이면 원소 포함 여부(스펙 v0.15.0) — 원소는 ==로 비교(값 기준, 객체/배열은 깊은 비교, 타입이 다르면 false).', returns: '불리언.', fails: '첫 인자가 문자열도 배열도 아니거나, 문자열인데 sub가 문자열이 아니면 런타임 에러.' },
@@ -2909,7 +2911,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
             var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments

@@ -1,0 +1,40 @@
+// spec v0.24.0: WORDS splits at runs of whitespace and never yields an empty string; TRIM and
+// WORDS share one whitespace set — exactly space, \t, \n, VT (U+000B), FF (U+000C), \r; SPLIT
+// keeps every field and matches its delimiter literally, left to right without overlap.
+function ch(hex) do
+    return UNWRAP(JSON_PARSE("\"\\u" + hex + "\""))
+end
+vt = ch("000b")
+ff = ch("000c")
+
+// WORDS
+PRINT(WORDS("    test 1  2"))
+PRINT(WORDS("one"))
+PRINT(WORDS(""))
+PRINT(WORDS(" \t\n\r" + vt + ff))
+PRINT(WORDS("a\tb\nc" + vt + "d" + ff + "e\r\nf"))
+
+// TRIM strips the same six, at both ends only
+PRINT("[" + TRIM(" \t\n\r" + vt + ff + "a b" + ff + vt + "\r\n\t ") + "]")
+PRINT("[" + TRIM("   ") + "]")
+PRINT("[" + TRIM("") + "]")
+
+// nothing else is whitespace: other controls, the no-break space, other Unicode spaces, the BOM
+loop hex in ["0000", "0001", "001f", "0085", "00a0", "1680", "2000", "2028", "3000", "feff"] do
+    c = ch(hex)
+    PRINT(hex, LEN(TRIM(c + "x" + c)), LEN(WORDS("a" + c + "b")))
+end
+
+// SPLIT keeps every field: leading, interior and trailing empty strings
+r = SPLIT("    test 1  2", " ")
+PRINT(r)
+PRINT(LEN(r))
+PRINT(JOIN(r, " ") == "    test 1  2")
+PRINT(SPLIT(",a,,b,", ","))
+PRINT(SPLIT("", ","))
+PRINT(SPLIT("abc", ","))
+
+// the delimiter is literal (not regex), matched left to right without overlap
+PRINT(SPLIT("a.b.c", "."))
+PRINT(SPLIT("aaa", "aa"))
+PRINT(SPLIT("a::b::", "::"))
