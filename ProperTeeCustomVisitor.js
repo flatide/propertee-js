@@ -98,6 +98,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         this.modulesByIdentity = Object.create(null);
         this.currentModule = null;
         this.scopeStack = [];
+        this.hasExplicitReturn = false;   // set by visitRoot (see scriptResult)
+        this.returnValue = {};
 
         // Threading context flags (used by main thread when no scheduler)
         this.inMultiContext = false;
@@ -1007,6 +1009,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // --- Root and Block (statement-level, yield at boundaries) ---
 
     *visitRoot(ctx) {
+        this.hasExplicitReturn = false;   // per run: REPL snippets reuse one visitor
+        this.returnValue = {};
         this._loadImports(ctx);
         this._rejectIfBlocked(ctx);   // spec v0.14.0: refuse the whole script before any statement runs
         let result = null;
@@ -1031,10 +1035,21 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return result;
         } catch (e) {
             if (e instanceof ReturnException) {
+                this.hasExplicitReturn = true;   // a top-level return: the run's result for the host
+                this.returnValue = e.value;
                 return e.value;
             }
             throw e;
         }
+    }
+
+    // The run's result as hosts report it (TeeBox, and the Java runtime's Engine.Outcome.result()):
+    // the top-level return value, else the final `result` global, else {} — absence is {}, never
+    // null. Read it after the run; `node pt.js --result-only` prints it as JSON.
+    scriptResult() {
+        if (this.hasExplicitReturn) return this.returnValue;
+        if (Object.prototype.hasOwnProperty.call(this.variables, 'result')) return this.variables.result;
+        return {};
     }
 
     _loadImports(root) {

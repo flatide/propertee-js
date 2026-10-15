@@ -8,7 +8,7 @@ import ProperTeeParser from './ProperTeeParser.js';
 import ProperTeeCustomVisitor, { TEE_NULL } from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -31,6 +31,9 @@ if (args.includes('--help') || args.includes('-h')) {
     console.log('  --max-iterations <n>  Max loop iterations (default: 1000)');
     console.log('  --warn-loops          Warn instead of error on loop limit');
     console.log('  --module-root <dir>   Module root (default: entry file directory)');
+    console.log('  --result-only         Print only the script\'s result, as JSON: its top-level');
+    console.log('                        return value (else the final `result` global, else {}).');
+    console.log('                        PRINT output is discarded; stderr output is kept');
     console.log('  -v, --version         Show version');
     console.log('  -h, --help            Show this help');
     process.exit(0);
@@ -42,6 +45,7 @@ let iterationLimitBehavior = 'error';
 let scriptFile = null;
 let scriptArgs = [];
 let moduleRootArg = null;
+let resultOnly = false;
 
 for (let i = 0; i < args.length; i++) {
     if (scriptFile !== null) {
@@ -67,9 +71,22 @@ for (let i = 0; i < args.length; i++) {
         case '--module-root':
             moduleRootArg = args[++i];
             break;
+        case '--result-only':
+            resultOnly = true;
+            break;
         default:
             scriptFile = args[i];
     }
+}
+
+// --result-only prints a run's result, so it needs a script that exists (no REPL fallback)
+if (resultOnly && scriptFile === null) {
+    console.error('Error: --result-only needs a script file');
+    process.exit(2);
+}
+if (resultOnly && !existsSync(resolve(scriptFile))) {
+    console.error(`Error: Cannot read file '${scriptFile}': no such file`);
+    process.exit(1);
 }
 
 // Parse properties
@@ -185,7 +202,10 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         console.error(`Error: ${e.message}`);
         process.exit(1);
     }
-    const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, {
+    // --result-only: PRINT output is discarded and only the run's result reaches stdout, as
+    // JSON; stderr (thread/monitor errors, warnings, a runtime error) is untouched.
+    const streams = resultOnly ? { stdout: () => {}, stderr: ioStreams.stderr } : ioStreams;
+    const visitor = new ProperTeeCustomVisitor(properties, {}, streams, {
         ...options,
         moduleResolver
     });
@@ -198,6 +218,9 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     } catch (e) {
         console.error(`Runtime error: ${e.message}`);
         process.exit(1);
+    }
+    if (resultOnly) {
+        console.log(visitor.functions['JSON_FORMAT'](visitor.scriptResult()));
     }
 
 } else {

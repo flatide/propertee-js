@@ -92,10 +92,18 @@ node pt.js -p '{"width":100}' script.tee       # with built-in properties
 node pt.js -f props.json script.tee             # properties from JSON file
 node pt.js --max-iterations 5000 script.tee     # custom loop limit
 node pt.js --module-root ./modules script.tee   # import root override
+node pt.js --result-only script.tee            # print only the script's result, as JSON
 node pt.js                                     # interactive REPL
 ```
 
 REPL commands: `.vars` (show variables), `.exit` (quit).
+
+`--result-only` discards the script's `PRINT` output and prints only its result as one line of
+JSON: the top-level `return` value, else the final `result` global, else `{}` — the value TeeBox
+reports for a run, and the same rule as the Java CLI's `propertee2 --result-only`. stderr output
+(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. Options go
+before the script path (later words are `_ARGS`); embedding hosts read the same value with
+`visitor.scriptResult()` after the run.
 
 ## Build
 

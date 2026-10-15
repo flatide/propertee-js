@@ -168,6 +168,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # CLI test: --result-only prints just the run's result as JSON (same rule as the Java CLI).
+    actual=$(node "$SCRIPT_DIR/run_result_only_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} result_only (CLI)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} result_only (CLI)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""
