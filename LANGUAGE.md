@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.24.0
+# ProperTee Language Specification v0.25.0
 
 ## Overview
 
@@ -979,8 +979,39 @@ The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusi
 
 | Function | Description |
 |---|---|
-| `TO_NUMBER(s)` | Convert string to number. Error if not valid numeric string. |
+| `TO_NUMBER(s)` | Convert a decimal numeral to a number — the exact syntax is [below](#numeric-text) (spec v0.25.0). Any other text is a runtime error. |
 | `TO_STRING(v)` | Convert any value to its string representation |
+
+#### Numeric text
+
+`TO_NUMBER` accepts exactly a **decimal numeral** (spec v0.25.0), ignoring leading and trailing
+[whitespace](#whitespace) — the same six characters `TRIM` removes. A decimal numeral is:
+
+- an optional sign, `+` or `-`;
+- then digits with an optional fraction — `42`, `3.14`, `5.` — or a fraction alone — `.5`;
+- then an optional exponent: `e` or `E`, an optional sign, and digits — `1e3`, `2.5E-4`.
+
+Digits are the ASCII digits `0`–`9`, and leading zeros are allowed (`"007"` → `7`). Nothing else
+converts: not hexadecimal, octal, or binary (`"0x10"`, `"0o17"`, `"0b101"`), not type suffixes
+(`"1f"`, `"1.5d"`), not `"Infinity"` or `"NaN"`, not digit separators (`"1_000"`, `"1,000"`), not
+non-ASCII digits (`"１２"`), not whitespace inside the numeral (`"- 5"`), and not empty or
+all-whitespace text.
+
+- **Integer or decimal**: a numeral with no `.`, `e`, or `E` whose value fits the 32-bit integer
+  range is an integer; every other numeral is a decimal — `"5.0"`, `"1e3"`, `"2147483648"` (see
+  [Number Representation](#number-representation)).
+- **Rounding**: a decimal is the nearest double-precision value, so digits beyond its precision
+  are rounded off and a magnitude too small to represent becomes `0` (`"1e-999"` → `0`).
+- **Range**: a numeral too large to represent (`"1e999"`) is a runtime error — `TO_NUMBER` never
+  produces infinity.
+
+| Argument | Error |
+|---|---|
+| not a string | `TO_NUMBER() requires a string argument` |
+| not a decimal numeral | `TO_NUMBER() cannot convert 'x' to number` |
+| too large to represent | `TO_NUMBER() value out of range: 'x'` |
+
+`x` is the argument exactly as given, surrounding whitespace included.
 
 ### Type
 
@@ -1017,7 +1048,8 @@ For `TRIM` and `WORDS`, whitespace is exactly six ASCII characters (spec v0.24.0
 (U+0020), tab `\t` (U+0009), line feed `\n` (U+000A), vertical tab (U+000B), form feed (U+000C),
 and carriage return `\r` (U+000D). No other character counts — not the no-break space U+00A0,
 not the other control characters, not the other Unicode spaces, and not the byte-order mark
-U+FEFF — so both functions behave identically in every runtime.
+U+FEFF — so both functions behave identically in every runtime. `TO_NUMBER` ignores the same six
+around a numeral (spec v0.25.0).
 
 `SPLIT(s, " ")` and `WORDS(s)` answer different questions: `SPLIT` is lossless field splitting
 (every empty field kept — what CSV-style data needs), while `WORDS` tokenizes text into words
@@ -1506,6 +1538,8 @@ Common error conditions:
 | All-uppercase function definition | Cannot define function 'X': all-uppercase names are reserved for built-in and host functions |
 | Integer literal too large | Integer literal out of range: 9999999999 |
 | Integer arithmetic overflow (`+` `-` `*`, unary `-`, `FLOOR`/`CEIL`/`ROUND`/`ABS`, `SUM`) | Integer overflow |
+| `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
+| `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
 | Blocked construct present (hidden keyword / ignored function, anywhere) | 'X' is not available in this environment |
 
 ### Resource Limits
@@ -1518,6 +1552,34 @@ implementation-defined. Scripts should not rely on any particular recursion dept
 ---
 
 ## Changelog
+
+### v0.25.0 — `TO_NUMBER` reads exactly a decimal numeral
+
+Mildly breaking, no grammar change. `TO_NUMBER` used to say only "Error if not valid numeric
+string", and each runtime left the meaning to its host platform's number parser. Both runtimes
+accepted the same decimal numerals, but outside them they disagreed. The new rule
+([Numeric text](#numeric-text)) keeps every numeral both runtimes accepted and settles the rest:
+
+- **Decimal numerals only.** The JavaScript runtime also read `0x`/`0X` hexadecimal, `0o` octal,
+  and `0b` binary (`"0x10"` → `16`). The Java 25 runtime also read the type suffixes
+  `f`/`F`/`d`/`D` (`"1f"` → `1`), hexadecimal floating point (`"0x1p3"` → `8`), `"NaN"`, and
+  non-ASCII digits in integer text (`"１２"` → `12`). All of these are now runtime errors.
+- **The surrounding whitespace is the `TRIM` set.** The Java 25 runtime also ignored the other C0
+  control characters (U+0000–U+0008, U+000E–U+001F). The JavaScript runtime also ignored the
+  no-break space U+00A0, the other Unicode spaces and separators, and the BOM U+FEFF. Only the six
+  [whitespace](#whitespace) characters are ignored now; remove anything else first (e.g. with
+  `REPLACE`).
+- **No infinity.** Both runtimes turned `"Infinity"`, `"-Infinity"`, and numerals too large to
+  represent (`"1e999"`) into infinity, which `JSON_FORMAT` then wrote as the invalid JSON token
+  `Infinity` on Java 25 and as `null` on JavaScript. `"Infinity"` now fails like any other
+  non-numeral, and a numeral too large to represent fails with
+  `TO_NUMBER() value out of range: '1e999'`. This is the only change to behavior the two runtimes
+  shared.
+- **One message.** Text that does not convert reports `TO_NUMBER() cannot convert 'x' to number`
+  with the argument as given. It replaces Java 25's `Cannot convert 'x' to number` and
+  JavaScript's `TO_NUMBER() cannot convert empty string`.
+
+The active Java 25 and JavaScript runtimes implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.24.0 — `WORDS`, a pinned whitespace set, and no empty `SPLIT` delimiter
 

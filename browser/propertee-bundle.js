@@ -5443,6 +5443,11 @@ function intResult(d) {
     return d;
 }
 
+// Spec v0.25.0: the only text TO_NUMBER reads — an optional sign, ASCII digits with an optional
+// fraction (".5" and "5." included), an optional exponent. Number() alone would also read
+// "0x10", "0o17", "0b101" and "Infinity" (and "" as 0), which the Java runtime rejects.
+const DECIMAL_NUMERAL = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
+
 // Interpreter-dispatched names cannot be replaced by host registrations (spec v0.13.0).
 const INTERPRETER_DISPATCHED = new Set(['PRINT', 'SLEEP', 'FAIL', 'UNWRAP']);
 function requireReplaceableName(name) {
@@ -5649,10 +5654,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             },
             'TO_NUMBER': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TO_NUMBER() requires a string argument');
-                const trimmed = str.trim();
-                if (trimmed === '') throw new Error('Runtime Error: TO_NUMBER() cannot convert empty string');
-                const num = Number(trimmed);
-                if (isNaN(num)) throw new Error(`Runtime Error: TO_NUMBER() cannot convert '${str}' to number`);
+                const text = this._trimWhitespace(str);
+                if (!DECIMAL_NUMERAL.test(text)) throw new Error(`Runtime Error: TO_NUMBER() cannot convert '${str}' to number`);
+                const num = Number(text);
+                if (!Number.isFinite(num)) throw new Error(`Runtime Error: TO_NUMBER() value out of range: '${str}'`);
                 return num;
             },
             'TO_STRING': (value) => {
@@ -5745,10 +5750,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             },
             'TRIM': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: TRIM() requires a string argument');
-                let from = 0, to = str.length;
-                while (from < to && this._isWhitespace(str.charCodeAt(from))) from++;
-                while (to > from && this._isWhitespace(str.charCodeAt(to - 1))) to--;
-                return str.slice(from, to);
+                return this._trimWhitespace(str);
             },
             'HAS_KEY': (obj, key) => {
                 if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
@@ -6004,10 +6006,18 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (sub === '') throw new Error('Runtime Error: ' + fn + '() requires a non-empty search string');
     }
 
-    // Spec v0.24.0 whitespace (TRIM, WORDS): exactly space, \t, \n, VT, \f, \r. String.prototype.trim()
-    // would also strip U+00A0, the other Unicode spaces and the BOM — characters the Java runtime keeps.
+    // Spec v0.24.0 whitespace (TRIM, WORDS, and around a TO_NUMBER numeral since v0.25.0): exactly
+    // space, \t, \n, VT, \f, \r. String.prototype.trim() would also strip U+00A0, the other Unicode
+    // spaces and the BOM — characters the Java runtime keeps.
     _isWhitespace(code) {
         return code === 32 || (code >= 9 && code <= 13);
+    }
+
+    _trimWhitespace(str) {
+        let from = 0, to = str.length;
+        while (from < to && this._isWhitespace(str.charCodeAt(from))) from++;
+        while (to > from && this._isWhitespace(str.charCodeAt(to - 1))) to--;
+        return str.slice(from, to);
     }
 
     // Deep equality for objects and arrays (language-level == comparison)

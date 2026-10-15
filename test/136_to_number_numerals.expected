@@ -1,0 +1,52 @@
+42 42
++5 5
+-5 -5
+007 7
+-0 0
+3.14 3.14
+.5 0.5
+5. 5
+1e3 1000
+2.5E-4 0.00025
++.5e+2 50
+2147483647 2147483647
+2147483648 2147483648
+123456789012345678901234567890 1.2345678901234568e+29
+1e-999 0
+43
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '0x10' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '0X1F' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '0o17' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '0b101' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '1f' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '1.5d' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '0x1p3' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert 'NaN' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert 'Infinity' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '-Infinity' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '1_000' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '1,000' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '- 5' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '1e' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '.' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() cannot convert '   ' to number
+[THREAD ERROR] Runtime Error: TO_NUMBER() value out of range: '1e999'
+"0x10" error Runtime Error: TO_NUMBER() cannot convert '0x10' to number
+"0X1F" error Runtime Error: TO_NUMBER() cannot convert '0X1F' to number
+"0o17" error Runtime Error: TO_NUMBER() cannot convert '0o17' to number
+"0b101" error Runtime Error: TO_NUMBER() cannot convert '0b101' to number
+"1f" error Runtime Error: TO_NUMBER() cannot convert '1f' to number
+"1.5d" error Runtime Error: TO_NUMBER() cannot convert '1.5d' to number
+"0x1p3" error Runtime Error: TO_NUMBER() cannot convert '0x1p3' to number
+"NaN" error Runtime Error: TO_NUMBER() cannot convert 'NaN' to number
+"Infinity" error Runtime Error: TO_NUMBER() cannot convert 'Infinity' to number
+"-Infinity" error Runtime Error: TO_NUMBER() cannot convert '-Infinity' to number
+"1_000" error Runtime Error: TO_NUMBER() cannot convert '1_000' to number
+"1,000" error Runtime Error: TO_NUMBER() cannot convert '1,000' to number
+"- 5" error Runtime Error: TO_NUMBER() cannot convert '- 5' to number
+"1e" error Runtime Error: TO_NUMBER() cannot convert '1e' to number
+"." error Runtime Error: TO_NUMBER() cannot convert '.' to number
+"" error Runtime Error: TO_NUMBER() cannot convert '' to number
+"   " error Runtime Error: TO_NUMBER() cannot convert '   ' to number
+"1e999" error Runtime Error: TO_NUMBER() value out of range: '1e999'

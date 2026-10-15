@@ -1,0 +1,35 @@
+// spec v0.25.0: TO_NUMBER reads exactly a decimal numeral — an optional sign, ASCII digits with an
+// optional fraction (".5" and "5." included), an optional exponent — ignoring the six TRIM
+// whitespace characters around it. Any other text fails, and so does a numeral too large to
+// represent; each failure below is caught as its thread's error Result.
+function ch(hex) do
+    return UNWRAP(JSON_PARSE("\"\\u" + hex + "\""))
+end
+
+function conv(s) do
+    return TO_NUMBER(s)
+end
+
+// decimal numerals
+loop s in ["42", "+5", "-5", "007", "-0", "3.14", ".5", "5.", "1e3", "2.5E-4", "+.5e+2", "2147483647", "2147483648", "123456789012345678901234567890", "1e-999"] do
+    PRINT(s, TO_NUMBER(s))
+end
+
+// the six TRIM whitespace characters around a numeral are ignored
+vt = ch("000b")
+ff = ch("000c")
+PRINT(TO_NUMBER(" \t\n\r" + vt + ff + "42" + ff + vt + "\r\n\t ") + 1)
+
+// nothing else converts: hex/octal/binary prefixes, type suffixes, hex floats, NaN, Infinity,
+// digit separators, inner whitespace, a bare exponent or point, empty text; 1e999 is out of range
+bad = ["0x10", "0X1F", "0o17", "0b101", "1f", "1.5d", "0x1p3", "NaN", "Infinity", "-Infinity", "1_000", "1,000", "- 5", "1e", ".", "", "   ", "1e999"]
+multi r do
+    loop s in ::bad do
+        thread : conv(s)
+    end
+end
+i = 1
+loop k, v in r do
+    PRINT(JSON_FORMAT(bad.$i), v.status, v.value)
+    i = i + 1
+end

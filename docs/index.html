@@ -1137,7 +1137,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'RANDOM', sig: 'RANDOM() | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in an inclusive range. The single-argument form was removed in spec v0.7.0.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if called with one argument, arguments are not numbers, or min > max.', sample: 'PRINT(RANDOM(1, 6))' },
             ]},
             { cat: 'Conversion', fns: [
-                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a string to a number.', returns: 'A number.', fails: 'Runtime error if s is not a string, is empty, or is not a valid numeric string.', sample: 'PRINT(TO_NUMBER("42") + 1)' },
+                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a decimal numeral to a number (spec v0.25.0): an optional sign, digits with an optional fraction (.5 and 5. included), and an optional exponent (1e3, 2.5E-4). Surrounding whitespace — the six TRIM characters — is ignored. Hexadecimal, octal and binary, type suffixes, Infinity and NaN do not convert.', returns: 'A number — an integer for digits-only text that fits 32 bits, otherwise a decimal.', fails: 'Runtime error if s is not a string, is not a decimal numeral (empty text included), or is too large to represent (1e999).', sample: 'PRINT(TO_NUMBER(" 42\\n") + 1, TO_NUMBER("2.5e3"))' },
                 { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', returns: 'A string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TO_STRING(true))' },
                 { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", "object", or "null".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))' },
             ]},
@@ -1241,7 +1241,7 @@ PRINT("Hello, World!")</textarea>
             CEIL: { desc: '올림하여 정수로.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
             ROUND: { desc: '반올림하여 정수로.', returns: '숫자.', fails: 'n이 숫자가 아니면 런타임 에러.' },
             RANDOM: { desc: '난수: [0,1) 소수 또는 범위 내 정수.', returns: '숫자: 인자 없으면 [0,1) 소수, 그 외 정수.', fails: '인자가 숫자가 아니거나 max가 양수가 아니거나 min > max이면 런타임 에러.' },
-            TO_NUMBER: { desc: '문자열을 숫자로 변환.', returns: '숫자.', fails: 's가 문자열이 아니거나 비어 있거나 올바른 숫자 문자열이 아니면 런타임 에러.' },
+            TO_NUMBER: { desc: '10진수 표기를 숫자로 변환(스펙 v0.25.0). 생략 가능한 부호, 숫자와 생략 가능한 소수부(.5와 5. 포함), 생략 가능한 지수(1e3, 2.5E-4)로 이루어짐. 앞뒤 공백(TRIM과 같은 6개 문자)은 무시. 16진수·8진수·2진수, 타입 접미사, Infinity, NaN은 변환되지 않음.', returns: '숫자 — 숫자만으로 된 텍스트가 32비트에 들면 정수, 나머지는 소수.', fails: 's가 문자열이 아니거나, 10진수 표기가 아니거나(빈 텍스트 포함), 표현할 수 없을 만큼 크면(1e999) 런타임 에러.' },
             TO_STRING: { desc: '임의의 값을 문자열로 변환.', returns: '문자열.', fails: '실패하지 않음(모든 값 허용).' },
             TYPE_OF: { desc: '값의 타입 이름.', returns: '문자열: "number", "string", "boolean", "array", "object", "null".', fails: '실패하지 않음(모든 값 허용).' },
             LEN: { desc: '문자열/배열/객체의 길이.', returns: '숫자(그 외 타입은 0).', fails: '실패하지 않음(미지원 타입은 0 반환).' },

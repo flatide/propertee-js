@@ -1,0 +1,4 @@
+// spec v0.25.0: TO_NUMBER reads only decimal numerals, so a hexadecimal string is a runtime error
+// (the JavaScript runtime used to read it as 16); the message quotes the argument as given
+PRINT(TO_NUMBER(" 16 "))
+PRINT(TO_NUMBER("0x10"))
