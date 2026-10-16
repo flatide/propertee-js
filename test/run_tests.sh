@@ -179,6 +179,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # Builtin test (spec v0.26.0): FILE_LINES is a plain-array builtin; its stub raises a runtime error.
+    actual=$(node "$SCRIPT_DIR/run_file_lines_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} file_lines (builtin)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} file_lines (builtin)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""

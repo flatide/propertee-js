@@ -5993,6 +5993,14 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             this.registerExternal(name, fileStub(name));
         }
 
+        // FILE_LINES (spec v0.26.0) is not a Result-returning builtin — a file it cannot read is a
+        // runtime error — so its stub raises one too. A host that has files installs the real array
+        // here as a builtin (not through registerExternal, whose throws become Result errors), as
+        // the playground does over its virtual files.
+        this.functions['FILE_LINES'] = () => {
+            throw new Error('Runtime Error: FILE_LINES() is not available in this environment');
+        };
+
         // HTTP — stubs (no network access in the JS runtime; a host or the playground provides it)
         for (const name of ['HTTP', 'HTTP_GET', 'HTTP_POST']) {
             this.registerExternal(name, fileStub(name));

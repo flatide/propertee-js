@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.25.0
+# ProperTee Language Specification v0.26.0
 
 ## Overview
 
@@ -934,7 +934,7 @@ Only meaningful inside functions running within a `multi` block.
 
 ### Blocking and Suspension
 
-Built-in functions are **runtime primitives** — provided by the runtime or the host, not written in ProperTee. Some of them **suspend**: a call that has to wait — `SLEEP`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O built-ins, and asynchronous host-registered external functions — pauses only the calling thread and yields to sibling threads until the wait is over. There is no `await`-style marker: suspension is a property of the call, not of the syntax, and any function may transitively suspend by calling one of these.
+Built-in functions are **runtime primitives** — provided by the runtime or the host, not written in ProperTee. Some of them **suspend**: a call that has to wait — `SLEEP`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O built-ins (reading a `FILE_LINES` array included), and asynchronous host-registered external functions — pauses only the calling thread and yields to sibling threads until the wait is over. There is no `await`-style marker: suspension is a property of the call, not of the syntax, and any function may transitively suspend by calling one of these.
 
 `SLEEP` is simply the smallest suspension primitive (a pure timer). Scripts cannot suspend by any other means — waiting abstractions are *composed on top of* `SLEEP`:
 
@@ -1113,8 +1113,9 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 |---|---|
 | `FILE_EXISTS(path)` | Returns `true` if file or directory exists. |
 | `FILE_INFO(path)` | Returns Result: `ok` with `{type, size, modified}`, `error` if not found. |
-| `READ_LINES(path, [start], [count])` | Read lines from file. `start` is 1-based (default 1). `count` limits lines read. Returns Result with string array. |
-| `READ_FILE(path)` | Read the whole file as one string (spec v0.18.0). Returns Result: `ok` with the file content (UTF-8, content-exact), `error` on a read failure. The counterpart of `WRITE_FILE`; for large files prefer `READ_LINES` windows. |
+| `READ_LINES(path, [start], [count])` | Read lines from file. `start` is 1-based (default 1). `count` limits lines read. Returns Result with string array. To go through a whole file line by line, `FILE_LINES` is simpler. |
+| `FILE_LINES(path)` | The file's lines as an array of strings (spec v0.26.0) — a plain array, not a Result: a file that cannot be read is a runtime error. The file is read as the array is used, so a file of any size can be gone through with a loop; see [Going through a file line by line](#going-through-a-file-line-by-line). |
+| `READ_FILE(path)` | Read the whole file as one string (spec v0.18.0). Returns Result: `ok` with the file content (UTF-8, content-exact), `error` on a read failure. The counterpart of `WRITE_FILE`; for large files use `FILE_LINES`. |
 | `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure or invalid JSON. A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
 | `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
 | `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
@@ -1130,19 +1131,11 @@ WRITE_LINES("/data/output.csv", ["name,age", "Alice,30", "Bob,25"])
 res = READ_LINES("/data/output.csv", 2, 1)    // skip header, read 1 line
 PRINT(res.value.1)                              // "Alice,30"
 
-// Large file iteration
-offset = 1
-loop true infinite do
-    res = READ_LINES("/data/big.log", offset, 500)
-    if res.ok == false then break end
-    lines = res.value
-    if LEN(lines) == 0 then break end
-    loop line in lines do
-        if CONTAINS(line, "ERROR") == true then
-            PRINT(line)
-        end
+// Going through a large file: FILE_LINES reads it as the loop advances
+loop line in FILE_LINES("/data/big.log") infinite do
+    if CONTAINS(line, "ERROR") then
+        PRINT(line)
     end
-    offset = offset + LEN(lines)
 end
 
 // Directory operations
@@ -1152,6 +1145,62 @@ loop entry in res.value do
     PRINT(entry.name, entry.type)
 end
 ```
+
+#### Going through a file line by line
+
+`FILE_LINES(path)` returns the lines of a file as an ordinary array of strings — the array
+`UNWRAP(READ_LINES(path))` would give, with two differences: a file that cannot be read is a
+runtime error rather than an error Result, and a leading UTF-8 byte-order mark is dropped.
+
+```
+lines = FILE_LINES("/data/users.csv")
+PRINT(LEN(lines), lines.1)
+loop n, line in lines infinite do
+    if n == 1 then continue end        // the header
+    PRINT(n, line)
+end
+```
+
+What sets it apart is *when* the file is read: not at the call, but as the array is used, and only
+as far as the use needs. A loop over the array reads the file a piece at a time and keeps only the
+current line, and `LEN` counts the lines without keeping any, so a file of any size can be gone
+through with a loop — this is the way to process a large file. Copying the array (assignment,
+arguments, return values, thread snapshots) copies nothing from the file.
+
+Using the array **as a whole** — an element (`lines.3`), `SLICE`, `SORT`, `JOIN`, `PRINT`,
+`JSON_FORMAT`, `==`, assigning an element, passing it to an external function, returning it as the
+script's result — reads the whole file into memory first. For a file larger than the host's
+whole-use limit (64 MB by default) that is a runtime error: `FILE_LINES() '/data/big.log' is too
+large to use as a whole (494 MB, the limit is 64 MB) — go through it with a loop: loop line in ...
+do`. Below the limit the array behaves exactly like any other array.
+
+The array is the file **as it was at the call**:
+
+- Lines appended to the file afterwards are not part of it — a loop never sees them, so a file
+  that is still being written to (a live log) can be read safely, and appending to the file being
+  looped over does not prolong the loop.
+- A file that has otherwise changed — truncated, rewritten, replaced, deleted — when the runtime
+  comes to read it fails that read with a runtime error (`FILE_LINES() cannot read '...': it was
+  modified after FILE_LINES() was called — call FILE_LINES() again`; `truncated`, `rewritten` or
+  `deleted` when the runtime can tell) rather than yielding mixed content. The runtime compares the
+  file's size, modification time and a sample of its content with what it saw at the call, so a
+  change that leaves all of these the same goes unnoticed.
+- Writes to the same file by another thread of a `multi` block are not synchronized with reads,
+  as for every file built-in.
+
+Other rules:
+
+- Lines end at `\n`, `\r\n` or `\r`; the terminator is not part of the line. A final line without
+  a terminator still counts; a trailing terminator does not add an empty line. An empty file has
+  no lines.
+- A file that does not exist, is a directory, or cannot be opened is a runtime error at the call
+  (`FILE_LINES() cannot read '/data/users.csv': no such file`). Invalid UTF-8 and a line longer
+  than the host's line limit (16 MB by default) are runtime errors raised when that line is
+  reached — a loop has by then processed the lines before it.
+- Reading the file suspends the calling thread like the other file built-ins ([Blocking and
+  Suspension](#blocking-and-suspension)); a `multi` worker looping over a file does not stall its
+  siblings.
+- The loop-iteration cap applies as to any array: more than 1000 lines need `infinite`.
 
 ### Timing
 
@@ -1309,7 +1358,7 @@ For external function results, `ok` is sufficient — check `res.ok == true`. Th
 
 Added in spec v0.10.0.
 
-**Genuine Results.** Result objects created by the runtime — Result-returning built-ins (`JSON_PARSE`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O group — all but `FILE_EXISTS`, which returns a plain boolean), external function calls (sync and async, including timeout errors), and `multi` thread collection entries — and by the `OK`/`ERR` constructors are *genuine Results*: the runtime remembers their origin. A script object literal with the same three fields is a plain object, **not** a genuine Result.
+**Genuine Results.** Result objects created by the runtime — Result-returning built-ins (`JSON_PARSE`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O group — all but `FILE_EXISTS`, which returns a plain boolean, and `FILE_LINES`, which returns a plain array), external function calls (sync and async, including timeout errors), and `multi` thread collection entries — and by the `OK`/`ERR` constructors are *genuine Results*: the runtime remembers their origin. A script object literal with the same three fields is a plain object, **not** a genuine Result.
 
 The distinction is invisible to `TYPE_OF` (still `"object"`), display, equality, and JSON serialization; it is observed only by `IS_RESULT` and `UNWRAP`. Copies of a genuine Result (assignment, argument passing, `PUSH`, deep copy) are genuine Results; field mutation does not remove the origin. The origin does not survive JSON: `JSON_FORMAT` renders a genuine Result as the plain three-field object, and nothing inside `JSON_PARSE`d data is a genuine Result (the wrapping Result returned by `JSON_PARSE` itself is genuine).
 
@@ -1540,6 +1589,9 @@ Common error conditions:
 | Integer arithmetic overflow (`+` `-` `*`, unary `-`, `FLOOR`/`CEIL`/`ROUND`/`ABS`, `SUM`) | Integer overflow |
 | `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
 | `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
+| `FILE_LINES` of a file that cannot be read | FILE_LINES() cannot read 'x': no such file |
+| `FILE_LINES` array used as a whole beyond the host's limit | FILE_LINES() 'x' is too large to use as a whole (494 MB, the limit is 64 MB) — go through it with a loop: loop line in ... do |
+| `FILE_LINES` array read after its file changed | FILE_LINES() cannot read 'x': it was modified after FILE_LINES() was called — call FILE_LINES() again |
 | Blocked construct present (hidden keyword / ignored function, anywhere) | 'X' is not available in this environment |
 
 ### Resource Limits
@@ -1547,11 +1599,43 @@ Common error conditions:
 The loop-iteration cap is part of the language (default 1000, host-configurable, `infinite` opts
 out — see [Infinite Loops](#infinite-loops)). Other resource limits — recursion depth, memory —
 are **host/runtime discretion**: exhausting them fails the run, but the exact error surface is
-implementation-defined. Scripts should not rely on any particular recursion depth.
+implementation-defined. Scripts should not rely on any particular recursion depth. The `FILE_LINES`
+whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configurable defaults
+([Going through a file line by line](#going-through-a-file-line-by-line)).
 
 ---
 
 ## Changelog
+
+### v0.26.0 — `FILE_LINES`: a file as an array, read as it is used
+
+Non-breaking: one built-in, no grammar change. `READ_LINES` windows were the only way through a
+file too large to hold in memory, and the window idiom — an offset, a count, an inner loop, a
+check for the empty window — is both awkward and slow (each window re-reads the file from the
+start, so a whole pass is quadratic). The new built-in makes the plain loop the right tool:
+
+- **`FILE_LINES(path)`** returns the file's lines as an ordinary array of strings — `TYPE_OF`
+  `"array"`, `LEN`, indexing, `SLICE`, `==`, `JSON_FORMAT`, loops, copies — but the runtime reads
+  the file *as the array is used*: a loop reads it a piece at a time and keeps only the current
+  line, `LEN` counts without keeping, and a copy copies nothing. A file of any size can be gone
+  through with `loop line in FILE_LINES(path) infinite do`. Using the array as a whole (an element,
+  a sort, printing it, returning it to the host) reads the file fully and is a runtime error above
+  the host's whole-use limit (64 MB by default). See
+  [Going through a file line by line](#going-through-a-file-line-by-line).
+- The array is the file as it was at the call: lines appended later are not part of it, and a
+  file truncated, rewritten, replaced or deleted since fails the next read with
+  `FILE_LINES() cannot read '...': it was modified after FILE_LINES() was called — call
+  FILE_LINES() again` instead of yielding mixed content.
+- Unlike the other file built-ins it does not return a Result: a file that cannot be read is a
+  runtime error at the call (`FILE_LINES() cannot read '...': no such file`), and invalid UTF-8 or
+  a line longer than the host's line limit (16 MB by default) is a runtime error when that line is
+  reached. A leading UTF-8 BOM is dropped. Reading suspends the calling thread like the other file
+  built-ins.
+
+`READ_LINES`, `READ_FILE` and `READ_JSON_FILE` are unchanged. The Java 25 runtime implements
+this. The JavaScript runtime has no file system, so there the built-in is a runtime error unless
+the host provides it (the playground does, over its virtual files); the frozen Java 7/8 runtime
+does not implement it.
 
 ### v0.25.0 — `TO_NUMBER` reads exactly a decimal numeral
 

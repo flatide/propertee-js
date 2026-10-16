@@ -1203,8 +1203,9 @@ PRINT("Hello, World!")</textarea>
             { cat: 'File I/O', fns: [
                 { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'Existence test. (Playground uses an in-memory FS.)', returns: 'A boolean (true if a file or directory exists at path).', fails: 'Returns a Result with .ok=false if path is not a string. Missing path is not a failure — it returns false.', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))' },
                 { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Metadata for a path.', returns: RESULT_NOTE + ' .value = {type: "file"|"dir", size, modified}.', fails: 'Returns .ok=false with an error message if path is not a string or does not exist.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)' },
-                { name: 'READ_FILE', sig: 'READ_FILE(path)', desc: 'Read the whole file as one string (spec v0.18.0). The counterpart of WRITE_FILE; for large files prefer READ_LINES windows.', returns: RESULT_NOTE + ' .value = the file content (content-exact).', fails: 'Returns .ok=false if the file cannot be read.', sample: 'WRITE_FILE("/d/a.txt", "hi\\nthere")\nres = READ_FILE("/d/a.txt")\nPRINT(res.ok, LEN(res.value))' },
+                { name: 'READ_FILE', sig: 'READ_FILE(path)', desc: 'Read the whole file as one string (spec v0.18.0). The counterpart of WRITE_FILE; for large files use FILE_LINES (spec v0.26.0).', returns: RESULT_NOTE + ' .value = the file content (content-exact).', fails: 'Returns .ok=false if the file cannot be read.', sample: 'WRITE_FILE("/d/a.txt", "hi\\nthere")\nres = READ_FILE("/d/a.txt")\nPRINT(res.ok, LEN(res.value))' },
                 { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit).', returns: RESULT_NOTE + ' .value = an array of line strings.', fails: 'Returns .ok=false if path is missing, or start/count are non-integers or < 1.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.ok, res.value.1)' },
+                { name: 'FILE_LINES', sig: 'FILE_LINES(path)', desc: 'The file\'s lines as an ordinary array of strings (spec v0.26.0). The file is read as the array is used: a loop goes through it line by line keeping only the current line and LEN counts without keeping, so a file of any size can be processed in a loop; using the array as a whole (an element, SLICE, SORT, PRINT, ==, ...) reads it fully first and is refused above the host\'s whole-use limit (64 MB). The array is the file as it was at the call: lines appended later are not part of it, and any other change fails the next read. Lines end at \\n, \\r\\n or \\r; a leading UTF-8 BOM is dropped.', returns: 'An array of strings — not a Result.', fails: 'Runtime error at the call if the file does not exist or cannot be read; at the use if the file changed since the call, holds invalid UTF-8 or a line over 16 MB, or is too large to use as a whole.', sample: 'WRITE_LINES("/d/a.txt", ["name,age", "Alice,30", "Bob,25"])\nloop n, line in FILE_LINES("/d/a.txt") do\n    if n == 1 then continue end\n    PRINT(n, line)\nend' },
                 { name: 'READ_JSON_FILE', sig: 'READ_JSON_FILE(path)', desc: 'Read a JSON file and parse it in one call (spec v0.18.0). Same conversion as JSON_PARSE; a leading UTF-8 BOM is ignored. Replaces the READ_LINES + JOIN + JSON_PARSE idiom.', returns: RESULT_NOTE + ' .value = the parsed value (object, array, or scalar; JSON null preserved).', fails: 'Returns .ok=false if the file cannot be read or its content is not valid JSON. Does NOT stop the script.', sample: 'WRITE_FILE("/d/cfg.json", "{\\"port\\": 8080}")\nres = READ_JSON_FILE("/d/cfg.json")\nPRINT(res.ok, res.value.port)' },
                 { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false with an error message if path is not a string, or the write fails (e.g. bad path / permission on a real host).', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)' },
                 { name: 'WRITE_JSON_FILE', sig: 'WRITE_JSON_FILE(path, value)', desc: 'Serialize value as JSON (same output as JSON_FORMAT) and write it with a trailing newline, overwriting (spec v0.18.0). The counterpart of READ_JSON_FILE — the round-trip is lossless, null included.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the write fails.', sample: 'WRITE_JSON_FILE("/d/cfg.json", {"port": 8080})\nPRINT(READ_JSON_FILE("/d/cfg.json").value.port)' },
@@ -1291,8 +1292,9 @@ PRINT("Hello, World!")</textarea>
             ENV: { desc: '환경 변수 읽기. (Playground는 USER/HOME/LANG/PT_ENV 기본 제공.)', returns: '변수 값(문자열); 없으면 default; default도 없으면 {}.', fails: '없는 변수는 실패가 아님(default 또는 {} 반환). name이 문자열이 아닐 때만 런타임 에러.' },
             FILE_EXISTS: { desc: '존재 여부 확인. (Playground는 메모리 내 FS 사용.)', returns: '불리언(path에 파일/디렉토리가 있으면 true).', fails: 'path가 문자열이 아니면 .ok=false 인 Result 반환. 없는 경로는 실패가 아니라 false 반환.' },
             FILE_INFO: { desc: '경로의 메타데이터.', returns: RESULT_NOTE_KO + ' .value = {type: "file"|"dir", size, modified}.', fails: 'path가 문자열이 아니거나 존재하지 않으면 .ok=false 와 에러 메시지.' },
-            READ_FILE: { desc: '파일 전체를 하나의 문자열로 읽기 (스펙 v0.18.0). WRITE_FILE의 대응 함수; 큰 파일에는 READ_LINES가 적합.', returns: RESULT_NOTE_KO + ' .value = 파일 내용(내용 그대로).', fails: '파일을 읽을 수 없으면 .ok=false.' },
+            READ_FILE: { desc: '파일 전체를 하나의 문자열로 읽기 (스펙 v0.18.0). WRITE_FILE의 대응 함수; 큰 파일에는 FILE_LINES가 적합 (스펙 v0.26.0).', returns: RESULT_NOTE_KO + ' .value = 파일 내용(내용 그대로).', fails: '파일을 읽을 수 없으면 .ok=false.' },
             READ_LINES: { desc: '줄 읽기(start 1부터, count 제한).', returns: RESULT_NOTE_KO + ' .value = 줄 문자열 배열.', fails: 'path가 없거나 start/count가 정수가 아니거나 < 1이면 .ok=false.' },
+            FILE_LINES: { desc: '파일의 줄들을 평범한 문자열 배열로 (스펙 v0.26.0). 파일은 배열이 쓰일 때 읽힘: 루프는 현재 줄만 유지하며 한 줄씩 지나가고 LEN은 보관 없이 세므로 크기와 상관없이 루프로 처리 가능; 통째로 쓰면(요소, SLICE, SORT, PRINT, == 등) 먼저 전부 읽으며 호스트의 통째 사용 상한(64 MB)을 넘으면 거부. 배열은 호출 시점의 파일: 그 뒤 추가된 줄은 포함되지 않고, 그 밖의 변경은 다음 읽기에서 실패. 줄 끝은 \\n, \\r\\n, \\r; 선행 UTF-8 BOM은 제거.', returns: '문자열 배열 — Result가 아님.', fails: '파일이 없거나 읽을 수 없으면 호출 시점에 런타임 에러; 호출 뒤 파일이 바뀌었거나, 잘못된 UTF-8이거나, 16 MB를 넘는 줄이 있거나, 통째로 쓰기에 너무 크면 사용 시점에 런타임 에러.' },
             WRITE_JSON_FILE: { desc: 'value를 JSON으로 직렬화(JSON_FORMAT과 동일 출력)해 끝 줄바꿈 하나와 함께 쓰기(덮어쓰기) (스펙 v0.18.0). READ_JSON_FILE의 대응 함수 — 왕복은 null 포함 무손실.', returns: RESULT_NOTE_KO + ' .value = 성공 시 {}.', fails: 'path가 문자열이 아니거나 쓰기 실패면 .ok=false.' },
             READ_JSON_FILE: { desc: 'JSON 파일을 읽어 한 번에 파싱 (스펙 v0.18.0). JSON_PARSE와 동일한 변환; 선행 UTF-8 BOM 무시. READ_LINES + JOIN + JSON_PARSE 관용구를 대체.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(객체·배열·스칼라; JSON null 보존).', fails: '파일을 읽을 수 없거나 유효한 JSON이 아니면 .ok=false. 스크립트를 중단하지 않음.' },
             WRITE_FILE: { desc: '문자열을 파일에 쓰기(덮어쓰기).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 쓰기 실패 시(실제 호스트에서 잘못된 경로/권한 등) .ok=false 와 에러 메시지.' },
@@ -1580,6 +1582,22 @@ end`
                 const slice = count !== undefined ? lines.slice(s - 1, s - 1 + count) : lines.slice(s - 1);
                 return ok(slice);
             });
+
+            // FILE_LINES (spec v0.26.0): the file's lines as a plain array — not a Result, so a
+            // missing file is a runtime error, which is why it is installed as a builtin rather than
+            // through registerExternal (whose throws become Result errors). The playground's files
+            // are small, so the array is built at once.
+            visitor.functions['FILE_LINES'] = (p) => {
+                if (typeof p !== 'string') throw new Error('Runtime Error: FILE_LINES() requires a string argument');
+                p = norm(p);
+                if (!(p in files)) {
+                    throw new Error("Runtime Error: FILE_LINES() cannot read '" + p + "': " + ((p in dirs) ? 'it is a directory' : 'no such file'));
+                }
+                let lines = files[p].split(/\r\n|\r|\n/);
+                if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop(); // a trailing terminator adds no line
+                if (lines.length > 0 && lines[0].charCodeAt(0) === 0xFEFF) lines[0] = lines[0].slice(1);
+                return lines;
+            };
 
             // READ_FILE (spec v0.18.0): the whole file as one string — WRITE_FILE's counterpart.
             visitor.registerExternal('READ_FILE', (p) => {
@@ -2911,7 +2929,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|FILE_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
             var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
