@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.26.0
+# ProperTee Language Specification v0.27.0
 
 ## Overview
 
@@ -1122,7 +1122,8 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 | `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. |
 | `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
 | `MKDIR(path)` | Create directory (including parents). Returns Result. |
-| `LIST_DIR(path)` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. |
+| `LIST_DIR(path, [pattern])` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. `type` is `"dir"`, `"file"` or `"link"`; `pattern` keeps only the entries whose names match it, like `"*.csv"` (spec v0.27.0). See [Listing a directory](#listing-a-directory). |
+| `LIST_DIR_NAMES(path, [pattern])` | The entry names alone, as a sorted array of strings (spec v0.27.0). Returns Result. Much faster than `LIST_DIR` on a large directory or one full of links, since no entry is examined. |
 | `DELETE_FILE(path)` | Delete a single file. Directories are rejected. Returns Result. |
 
 ```
@@ -1143,6 +1144,11 @@ MKDIR("/data/reports/2024")
 res = LIST_DIR("/data/reports")
 loop entry in res.value do
     PRINT(entry.name, entry.type)
+end
+
+// Only the CSV files, names only
+loop name in UNWRAP(LIST_DIR_NAMES("/data/reports", "*.csv")) do
+    PRINT(name)
 end
 ```
 
@@ -1201,6 +1207,49 @@ Other rules:
   Suspension](#blocking-and-suspension)); a `multi` worker looping over a file does not stall its
   siblings.
 - The loop-iteration cap applies as to any array: more than 1000 lines need `infinite`.
+
+#### Listing a directory
+
+`LIST_DIR(path)` lists every entry of the directory except `.` and `..` — names that start with a
+dot included — sorted by name, each as `{name, type, size}`:
+
+- `type` is `"dir"` for a directory and `"file"` for anything else.
+- A symbolic link is followed: a link to a file is listed as `"file"` with the size of the file it
+  points to, a link to a directory as `"dir"`. A link that cannot be followed — what it points to
+  does not exist or cannot be accessed, or links point at each other — is listed with type
+  `"link"` instead of failing the call, so one broken link does not hide the rest of the
+  directory (spec v0.27.0).
+- `size` is the file's size in bytes, and `0` for a `"dir"` or a `"link"`.
+- An entry removed while the directory is being read is left out.
+- A `path` that does not exist, is not a directory, or cannot be read gives an error Result whose
+  message names the reason and the path, such as `No such file or directory: /data/in`.
+
+`LIST_DIR_NAMES(path)` gives the same directory's entry names alone, as a sorted array of strings.
+It does not look at the entries themselves — files, directories and links are names alike, and no
+link is followed — so on a directory with very many entries, or with many links to files
+elsewhere, it is much faster than `LIST_DIR`. Use it when the names are all that is needed.
+
+Both take an optional `pattern`: a glob matched against each entry's name, keeping only the
+entries that match.
+
+| Pattern | Matches |
+|---|---|
+| `*` | any run of characters, including none and a leading `.` |
+| `?` | exactly one character |
+| `[abc]`, `[a-z]` | one character of the set or range |
+| `[!abc]` | one character not in the set |
+| `{csv,txt}` | one of the comma-separated alternatives |
+| `\` | makes the next character literal: `"\\[x].csv"` matches the name `[x].csv` |
+
+```
+names = UNWRAP(LIST_DIR_NAMES("/data/in", "*.csv"))
+logs = UNWRAP(LIST_DIR("/data/logs", "app-2024-0?.{log,txt}"))
+```
+
+Matching is case-sensitive, except on Windows, where it ignores case as the file system does. The
+pattern is matched against names only — the directory listed is always `path` — so a pattern that
+is empty or contains `/` is an error Result, as is one that is not well formed (an unclosed `[` or
+`{`). A pattern that matches nothing gives an empty array.
 
 ### Timing
 
@@ -1606,6 +1655,31 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.27.0 — `LIST_DIR`: links that cannot be followed, name patterns, names only
+
+No grammar change; one new built-in. A user listed a directory of links in which one link pointed
+at a file that no longer existed: the whole `LIST_DIR` call failed, its message only the link's
+path. On a directory of many links even a working listing was slow, because every link is
+followed to read its type and size.
+
+- **A link that cannot be followed** — what it points to is missing or cannot be accessed, or
+  links point at each other — is listed with the new type `"link"` and size `0` instead of failing
+  the call. A link that can be followed is listed as before, as the file or directory it points
+  to. A directory's `size` is `0`, and an entry removed while the directory is read is left out.
+- **`LIST_DIR(path, pattern)`**: an optional glob — `*`, `?`, `[...]`, `[!...]`, `{a,b}` — keeps
+  only the entries whose names match. A pattern that is empty, contains `/` or is not well formed
+  is an error Result.
+- **`LIST_DIR_NAMES(path, [pattern])`** returns the names alone, without examining the entries or
+  following links, which is much faster on a large directory.
+- A `path` that does not exist, is not a directory or cannot be read gives an error Result whose
+  message names the reason and the path (`No such file or directory: /data/in`).
+
+See [Listing a directory](#listing-a-directory). A script changes behavior only if it relied on
+such a link making `LIST_DIR` fail, or on it being listed as an empty `"file"`. The Java 25 runtime
+implements this. The JavaScript runtime has no file system; its playground implements the
+patterns and `LIST_DIR_NAMES` over its virtual files, which have no links. The frozen Java 7/8
+runtime does not implement it.
 
 ### v0.26.0 — `FILE_LINES`: a file as an array, read as it is used
 

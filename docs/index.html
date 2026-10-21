@@ -1212,7 +1212,8 @@ PRINT("Hello, World!")</textarea>
                 { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string or lines is not an array, or the write fails.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nres = READ_LINES("/d/a.txt")\nPRINT(LEN(res.value))' },
                 { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the append fails.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
                 { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or creation fails on a real host.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
-                { name: 'LIST_DIR', sig: 'LIST_DIR(path)', desc: 'List directory entries.', returns: RESULT_NOTE + ' .value = an array of {name, type, size}, sorted by name.', fails: 'Returns .ok=false if path is not a string or is not an existing directory.', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = LIST_DIR("/d")\nPRINT(res.ok, res.value.1.name)' },
+                { name: 'LIST_DIR', sig: 'LIST_DIR(path, [pattern])', desc: 'List directory entries. pattern (spec v0.27.0) is a glob over entry names: * any run of characters, ? one character, [abc] [a-z] [!abc], {csv,txt}; \\ makes the next character literal. On a real host a link is listed as the file or directory it points to, and a link that cannot be followed as type "link" (the playground has no links).', returns: RESULT_NOTE + ' .value = an array of {name, type, size}, sorted by name; size is 0 for a directory.', fails: 'Returns .ok=false if path is not a string or is not an existing directory, or if the pattern is empty, contains / or is malformed. A pattern that matches nothing gives an empty array.', sample: 'WRITE_FILE("/d/a.txt", "x")\nWRITE_FILE("/d/b.csv", "y")\nres = LIST_DIR("/d", "*.txt")\nPRINT(res.ok, res.value.1.name)' },
+                { name: 'LIST_DIR_NAMES', sig: 'LIST_DIR_NAMES(path, [pattern])', desc: 'The entry names alone, sorted (spec v0.27.0). No entry is examined and no link followed, so on a real host it is much faster than LIST_DIR for a large directory or one full of links. pattern works as in LIST_DIR.', returns: RESULT_NOTE + ' .value = an array of name strings, sorted.', fails: 'Same as LIST_DIR.', sample: 'WRITE_FILE("/d/a.txt", "x")\nWRITE_FILE("/d/b.csv", "y")\nPRINT(LIST_DIR_NAMES("/d").value)\nPRINT(LIST_DIR_NAMES("/d", "*.csv").value)' },
                 { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, does not exist, or is a directory (directories are rejected).', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = DELETE_FILE("/d/a.txt")\nPRINT(res.ok, FILE_EXISTS("/d/a.txt"))' },
             ]},
             { cat: 'Shell', fns: [
@@ -1301,7 +1302,8 @@ PRINT("Hello, World!")</textarea>
             WRITE_LINES: { desc: '문자열 배열을 줄 단위로 쓰기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 lines가 배열이 아니거나 쓰기 실패 시 .ok=false.' },
             APPEND_FILE: { desc: '문자열을 파일에 덧붙이기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 덧붙이기 실패 시 .ok=false.' },
             MKDIR: { desc: '디렉토리 생성(상위 포함).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 실제 호스트에서 생성 실패 시 .ok=false.' },
-            LIST_DIR: { desc: '디렉토리 항목 나열.', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 {name, type, size} 배열.', fails: 'path가 문자열이 아니거나 존재하는 디렉토리가 아니면 .ok=false.' },
+            LIST_DIR: { desc: '디렉토리 항목 나열. pattern(스펙 v0.27.0)은 항목 이름에 맞춰 보는 glob: * 임의 길이 문자열, ? 한 문자, [abc] [a-z] [!abc], {csv,txt}; \\ 뒤의 문자는 글자 그대로. 실제 호스트에서 링크는 가리키는 파일이나 디렉토리로, 따라갈 수 없는 링크는 type "link"로 나열됨(playground에는 링크가 없음).', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 {name, type, size} 배열; 디렉토리의 size는 0.', fails: 'path가 문자열이 아니거나 존재하는 디렉토리가 아니면, 또는 pattern이 비었거나 /가 들어 있거나 형식이 잘못되면 .ok=false. 맞는 것이 없으면 빈 배열.' },
+            LIST_DIR_NAMES: { desc: '항목 이름만 이름순으로 (스펙 v0.27.0). 항목을 들여다보거나 링크를 따라가지 않으므로, 실제 호스트에서 항목이 많거나 링크가 많은 디렉토리에서 LIST_DIR보다 훨씬 빠름. pattern은 LIST_DIR와 같음.', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 이름 문자열 배열.', fails: 'LIST_DIR와 같음.' },
             DELETE_FILE: { desc: '파일 하나 삭제.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 존재하지 않거나 디렉토리이면(디렉토리는 거부) .ok=false.' },
             SHELL: { desc: '셸 명령 실행. Playground는 작은 셸을 흉내(echo, pwd, ls, cat, whoami, env, true, false)하며 메모리 FS와 연동; 실제 호스트는 진짜 셸 실행.', returns: RESULT_NOTE_KO + ' 종료 코드 0이면 .value = 명령의 stdout.', fails: '0이 아닌 종료는 .ok=false 와 출력 반환 — 예: 없는 파일 cat, false, 알 수 없는 명령("... command not found").' },
             SHELL_CTX: { desc: 'SHELL에 넘길 셸 컨텍스트(작업 디렉토리 + env) 생성. Result를 그대로 넘기면 SHELL이 자동으로 풉니다.', returns: RESULT_NOTE_KO + ' .value = 컨텍스트 객체 {cwd, env}.', fails: 'cwd가 문자열이 아니거나 디렉토리가 없으면 .ok=false.' },
@@ -1649,10 +1651,82 @@ end`
                 return err('FILE_INFO() path not found: ' + p);
             });
 
-            visitor.registerExternal('LIST_DIR', (p) => {
-                if (typeof p !== 'string') return err('LIST_DIR() requires a string argument');
+            // A glob over one entry name, read as the Java runtime reads it (getPathMatcher("glob:")):
+            // * ? [abc] [a-z] [!abc] {a,b}, and \ before a character to take it literally. Returns a
+            // RegExp, or why the pattern is malformed (the Java runtime's wording).
+            const globToRegExp = (glob) => {
+                const meta = '\\^$.|?*+()[]{}';
+                let re = '^', inGroup = false;
+                for (let i = 0; i < glob.length; ) {
+                    const c = glob[i++];
+                    if (c === '\\') {
+                        if (i === glob.length) return 'No character to escape';
+                        const n = glob[i++];
+                        re += (meta.includes(n) ? '\\' : '') + n;
+                    } else if (c === '*') {
+                        if (glob[i] === '*') i++;
+                        re += '[^/]*';
+                    } else if (c === '?') {
+                        re += '[^/]';
+                    } else if (c === '[') {
+                        let cls = '';
+                        if (glob[i] === '^') { cls += '\\^'; i++; }
+                        else {
+                            if (glob[i] === '!') { cls += '^'; i++; }
+                            if (glob[i] === '-') { cls += '-'; i++; }
+                        }
+                        let d = '', hasRangeStart = false, last = '';
+                        while (i < glob.length) {
+                            d = glob[i++];
+                            if (d === ']') break;
+                            cls += (d === '\\' || d === '[') ? '\\' + d : d;
+                            if (d === '-') {
+                                if (!hasRangeStart) return 'Invalid range';
+                                d = i < glob.length ? glob[i++] : '';
+                                if (d === '' || d === ']') break;
+                                if (d < last) return 'Invalid range';
+                                cls += (d === '\\' || d === '[') ? '\\' + d : d;
+                                hasRangeStart = false;
+                            } else {
+                                hasRangeStart = true;
+                                last = d;
+                            }
+                        }
+                        if (d !== ']') return "Missing ']";
+                        if (cls === '' || cls === '^') return 'Unclosed character class';
+                        re += '[' + cls + ']';
+                    } else if (c === '{') {
+                        if (inGroup) return 'Cannot nest groups';
+                        re += '(?:(?:';
+                        inGroup = true;
+                    } else if (c === '}') {
+                        re += inGroup ? '))' : '\\}';
+                        inGroup = false;
+                    } else if (c === ',') {
+                        re += inGroup ? ')|(?:' : ',';
+                    } else {
+                        re += (meta.includes(c) ? '\\' : '') + c;
+                    }
+                }
+                if (inGroup) return "Missing '}";
+                return new RegExp(re + '$');
+            };
+
+            // The directory's entries for LIST_DIR / LIST_DIR_NAMES (spec v0.27.0), or an error
+            // Result. The virtual files have no links: every entry is a "file" or a "dir".
+            const listEntries = (fn, p, pattern) => {
+                if (typeof p !== 'string') return err(fn + '() requires a string argument');
+                let match = null;
+                if (pattern !== undefined) {
+                    if (typeof pattern !== 'string') return err(fn + '() requires a string argument');
+                    if (pattern === '') return err(fn + '() pattern must not be empty');
+                    if (pattern.includes('/')) return err(fn + '() pattern is matched against entry names and cannot contain a slash: ' + pattern);
+                    match = globToRegExp(pattern);
+                    if (typeof match === 'string') return err(fn + '() invalid pattern ' + pattern + ': ' + match);
+                }
                 p = norm(p);
-                if (!(p in dirs)) return err('LIST_DIR() directory not found: ' + p);
+                if (p in files) return err('Not a directory: ' + p);
+                if (!(p in dirs)) return err('No such file or directory: ' + p);
                 const seen = {};
                 const entries = [];
                 const scan = (store, type) => {
@@ -1668,7 +1742,17 @@ end`
                 };
                 scan(files, 'file'); scan(dirs, 'dir');
                 entries.sort((a, b) => a.name < b.name ? -1 : (a.name > b.name ? 1 : 0));
-                return ok(entries);
+                return match ? entries.filter(e => match.test(e.name)) : entries;
+            };
+
+            visitor.registerExternal('LIST_DIR', (p, pattern) => {
+                const entries = listEntries('LIST_DIR', p, pattern);
+                return Array.isArray(entries) ? ok(entries) : entries;
+            });
+
+            visitor.registerExternal('LIST_DIR_NAMES', (p, pattern) => {
+                const entries = listEntries('LIST_DIR_NAMES', p, pattern);
+                return Array.isArray(entries) ? ok(entries.map(e => e.name)) : entries;
             });
 
             visitor.registerExternal('DELETE_FILE', (p) => {
@@ -2346,6 +2430,10 @@ loop entry in res.value do
     PRINT("  ", entry.name, "(" + entry.type + ")")
 end
 
+// Names only, filtered by a pattern (spec v0.27.0)
+res = LIST_DIR_NAMES("/data", "*.txt")
+PRINT("txt files:", res.value)
+
 // Delete a file
 DELETE_FILE("/data/list.txt")
 PRINT("exists list.txt:", FILE_EXISTS("/data/list.txt"))`,
@@ -2929,7 +3017,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
         // Syntax highlighting
         function highlightSyntax(code) {
-            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|FILE_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
+            var builtins = 'PRINT|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|FILE_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|LIST_DIR_NAMES|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
             var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
