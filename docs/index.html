@@ -1514,14 +1514,16 @@ end`
         // playground installs a fresh in-memory filesystem + ENV map per run so these builtins actually
         // work for demos, matching the core's Result-pattern contract (Result = {status, ok, value};
         // FILE_EXISTS returns a bare boolean; ENV returns a bare string, or {} when unset & no default).
+        // Results are built with the runtime's host helpers, so they are genuine (spec v0.10.0) and
+        // UNWRAP / IS_RESULT accept them as they do on a real host.
         function installPlaygroundPlatform(visitor) {
             const files = {};   // path -> string content
             const dirs = { '': true, '/': true };
             const env = { USER: 'player', HOME: '/home/player', LANG: 'en_US.UTF-8', PT_ENV: 'playground' };
             const now = 1700000000000;
 
-            const ok = (value) => ({ status: 'done', ok: true, value: value === undefined ? {} : value });
-            const err = (msg) => ({ status: 'error', ok: false, value: msg });
+            const ok = (value) => ProperTeeCustomVisitor.ok(value === undefined ? {} : value);
+            const err = (msg) => ProperTeeCustomVisitor.error(msg);
             const norm = (p) => {
                 p = String(p).replace(/\/+/g, '/');
                 if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
@@ -1843,7 +1845,7 @@ end`
             // deterministically: any URL containing "/notfound" -> 404; "/error" -> 500; otherwise
             // 200 with a small JSON body echoing the request. Follows the core Result contract:
             // value = {status, body, headers}, ok = 2xx; a "bad" URL (no http) -> transport error.
-            const httpEnvelope = (ok, value) => ({ status: ok ? 'done' : 'error', ok: ok, value: value });
+            const httpEnvelope = (success, value) => success ? ok(value) : err(value);
             const runHttp = (method, url, headers, body) => {
                 if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
                     return httpEnvelope(false, { status: 0, body: 'HTTP request failed: invalid URL: ' + url, headers: {} });
