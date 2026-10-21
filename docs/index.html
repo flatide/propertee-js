@@ -1213,7 +1213,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the append fails.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))' },
                 { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or creation fails on a real host.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))' },
                 { name: 'LIST_DIR', sig: 'LIST_DIR(path, [pattern])', desc: 'List directory entries. pattern (spec v0.27.0) is a glob over entry names: * any run of characters, ? one character, [abc] [a-z] [!abc], {csv,txt}; \\ makes the next character literal. On a real host a link is listed as the file or directory it points to, and a link that cannot be followed as type "link" (the playground has no links).', returns: RESULT_NOTE + ' .value = an array of {name, type, size}, sorted by name; size is 0 for a directory.', fails: 'Returns .ok=false if path is not a string or is not an existing directory, or if the pattern is empty, contains / or is malformed. A pattern that matches nothing gives an empty array.', sample: 'WRITE_FILE("/d/a.txt", "x")\nWRITE_FILE("/d/b.csv", "y")\nres = LIST_DIR("/d", "*.txt")\nPRINT(res.ok, res.value.1.name)' },
-                { name: 'LIST_DIR_NAMES', sig: 'LIST_DIR_NAMES(path, [pattern])', desc: 'The entry names alone, sorted (spec v0.27.0). No entry is examined and no link followed, so on a real host it is much faster than LIST_DIR for a large directory or one full of links. pattern works as in LIST_DIR.', returns: RESULT_NOTE + ' .value = an array of name strings, sorted.', fails: 'Same as LIST_DIR.', sample: 'WRITE_FILE("/d/a.txt", "x")\nWRITE_FILE("/d/b.csv", "y")\nPRINT(LIST_DIR_NAMES("/d").value)\nPRINT(LIST_DIR_NAMES("/d", "*.csv").value)' },
+                { name: 'LIST_DIR_NAMES', sig: 'LIST_DIR_NAMES(path, [pattern])', desc: 'The name and own type of each entry, sorted (spec v0.28.0; the names alone in v0.27.0). No link is followed: on a real host every link is type "link", so it is much faster than LIST_DIR for a large directory or one full of links (the playground has no links). pattern works as in LIST_DIR.', returns: RESULT_NOTE + ' .value = an array of {name, type}, sorted by name; type is "file", "dir" or "link".', fails: 'Same as LIST_DIR.', sample: 'WRITE_FILE("/d/a.txt", "x")\nWRITE_FILE("/d/b.csv", "y")\nMKDIR("/d/sub")\nloop e in LIST_DIR_NAMES("/d").value do\n    PRINT(e.name, e.type)\nend\nPRINT(LIST_DIR_NAMES("/d", "*.csv").value)' },
                 { name: 'DELETE_FILE', sig: 'DELETE_FILE(path)', desc: 'Delete a single file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, does not exist, or is a directory (directories are rejected).', sample: 'WRITE_FILE("/d/a.txt", "x")\nres = DELETE_FILE("/d/a.txt")\nPRINT(res.ok, FILE_EXISTS("/d/a.txt"))' },
             ]},
             { cat: 'Shell', fns: [
@@ -1303,7 +1303,7 @@ PRINT("Hello, World!")</textarea>
             APPEND_FILE: { desc: '문자열을 파일에 덧붙이기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 덧붙이기 실패 시 .ok=false.' },
             MKDIR: { desc: '디렉토리 생성(상위 포함).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 실제 호스트에서 생성 실패 시 .ok=false.' },
             LIST_DIR: { desc: '디렉토리 항목 나열. pattern(스펙 v0.27.0)은 항목 이름에 맞춰 보는 glob: * 임의 길이 문자열, ? 한 문자, [abc] [a-z] [!abc], {csv,txt}; \\ 뒤의 문자는 글자 그대로. 실제 호스트에서 링크는 가리키는 파일이나 디렉토리로, 따라갈 수 없는 링크는 type "link"로 나열됨(playground에는 링크가 없음).', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 {name, type, size} 배열; 디렉토리의 size는 0.', fails: 'path가 문자열이 아니거나 존재하는 디렉토리가 아니면, 또는 pattern이 비었거나 /가 들어 있거나 형식이 잘못되면 .ok=false. 맞는 것이 없으면 빈 배열.' },
-            LIST_DIR_NAMES: { desc: '항목 이름만 이름순으로 (스펙 v0.27.0). 항목을 들여다보거나 링크를 따라가지 않으므로, 실제 호스트에서 항목이 많거나 링크가 많은 디렉토리에서 LIST_DIR보다 훨씬 빠름. pattern은 LIST_DIR와 같음.', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 이름 문자열 배열.', fails: 'LIST_DIR와 같음.' },
+            LIST_DIR_NAMES: { desc: '각 항목의 이름과 그 항목 자체의 종류를 이름순으로 (스펙 v0.28.0; v0.27.0에서는 이름만). 링크를 따라가지 않으므로 실제 호스트에서 링크는 모두 type "link"이고, 항목이 많거나 링크가 많은 디렉토리에서 LIST_DIR보다 훨씬 빠름(playground에는 링크가 없음). pattern은 LIST_DIR와 같음.', returns: RESULT_NOTE_KO + ' .value = 이름순 정렬된 {name, type} 배열; type은 "file", "dir", "link" 중 하나.', fails: 'LIST_DIR와 같음.' },
             DELETE_FILE: { desc: '파일 하나 삭제.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 존재하지 않거나 디렉토리이면(디렉토리는 거부) .ok=false.' },
             SHELL: { desc: '셸 명령 실행. Playground는 작은 셸을 흉내(echo, pwd, ls, cat, whoami, env, true, false)하며 메모리 FS와 연동; 실제 호스트는 진짜 셸 실행.', returns: RESULT_NOTE_KO + ' 종료 코드 0이면 .value = 명령의 stdout.', fails: '0이 아닌 종료는 .ok=false 와 출력 반환 — 예: 없는 파일 cat, false, 알 수 없는 명령("... command not found").' },
             SHELL_CTX: { desc: 'SHELL에 넘길 셸 컨텍스트(작업 디렉토리 + env) 생성. Result를 그대로 넘기면 SHELL이 자동으로 풉니다.', returns: RESULT_NOTE_KO + ' .value = 컨텍스트 객체 {cwd, env}.', fails: 'cwd가 문자열이 아니거나 디렉토리가 없으면 .ok=false.' },
@@ -1712,8 +1712,8 @@ end`
                 return new RegExp(re + '$');
             };
 
-            // The directory's entries for LIST_DIR / LIST_DIR_NAMES (spec v0.27.0), or an error
-            // Result. The virtual files have no links: every entry is a "file" or a "dir".
+            // The directory's entries for LIST_DIR / LIST_DIR_NAMES (spec v0.27.0, v0.28.0), or an
+            // error Result. The virtual files have no links: every entry is a "file" or a "dir".
             const listEntries = (fn, p, pattern) => {
                 if (typeof p !== 'string') return err(fn + '() requires a string argument');
                 let match = null;
@@ -1752,7 +1752,7 @@ end`
 
             visitor.registerExternal('LIST_DIR_NAMES', (p, pattern) => {
                 const entries = listEntries('LIST_DIR_NAMES', p, pattern);
-                return Array.isArray(entries) ? ok(entries.map(e => e.name)) : entries;
+                return Array.isArray(entries) ? ok(entries.map(e => ({ name: e.name, type: e.type }))) : entries;
             });
 
             visitor.registerExternal('DELETE_FILE', (p) => {
@@ -2430,9 +2430,12 @@ loop entry in res.value do
     PRINT("  ", entry.name, "(" + entry.type + ")")
 end
 
-// Names only, filtered by a pattern (spec v0.27.0)
+// Names and types only, filtered by a pattern (spec v0.28.0);
+// on a real host links are not followed, so each is listed as "link"
 res = LIST_DIR_NAMES("/data", "*.txt")
-PRINT("txt files:", res.value)
+loop entry in res.value do
+    PRINT("  txt:", entry.name, "(" + entry.type + ")")
+end
 
 // Delete a file
 DELETE_FILE("/data/list.txt")

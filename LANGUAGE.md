@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.27.0
+# ProperTee Language Specification v0.28.0
 
 ## Overview
 
@@ -1123,7 +1123,7 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 | `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
 | `MKDIR(path)` | Create directory (including parents). Returns Result. |
 | `LIST_DIR(path, [pattern])` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. `type` is `"dir"`, `"file"` or `"link"`; `pattern` keeps only the entries whose names match it, like `"*.csv"` (spec v0.27.0). See [Listing a directory](#listing-a-directory). |
-| `LIST_DIR_NAMES(path, [pattern])` | The entry names alone, as a sorted array of strings (spec v0.27.0). Returns Result. Much faster than `LIST_DIR` on a large directory or one full of links, since no entry is examined. |
+| `LIST_DIR_NAMES(path, [pattern])` | Each entry's name and its own type, as an array of `{name, type}` objects sorted by name (spec v0.28.0; the names alone in v0.27.0). Returns Result. Links are not followed — every link is `"link"` — so it is much faster than `LIST_DIR` on a large directory or one full of links. See [Listing a directory](#listing-a-directory). |
 | `DELETE_FILE(path)` | Delete a single file. Directories are rejected. Returns Result. |
 
 ```
@@ -1146,9 +1146,9 @@ loop entry in res.value do
     PRINT(entry.name, entry.type)
 end
 
-// Only the CSV files, names only
-loop name in UNWRAP(LIST_DIR_NAMES("/data/reports", "*.csv")) do
-    PRINT(name)
+// Only the CSV files, without following links
+loop entry in UNWRAP(LIST_DIR_NAMES("/data/reports", "*.csv")) do
+    PRINT(entry.name, entry.type)
 end
 ```
 
@@ -1224,10 +1224,18 @@ dot included — sorted by name, each as `{name, type, size}`:
 - A `path` that does not exist, is not a directory, or cannot be read gives an error Result whose
   message names the reason and the path, such as `No such file or directory: /data/in`.
 
-`LIST_DIR_NAMES(path)` gives the same directory's entry names alone, as a sorted array of strings.
-It does not look at the entries themselves — files, directories and links are names alike, and no
-link is followed — so on a directory with very many entries, or with many links to files
-elsewhere, it is much faster than `LIST_DIR`. Use it when the names are all that is needed.
+`LIST_DIR_NAMES(path)` lists the same entries, sorted by name, each as `{name, type}` — without
+following links (spec v0.28.0):
+
+- `type` is the entry's own: `"dir"` for a directory, `"link"` for a symbolic link, and `"file"`
+  for anything else. Every link is `"link"`, whether it points to a file, a directory or nothing —
+  unlike `LIST_DIR`, where `"link"` marks only a link that cannot be followed.
+- What a link points to is never looked at, and there is no `size`. Following each link is what
+  makes `LIST_DIR` slow on a directory of many links to files elsewhere, so there
+  `LIST_DIR_NAMES` is much faster. Use it when names and types are enough.
+- As with `LIST_DIR`, an entry removed while the directory is being read is left out, and a
+  `path` that cannot be listed gives an error Result — as does a directory whose entries cannot
+  be examined, such as one with read but not execute permission.
 
 Both take an optional `pattern`: a glob matched against each entry's name, keeping only the
 entries that match.
@@ -1242,7 +1250,7 @@ entries that match.
 | `\` | makes the next character literal: `"\\[x].csv"` matches the name `[x].csv` |
 
 ```
-names = UNWRAP(LIST_DIR_NAMES("/data/in", "*.csv"))
+csvs = UNWRAP(LIST_DIR_NAMES("/data/in", "*.csv"))
 logs = UNWRAP(LIST_DIR("/data/logs", "app-2024-0?.{log,txt}"))
 ```
 
@@ -1655,6 +1663,23 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.28.0 — `LIST_DIR_NAMES` gives each entry's type
+
+Breaking for `LIST_DIR_NAMES` only, no grammar change. In v0.27.0 `LIST_DIR_NAMES` returned the
+names alone, so on a large directory of links a script that had to tell a directory from a file
+was back to the slow `LIST_DIR`, which follows every link. `LIST_DIR_NAMES` now returns
+`{name, type}` objects, sorted by name, where `type` is the entry's own: `"dir"`, `"file"`, or
+`"link"` for every symbolic link — links are still not followed. Each entry is now examined, so it
+is somewhat slower than the names alone were, but what links point to is never looked at.
+
+Migration: where a v0.27.0 script used an element as a name, use its `name` field —
+`loop entry in UNWRAP(LIST_DIR_NAMES(dir)) do PRINT(entry.name) end`. An element joined to a string
+with `+` does not fail — the object's text is joined instead — so look for such places. A
+directory that can be read but whose entries cannot be examined now gives an error Result, as it
+does from `LIST_DIR`. See [Listing a directory](#listing-a-directory). The Java 25 runtime
+implements this; the JavaScript playground lists its virtual files, which have no links, the same
+way. The frozen Java 7/8 runtime does not implement it.
 
 ### v0.27.0 — `LIST_DIR`: links that cannot be followed, name patterns, names only
 
