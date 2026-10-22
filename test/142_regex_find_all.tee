@@ -1,0 +1,28 @@
+// spec v0.29.0: REGEX_FIND_ALL returns every match as a match object, left to right and without
+// overlap; each search resumes where the previous match ended, one position later after an empty match
+text = "id=42, id=7, id=100"
+all = REGEX_FIND_ALL(text, "id=(?<n>[0-9]+)")
+PRINT(LEN(all))
+loop m in all do
+    PRINT(m.position, m.match, m.groups.1, m.named.n)
+end
+PRINT(all.1 == REGEX_FIND(text, "id=(?<n>[0-9]+)"))
+
+// no match
+PRINT(REGEX_FIND_ALL(text, "x[0-9]"))
+
+// matches never overlap (FIND, a literal search, counts overlapping occurrences)
+PRINT(LEN(REGEX_FIND_ALL("aaaa", "aa")), FIND("aaaa", "aa"))
+
+// after an empty match the next search starts one position later
+loop m in REGEX_FIND_ALL("baaac", "a*") do
+    PRINT(m.position, "[" + m.match + "]")
+end
+
+// ^ matches only at the start of the string
+PRINT(LEN(REGEX_FIND_ALL("a\nb\nc", "^[a-z]")))
+
+// a group that took no part in one match is {} in that match only
+loop m in REGEX_FIND_ALL("a1 b c3", "([a-z])([0-9])?") do
+    PRINT(m.match, m.groups.2 == {})
+end

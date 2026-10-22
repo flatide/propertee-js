@@ -1,0 +1,23 @@
+// spec v0.29.0: REGEX_FIND returns its first match as a match object {match, position, groups, named}:
+// position is 1-based, groups.N is group N, and named holds the named groups by name in pattern order
+s = "date: 2024-01-15, 2025-02-16"
+m = REGEX_FIND(s, "(?<year>[0-9]{4})-(?<month>[0-9]{2})-([0-9]{2})")
+PRINT(m)
+PRINT(m.match, m.position)
+PRINT(m.groups.1, m.groups.3, m.named.year, m.named.month)
+PRINT(LEN(m.groups), KEYS(m.named), KEYS(m))
+PRINT(SUBSTRING(s, m.position, LEN(m.match)) == m.match)
+
+// a group that took no part in the match is {} in groups and in named
+o = REGEX_FIND("b", "(?<a>a)?(b)")
+PRINT(o)
+PRINT(o.groups.1 == {}, o.named.a == {})
+
+// a pattern without groups: groups is [] and named is {}
+PRINT(REGEX_FIND("abc", "b"))
+
+// an empty match has a position too; at the end of the string it is LEN + 1
+PRINT(REGEX_FIND("abc", "x*").position, REGEX_FIND("abc", "$").position)
+
+// no match
+PRINT(REGEX_FIND("abc", "[0-9]+") == {})

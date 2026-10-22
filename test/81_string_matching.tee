@@ -22,24 +22,24 @@ PRINT(MATCHES("info: all ok", "error.*timeout"))
 PRINT(MATCHES("report_20240101.csv", "^report_\\d{8}\\.csv$"))
 PRINT(MATCHES("abc123", "^[a-z]+\\d+$"))
 
-// REGEX_FIND
+// REGEX_FIND (spec v0.29.0: a match object — the whole match in .match, group N in .groups.N)
 parts = REGEX_FIND("status=200 time=45ms", "status=(\\d+)")
-PRINT(parts.1)
-PRINT(parts.2)
+PRINT(parts.match)
+PRINT(parts.groups.1)
 
 noMatch = REGEX_FIND("hello world", "xyz(\\d+)")
 PRINT(noMatch == {})
 
-groups = REGEX_FIND("2024-01-15", "(\\d{4})-(\\d{2})-(\\d{2})")
-PRINT(groups.1)
-PRINT(groups.2)
-PRINT(groups.3)
-PRINT(groups.4)
+date = REGEX_FIND("2024-01-15", "(\\d{4})-(\\d{2})-(\\d{2})")
+PRINT(date.match)
+PRINT(date.groups.1)
+PRINT(date.groups.2)
+PRINT(date.groups.3)
 
 // REGEX_FIND - optional group not matched → {} (not "")
 opt = REGEX_FIND("b", "(a)?b")
-PRINT(opt.1)
-PRINT(opt.2 == {})
+PRINT(opt.match)
+PRINT(opt.groups.1 == {})
 
 // REPLACE
 PRINT(REPLACE("hello world", "world", "ProperTee"))

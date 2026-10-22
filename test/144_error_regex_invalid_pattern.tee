@@ -1,0 +1,4 @@
+// spec v0.29.0: an invalid pattern is a runtime error that names the pattern, with the same text in
+// both runtimes (here an unclosed group)
+PRINT(LEN(REGEX_FIND_ALL("abc", "[a-z]")))
+PRINT(REGEX_FIND_ALL("abc", "([a-z]"))

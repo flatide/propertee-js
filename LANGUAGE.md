@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.28.0
+# ProperTee Language Specification v0.29.0
 
 ## Overview
 
@@ -1039,7 +1039,8 @@ all-whitespace text.
 | `FIND_FIRST(s, sub)` | 1-based position of the first occurrence of `sub` in `s`, or `0` if absent (spec v0.17.0). Always equals the first element of `FIND(s, sub)`. Empty `sub` is a runtime error. |
 | `FIND_LAST(s, sub)` | 1-based position of the last occurrence of `sub` in `s`, or `0` if absent (spec v0.17.0). Always equals the last element of `FIND(s, sub)`. Empty `sub` is a runtime error. |
 | `MATCHES(s, pattern)` | Returns `true` if regex `pattern` matches anywhere in `s` |
-| `REGEX_FIND(s, pattern)` | Returns array of [fullMatch, group1, group2, ...] or `{}` if no match. 1-based array. |
+| `REGEX_FIND(s, pattern)` | The first match of regex `pattern` in `s`, as a [match object](#regular-expressions) `{match, position, groups, named}`; `{}` if there is none (spec v0.29.0). |
+| `REGEX_FIND_ALL(s, pattern)` | Every match of `pattern` in `s`, left to right and without overlap, as an array of match objects; `[]` if there is none (spec v0.29.0). |
 | `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
 
 #### Whitespace
@@ -1054,6 +1055,71 @@ around a numeral (spec v0.25.0).
 `SPLIT(s, " ")` and `WORDS(s)` answer different questions: `SPLIT` is lossless field splitting
 (every empty field kept — what CSV-style data needs), while `WORDS` tokenizes text into words
 (never an empty string).
+
+#### Regular expressions
+
+`MATCHES`, `REGEX_FIND` and `REGEX_FIND_ALL` take a regular expression. A pattern that is not
+valid is a runtime error naming the pattern — `REGEX_FIND() invalid regex pattern: ([a-z]`; a
+pattern that does not match is not an error.
+
+`REGEX_FIND` and `REGEX_FIND_ALL` describe each match as a **match object** (spec v0.29.0), with
+these four fields in this order:
+
+| Field | Value |
+|---|---|
+| `match` | The text the whole pattern matched. |
+| `position` | The 1-based position where `match` starts, counted as `LEN`, `SUBSTRING` and `FIND` count. An empty match at the end of `s` is at `LEN(s) + 1`. |
+| `groups` | The capturing groups in order — `groups.N` is group N. A named group has a number too and appears here as well. A group that took no part in the match is `{}`; a pattern without groups gives `[]`. |
+| `named` | The named groups `(?<name>…)` by name, in the order they appear in the pattern. A group that took no part in the match is `{}`; a pattern without named groups gives `{}`. |
+
+```
+m = REGEX_FIND("2024-01-15", "(?<year>[0-9]{4})-(?<month>[0-9]{2})")
+PRINT(m.match, m.position)          // 2024-01 1
+PRINT(m.groups.1, m.named.month)    // 2024 01
+PRINT(REGEX_FIND("abc", "x") == {}) // true
+```
+
+`SUBSTRING(s, m.position, LEN(m.match)) == m.match` always holds, as does
+`m.groups.N == m.named.name` when the group named `name` is group N.
+
+`REGEX_FIND_ALL` searches `s` from the start; each further search begins where the previous match
+ended, or one position later after an empty match. Matches therefore never overlap, and a pattern
+that can match the empty string still comes to an end: `REGEX_FIND_ALL("aaa", "aa")` finds one
+match — unlike the literal `FIND("aaa", "aa")`, which counts overlapping occurrences (`[1, 2]`) —
+and `REGEX_FIND_ALL("baaac", "a*")` finds `""` at 1, `"aaa"` at 2, `""` at 5 and `""` at 6. `^`
+matches only at the start of `s`, not where a later search begins. When there is a match,
+`REGEX_FIND(s, p) == REGEX_FIND_ALL(s, p).1`.
+
+```
+loop m in REGEX_FIND_ALL("2026-10-22 2027-01-05", "(?<year>[0-9]{4})-(?<month>[0-9]{2})") do
+    PRINT(m.position, m.named.year, m.named.month)
+end
+// 1 2026 10
+// 12 2027 01
+```
+
+**Pattern syntax.** A pattern is read by the runtime's own regular-expression engine —
+`java.util.regex` in the Java runtime, an ECMAScript `RegExp` without flags in the JavaScript
+runtime. Character classes, quantifiers, groups, alternation, `^`, `$`, `\b`, lookahead and
+lookbehind, named groups and the backreferences `\1` and `\k<name>` read the same in both. Name a
+group with an ASCII letter followed by ASCII letters and digits, and use each name once: the Java
+runtime rejects a name such as `first_name`, and a name used twice even in different
+alternatives, both of which JavaScript accepts.
+
+Positions and lengths count UTF-16 code units in both runtimes, as `LEN`, `SUBSTRING` and `FIND`
+do, so an emoji counts as 2. **Characters outside the Basic Multilingual Plane** — most emoji,
+some CJK extension characters — match differently: the Java runtime reads one as a single
+character in `.`, `[^…]` and the like, while the JavaScript runtime reads each of its two halves
+as a character. `REGEX_FIND("😀!", ".")` matches the whole emoji on Java (`LEN(m.match)` is 2) and
+half of it on JavaScript (1), and `REGEX_FIND_ALL` can find a different number of matches. A
+script that must behave the same in both should not apply `.` or a negated class to such text,
+and should spell such characters out instead.
+
+Other known differences: on Java `$` also matches just before a final line break, so
+`REGEX_FIND("a\n", "a$")` matches only there; `a{` is a literal on JavaScript and an invalid
+pattern on Java; the possessive `a++` and inline flags such as `(?i)` exist only on Java and are
+invalid patterns on JavaScript; `\A` and `\Z` mark the start and end of input on Java but read as
+the letters `A` and `Z` on JavaScript.
 
 ### Array Functions
 
@@ -1663,6 +1729,30 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.29.0 — Regular-expression matches as objects, and `REGEX_FIND_ALL`
+
+Breaking for `REGEX_FIND`; one new built-in; no grammar change. `REGEX_FIND` returned
+`[fullMatch, group1, …]`, so in a language that counts from 1, group 1 was `.2`. It gave only the
+first match, without its position, and named groups lost their names.
+
+- **`REGEX_FIND(s, pattern)`** returns the first match as a match object —
+  `{match, position, groups, named}`: `groups.N` is group N and `named` holds the named groups by
+  name — or `{}` when there is no match.
+- **`REGEX_FIND_ALL(s, pattern)`** returns every match, left to right and without overlap, as an
+  array of match objects (`[]` when there is none).
+- A new [Regular expressions](#regular-expressions) section pins the match object, the search
+  order and empty matches. It also documents where the two runtimes' pattern engines differ —
+  characters outside the Basic Multilingual Plane among them — without changing either.
+- `MATCHES`, `REGEX_FIND` and `REGEX_FIND_ALL` report the same errors in both runtimes:
+  `REGEX_FIND() requires a string argument` and `REGEX_FIND() invalid regex pattern: <pattern>`.
+
+Migration: `res.1` becomes `res.match`, and a group — `res.2`, `res.3`, … — becomes
+`res.groups.1`, `res.groups.2`, … (or `res.named.name`). Those old accesses fail with
+`Property '1' does not exist` and the like, but three uses do not fail: `loop v in res` now goes
+over the four fields, `"…" + res` joins the object's text, and `LEN(res)` is 4. `res == {}` still
+tests for no match. The Java 25 runtime and the JavaScript runtime implement this; the frozen
+Java 7/8 runtime does not.
 
 ### v0.28.0 — `LIST_DIR_NAMES` gives each entry's type
 

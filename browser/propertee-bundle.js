@@ -5455,6 +5455,28 @@ function intResult(d) {
 // "0x10", "0o17", "0b101" and "Infinity" (and "" as 0), which the Java runtime rejects.
 const DECIMAL_NUMERAL = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
 
+// Spec v0.29.0: a regex pattern is read by RegExp without flags — no `u`, so a character outside
+// the BMP counts as two characters, as LANGUAGE.md documents. An invalid pattern is named in the
+// message, as the reference runtime names it.
+function compileRegex(fn, pattern, flags) {
+    try {
+        return new RegExp(pattern, flags);
+    } catch (e) {
+        throw new Error(`Runtime Error: ${fn}() invalid regex pattern: ${pattern}`);
+    }
+}
+
+// A regex match as {match, position, groups, named} (spec v0.29.0): position is 1-based (UTF-16
+// units, like FIND), groups.N is group N, named lists the named groups in pattern order; a group
+// that took no part in the match is {}.
+function matchObject(match) {
+    const value = (v) => (v === undefined ? {} : v);
+    const named = {};
+    // match.groups has no prototype; its keys are the group names in pattern order.
+    if (match.groups) for (const name of Object.keys(match.groups)) named[name] = value(match.groups[name]);
+    return { match: match[0], position: match.index + 1, groups: match.slice(1).map(value), named };
+}
+
 // Interpreter-dispatched names cannot be replaced by host registrations (spec v0.13.0).
 const INTERPRETER_DISPATCHED = new Set(['PRINT', 'SLEEP', 'FAIL', 'UNWRAP']);
 function requireReplaceableName(name) {
@@ -5871,28 +5893,22 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return str.lastIndexOf(sub) + 1;
             },
             'MATCHES': (str, pattern) => {
-                if (typeof str !== 'string') throw new Error('Runtime Error: MATCHES() first argument must be a string');
-                if (typeof pattern !== 'string') throw new Error('Runtime Error: MATCHES() second argument must be a string');
-                try {
-                    return new RegExp(pattern).test(str);
-                } catch (e) {
-                    throw new Error('Runtime Error: MATCHES() invalid regex pattern: ' + e.message);
-                }
+                if (typeof str !== 'string' || typeof pattern !== 'string')
+                    throw new Error('Runtime Error: MATCHES() requires a string argument');
+                return compileRegex('MATCHES', pattern).test(str);
             },
             'REGEX_FIND': (str, pattern) => {
-                if (typeof str !== 'string') throw new Error('Runtime Error: REGEX_FIND() first argument must be a string');
-                if (typeof pattern !== 'string') throw new Error('Runtime Error: REGEX_FIND() second argument must be a string');
-                try {
-                    const match = new RegExp(pattern).exec(str);
-                    if (!match) return {};
-                    const groups = [];
-                    for (let i = 0; i <= match.length - 1; i++) {
-                        groups.push(match[i] !== undefined && match[i] !== null ? match[i] : {});
-                    }
-                    return groups;
-                } catch (e) {
-                    throw new Error('Runtime Error: REGEX_FIND() invalid regex pattern: ' + e.message);
-                }
+                if (typeof str !== 'string' || typeof pattern !== 'string')
+                    throw new Error('Runtime Error: REGEX_FIND() requires a string argument');
+                const match = compileRegex('REGEX_FIND', pattern).exec(str);
+                return match ? matchObject(match) : {};
+            },
+            // matchAll resumes where the last match ended (one further after an empty match), so
+            // matches never overlap — as the reference's repeated Matcher.find() (spec v0.29.0).
+            'REGEX_FIND_ALL': (str, pattern) => {
+                if (typeof str !== 'string' || typeof pattern !== 'string')
+                    throw new Error('Runtime Error: REGEX_FIND_ALL() requires a string argument');
+                return [...str.matchAll(compileRegex('REGEX_FIND_ALL', pattern, 'g'))].map(matchObject);
             },
             'REPLACE': (str, target, replacement) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: REPLACE() first argument must be a string');

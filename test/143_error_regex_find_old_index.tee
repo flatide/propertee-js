@@ -1,0 +1,5 @@
+// spec v0.29.0: REGEX_FIND returns an object, so a v0.28.0 index access such as res.2 fails loudly
+// instead of quietly reading something else
+res = REGEX_FIND("status=200", "status=([0-9]+)")
+PRINT(res.groups.1)
+PRINT(res.2)
