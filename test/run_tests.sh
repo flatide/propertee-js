@@ -190,6 +190,17 @@ else
         echo "$actual" | head -20 | sed 's/^/  /'
         FAIL=$((FAIL + 1))
     fi
+
+    # Runtime test: member access on a missing key fails as on the Java runtime (own keys only).
+    actual=$(node "$SCRIPT_DIR/run_member_access_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} member_access (runtime)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} member_access (runtime)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
 fi
 
 echo ""

@@ -26,6 +26,13 @@ function isGenuineResult(v) {
     return v !== null && typeof v === 'object' && v[TEE_RESULT] === true;
 }
 
+// A script object's keys are its own properties. `in` would also find what every JS object
+// inherits (toString, constructor, and __proto__, which leads to Object.prototype itself), and
+// obj.hasOwnProperty(key) fails on data that has a "hasOwnProperty" key of its own.
+function hasOwnKey(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 class ModuleErrorListener extends antlr4.error.ErrorListener {
     constructor(errors) {
         super();
@@ -217,7 +224,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (typeof arr[i] !== 'object' || arr[i] === null || Array.isArray(arr[i])) {
                     throw new Error(`Runtime Error: ${funcName}() requires an array of objects`);
                 }
-                if (!(key in arr[i])) {
+                if (!hasOwnKey(arr[i], key)) {
                     throw new Error(`Runtime Error: Property '${key}' does not exist in array element at index ${i + 1}`);
                 }
             }
@@ -360,7 +367,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     throw new Error('Runtime Error: HAS_KEY() first argument must be an object');
                 if (typeof key !== 'string')
                     throw new Error('Runtime Error: HAS_KEY() second argument must be a string');
-                return obj.hasOwnProperty(key);
+                return hasOwnKey(obj, key);
             },
             'KEYS': (obj) => {
                 if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
@@ -654,7 +661,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const bKeys = Object.keys(b);
         if (aKeys.length !== bKeys.length) return false;
         for (const key of aKeys) {
-            if (!b.hasOwnProperty(key) || !this._deepEqual(a[key], b[key])) return false;
+            if (!hasOwnKey(b, key) || !this._deepEqual(a[key], b[key])) return false;
         }
         return true;
     }
@@ -1277,7 +1284,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const key = yield* this.visit(lvalueCtx.access());
 
             if (typeof targetObj !== 'object' || targetObj === null) {
-                throw this.createError(`Cannot set property '${key}' on non-object`, ctx);
+                throw this.createError(`Property '${key}' does not exist`, ctx);
             }
             if (Array.isArray(targetObj)) {
                 if (typeof key !== 'number') {
@@ -1329,16 +1336,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (lvalueCtx.constructor.name === 'PropLValueContext') {
             const targetObj = yield* this._evaluateLValueForAssignment(lvalueCtx.lvalue());
             const key = yield* this.visit(lvalueCtx.access());
-            if (targetObj === null) throw new Error(`Runtime Error: Cannot access property '${key}' of null`);
-            // Array access: convert 1-based key to 0-based index
-            if (typeof key === 'number' && Array.isArray(targetObj)) {
-                return targetObj[key - 1];
-            }
-            // Object access: integer keys become string keys
-            if (typeof key === 'number' && typeof targetObj === 'object') {
-                return targetObj[String(key)];
-            }
-            return targetObj[key];
+            return this._readMember(targetObj, key, lvalueCtx);
         }
 
         throw new Error('Runtime Error: Unknown lvalue type in assignment');
@@ -1375,18 +1373,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitPropLValue(ctx) {
         const targetObj = yield* this.visit(ctx.lvalue());
         const key = yield* this.visit(ctx.access());
-
-        if (targetObj === null) throw new Error(`Runtime Error: Cannot access property '${key}' of null`);
-        if (Array.isArray(targetObj) && typeof key !== 'number') {
-            throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
-        }
-        if (typeof targetObj === 'string' && typeof key !== 'number') {
-            throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
-        }
-        if (typeof targetObj === 'object' && !(key in targetObj)) {
-            throw new Error(`Runtime Error: Property '${key}' does not exist`);
-        }
-        return targetObj[key];
+        return this._readMember(targetObj, key, ctx);
     }
 
     *visitIfStmt(ctx) {
@@ -1507,7 +1494,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         } else if (typeof iterable === 'object' && iterable !== null) {
             try {
                 for (const key in iterable) {
-                    if (iterable.hasOwnProperty(key)) {
+                    if (hasOwnKey(iterable, key)) {
                         if (++iterations > maxIterations) {
                             if (this.iterationLimitBehavior === 'warn') {
                                 this.stderr(`Warning: Loop exceeded maximum iterations (${maxIterations}), stopping loop`);
@@ -1592,7 +1579,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         } else if (typeof iterable === 'object' && iterable !== null) {
             try {
                 for (const key in iterable) {
-                    if (iterable.hasOwnProperty(key)) {
+                    if (hasOwnKey(iterable, key)) {
                         if (++iterations > maxIterations) {
                             if (this.iterationLimitBehavior === 'warn') {
                                 this.stderr(`Warning: Loop exceeded maximum iterations (${maxIterations}), stopping loop`);
@@ -2061,7 +2048,12 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitMemberAccessExpr(ctx) {
         const targetObj = yield* this.visit(ctx.expression(0));
         const key = yield* this.visit(ctx.access());
+        return this._readMember(targetObj, key, ctx);
+    }
 
+    // obj.key, for an expression and for each link of an assignment chain, as the reference reads
+    // both. An object has only its own keys; a number or boolean has no properties at all.
+    _readMember(targetObj, key, ctx) {
         if (targetObj === null) {
             throw this.createError(`Cannot access property '${key}' of null`, ctx);
         }
@@ -2074,7 +2066,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Object access: integer keys become string keys (no positional access)
         if (typeof key === 'number' && typeof targetObj === 'object' && !Array.isArray(targetObj)) {
             const strKey = String(key);
-            if (!(strKey in targetObj)) {
+            if (!hasOwnKey(targetObj, strKey)) {
                 throw this.createError(`Property '${key}' does not exist`, ctx);
             }
             return targetObj[strKey];
@@ -2104,7 +2096,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return targetObj[idx];
         }
 
-        if (typeof targetObj === 'object' && !(key in targetObj)) {
+        if (typeof targetObj !== 'object' || !hasOwnKey(targetObj, key)) {
             throw this.createError(`Property '${key}' does not exist`, ctx);
         }
 
