@@ -1,0 +1,32 @@
+// spec v0.30.0: ROUND/FLOOR/CEIL/TRUNC(n, [digits]) round the digits PRINT shows
+PRINT(ROUND(3.48, 1), FLOOR(3.48, 1), CEIL(3.48, 1), TRUNC(3.48, 1))
+PRINT(ROUND(-3.48, 1), FLOOR(-3.48, 1), CEIL(-3.48, 1), TRUNC(-3.48, 1))
+
+// without digits: an integer, as before; TRUNC goes toward zero
+PRINT(TRUNC(3.9), TRUNC(-3.9), TRUNC(7), FLOOR(-3.9), CEIL(-3.9))
+
+// negative digits round to tens, hundreds, ...
+PRINT(ROUND(1234.5, -2), FLOOR(1299, -2), CEIL(1201, -2), TRUNC(-1299, -2))
+
+// the shown digits, not the binary value: FLOOR(0.29 * 100) / 100 gives 0.28
+PRINT(FLOOR(0.29, 2), FLOOR(4.35, 2), ROUND(1.005, 2), ROUND(2.675, 2))
+PRINT(ROUND(10 / 3, 2), CEIL(0.1 + 0.2, 1), ROUND(0.1 + 0.2, 2))
+
+// places the number does not reach change nothing; a unit above it leaves 0 or one unit
+PRINT(ROUND(3.48, 5), ROUND(3.48, 400), ROUND(3.48, -5), CEIL(3.48, -5), FLOOR(-3.48, -5))
+
+// digits may be a whole decimal; an integer n gives a decimal of the same value
+PRINT(ROUND(3.456, 2.0), ROUND(5, 2), TRUNC(0.999, 2), CEIL(0.001, 2))
+
+// with digits the result is a decimal, so there is no integer overflow
+PRINT(ROUND(3000000000.7, 0), FLOOR(-3000000000.7, 0))
+
+// a carry adds a digit
+PRINT(ROUND(9.96, 1), ROUND(99.5, 0), CEIL(9.001, 2))
+
+// a result past the double range is Infinity; Infinity comes back as is
+big = TO_NUMBER("1.7976931348623157e308")
+PRINT(CEIL(big, -308), FLOOR(-big, -308), ROUND(big * 10, 2))
+
+// a value rounded to zero has no sign
+PRINT(TRUNC(-0.001, 2), CEIL(-0.001, 2), ROUND(-0.004, 2))

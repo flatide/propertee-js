@@ -1,0 +1,15 @@
+[THREAD ERROR] Runtime Error: SUM() requires numeric arguments
+[THREAD ERROR] Runtime Error: MAX() requires at least one argument
+[THREAD ERROR] Runtime Error: MIN() requires numeric arguments
+[THREAD ERROR] Runtime Error: ABS() missing argument 1
+[THREAD ERROR] Runtime Error: ABS() requires numeric arguments
+[THREAD ERROR] Runtime Error: FLOOR() requires numeric arguments
+[THREAD ERROR] Runtime Error: ROUND() missing argument 1
+a false Runtime Error: SUM() requires numeric arguments
+b false Runtime Error: MAX() requires at least one argument
+c false Runtime Error: MIN() requires numeric arguments
+d false Runtime Error: ABS() missing argument 1
+e false Runtime Error: ABS() requires numeric arguments
+f false Runtime Error: FLOOR() requires numeric arguments
+g false Runtime Error: ROUND() missing argument 1
+0 7.5 -1

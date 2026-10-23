@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.29.0
+# ProperTee Language Specification v0.30.0
 
 ## Overview
 
@@ -40,10 +40,11 @@ operation's structure, not by whether the runtime value happens to be whole. A d
 a whole value (`1.5 + 1.5`) stays a decimal; it never turns back into an integer.
 
 - **Integers** come from: integer literals; integer-with-integer `+`, `-`, `*`, `%`, and unary `-`
-  (overflow-checked, below); and integer-producing built-ins (`LEN`, `FLOOR`, `CEIL`, `ROUND`,
-  `ABS` of an integer, and the like).
+  (overflow-checked, below); and integer-producing built-ins (`LEN`, `FLOOR`, `CEIL`, `ROUND` and
+  `TRUNC` without `digits`, `ABS` of an integer, and the like).
 - **Decimals** come from: decimal literals (including whole ones like `3.0`); any `/`; any operation
-  with a decimal operand (`2 + 3.0` → decimal `5`); decimal-producing built-ins (`RANDOM`, …); and
+  with a decimal operand (`2 + 3.0` → decimal `5`); decimal-producing built-ins (`RANDOM`, `FLOOR`,
+  `CEIL`, `ROUND` and `TRUNC` with `digits`, …); and
   data whose text carries a fraction or exponent — `JSON_PARSE`/`TO_NUMBER` of a token containing
   `.`, `e`, or `E`, or of an integer literal outside the 32-bit range.
 
@@ -68,7 +69,7 @@ and no silent promotion to a decimal:
 - Integer **arithmetic** (`+`, `-`, `*`, unary `-`) whose result leaves the range is a runtime
   error: `Integer overflow`. (`/` always produces a decimal and cannot overflow; `%` cannot
   overflow.)
-- The built-ins that produce an integer — `FLOOR`, `CEIL`, `ROUND` (from a decimal) and `ABS` (|−2³¹| does not fit) — raise the same `Integer overflow` error when the result does not fit.
+- The built-ins that produce an integer — `FLOOR`, `CEIL`, `ROUND` and `TRUNC` (from a decimal, without `digits`) and `ABS` (|−2³¹| does not fit) — raise the same `Integer overflow` error when the result does not fit. With `digits` the four rounding built-ins produce a decimal and cannot overflow ([Rounding to digits](#rounding-to-digits)).
 - **Data is unaffected**: `JSON_PARSE` and `TO_NUMBER` keep representing integral values beyond
   the range as decimals — data conversion is not script arithmetic, and JSON keeps round-tripping.
 
@@ -511,7 +512,7 @@ A function call `NAME(...)` resolves in this order (specified since spec v0.11.0
 2. A script-defined function named `NAME`.
 3. Built-in functions and host-registered external functions.
 
-A script-defined function therefore **shadows** any same-named built-in or external function — and a spec release adding new built-ins can never change what an existing script's calls resolve to. Within step 3, an external registered under a catalog built-in's name replaces that built-in. The **interpreter-dispatched names** — `PRINT`, `SLEEP`, `FAIL`, `UNWRAP` — cannot be replaced at all: registering an external under one of them is a **host-API error** at registration time (spec v0.13.0; previously `PRINT`/`SLEEP` were implementation-defined and a `FAIL`/`UNWRAP` registration was silently ignored).
+A script-defined function therefore **shadows** any same-named built-in or external function — and a spec release adding new built-ins can never change what an existing script's calls resolve to. Within step 3, an external registered under a catalog built-in's name replaces that built-in. The **interpreter-dispatched names** — `PRINT`, `PRINTF`, `SLEEP`, `FAIL`, `UNWRAP` — cannot be replaced at all: registering an external under one of them is a **host-API error** at registration time (spec v0.13.0, `PRINTF` since v0.30.0; previously `PRINT`/`SLEEP` were implementation-defined and a `FAIL`/`UNWRAP` registration was silently ignored).
 
 Since spec v0.12.0 a script cannot define an all-uppercase function name at all (see [Reserved Function Names](#reserved-function-names)), so a script function can never collide with a built-in in the first place; the order above still governs the residual case of host-registered externals with non-reserved names.
 
@@ -958,6 +959,75 @@ All built-in function names are UPPERCASE, and the all-uppercase namespace is re
 | Function | Description |
 |---|---|
 | `PRINT(args...)` | Print values separated by spaces. Returns `{}`. |
+| `PRINTF(format, values...)` | Print one line made from `format` and the values — what `PRINT(FORMAT(format, values...))` prints (spec v0.30.0). Returns `{}`. See [Formatted output](#formatted-output). |
+
+#### Formatted output
+
+`FORMAT(format, values...)` returns a string made from `format`, with each placeholder in it
+replaced by the next value (spec v0.30.0). `PRINTF(format, values...)` prints that string as one
+line, as `PRINT` does, and returns `{}`; unlike C's `printf`, it ends the line.
+
+```
+PRINTF("{} items, average {:.2f}", 3, 3.4)     // 3 items, average 3.40
+loop row in [["apples", 3, 1.5], ["pears", 12, 0.25]] do
+    PRINTF("{:<8}{:>4}{:>8.2f}", row.1, row.2, row.3)
+end
+// apples     3    1.50
+// pears     12    0.25
+line = FORMAT("{:,.2f} won", 1234567.891)      // "1,234,567.89 won"
+PRINTF("{:.1f}", TRUNC(3.48, 1))               // 3.4 — cutting digits off is TRUNC's job
+```
+
+| Placeholder | Meaning |
+|---|---|
+| `{}` | The next value as `PRINT` shows it — a string without quotes, an array or object as `PRINT` writes it. |
+| `{:spec}` | The next value, written as `spec` says. |
+| `{{` and `}}` | A literal `{` and `}`. |
+
+`spec` is `[align][0][width][,][.Nf]`. Every part is optional, and the parts come in this order.
+This is a small part of Python's format specification, and each part does what it does in Python.
+The parts work on the text `PRINT` shows for the value, though, so a result can differ from
+Python's: `true` stays `true` (Python formats it as `1`), and a whole or a large decimal keeps
+`PRINT`'s form — `2`, `10000000000000000` — where Python writes `2.0` and `1e+16`. With `.Nf` the
+number is written with exactly N decimals instead.
+
+| Part | Meaning | Example |
+|---|---|---|
+| `<` `>` `^` | Align left, right, or center within the width. Without one, numbers go right and everything else left. | `FORMAT("[{:^6}]", "ab")` → `[  ab  ]` |
+| width | The least number of characters, padded with spaces; longer text is not cut. At most three digits. | `FORMAT("[{:6}]", 42)` → `[    42]` |
+| `0` | Pad with zeros after the sign instead (numbers only). It does not combine with an alignment or `,`. | `FORMAT("{:08.2f}", -3.4)` → `-0003.40` |
+| `,` | Separate the integer digits into groups of three with commas (numbers only). | `FORMAT("{:,}", 1234567)` → `1,234,567` |
+| `.Nf` | Exactly N decimals, N at most three digits (numbers only). The number is rounded as `ROUND(x, N)` rounds it and is never written with an exponent. | `FORMAT("{:.2f}", 3.4)` → `3.40` |
+
+- The width counts characters as `LEN` does (UTF-16 code units). A character that takes two
+  columns in a terminal, such as a Hangul syllable, counts as one, so columns of such text do not
+  line up in a terminal.
+- `.Nf` rounds the digits `PRINT` shows, a tie away from zero, where Python rounds the binary value
+  with ties to even. The results can differ: `{:.2f}` of `1.005` is `1.01` (Python: `1.00`) and
+  `{:.0f}` of `2.5` is `3` (Python: `2`). A number that rounds to zero has no sign: `{:.1f}` of
+  `-0.04` is `0.0` (Python: `-0.0`).
+- `.Nf` writes a large number in full — `{:.2f}` of `1e21` is `1000000000000000000000.00` — while
+  `{}` shows `1e+21`, as `PRINT` does.
+- `Infinity`, `-Infinity` and `NaN` are written as `PRINT` shows them; only the alignment and the
+  width apply to them.
+- Positional (`{1}`) and named (`{name}`) placeholders are errors today, so a later version can
+  give them a meaning without changing what an existing script does.
+
+The format is checked as a whole before any value is used, and errors are reported in this order —
+the three kinds of invalid format as they occur from left to right:
+
+| Case | Error |
+|---|---|
+| no `format` | `FORMAT() missing argument 1` |
+| `format` not a string | `FORMAT() requires a string format` |
+| a placeholder of any other form — `{:x}`, `{1}`, `{name}` | `FORMAT() invalid format: {:x}` |
+| a `{` with no `}` after it | `FORMAT() invalid format: unclosed {` |
+| a `}` outside a placeholder that is not `}}` | `FORMAT() invalid format: unmatched }` |
+| more or fewer values than placeholders | `FORMAT() format has 2 placeholders, got 3 values` |
+| `0`, `,` or `.Nf` for a value that is not a number | `FORMAT() {:.2f} requires a number, got string` |
+
+`PRINTF` reports the same errors under its own name — `PRINTF() invalid format: {:x}` — and, like
+the other built-ins' errors, without a line number.
 
 ### Math
 
@@ -967,13 +1037,86 @@ All built-in function names are UPPERCASE, and the all-uppercase namespace is re
 | `MAX(args...)` | Maximum of all numeric arguments |
 | `MIN(args...)` | Minimum of all numeric arguments |
 | `ABS(n)` | Absolute value |
-| `FLOOR(n)` | Round down |
-| `CEIL(n)` | Round up |
-| `ROUND(n)` | Round to nearest integer |
+| `ROUND(n, [digits])` | Round to the nearest; a tie goes away from zero — `ROUND(2.5)` → `3`, `ROUND(-2.5)` → `-3` |
+| `FLOOR(n, [digits])` | Round down, toward −∞ |
+| `CEIL(n, [digits])` | Round up, toward +∞ |
+| `TRUNC(n, [digits])` | Round toward zero, cutting the digits off (spec v0.30.0) |
 | `RANDOM()` | Random decimal between 0.0 (inclusive) and 1.0 (exclusive) |
 | `RANDOM(min, max)` | Random integer from `min` to `max` (both inclusive). |
 
+Without `digits`, `ROUND`, `FLOOR`, `CEIL` and `TRUNC` return an integer; with it they keep that
+many decimal places — see [Rounding to digits](#rounding-to-digits).
+
+`SUM`, `MAX`, `MIN`, `ABS`, `ROUND`, `FLOOR`, `CEIL` and `TRUNC` take numbers: a value that is not
+a number is an error — `SUM("a", 1)` → `SUM() requires numeric arguments` — and `MAX` and `MIN`
+need at least one argument: `MAX() requires at least one argument`.
+
 The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusive upper bound clashed with the inclusive two-argument form. Calling `RANDOM` with one argument is a runtime error; write `RANDOM(0, max - 1)` for the old meaning.
+
+#### Rounding to digits
+
+`ROUND`, `FLOOR`, `CEIL` and `TRUNC` take an optional second argument, `digits`: the number of
+decimal places to keep (spec v0.30.0). `0` keeps none, and a negative `digits` rounds to tens,
+hundreds, and so on.
+
+| Function | `3.48`, `1` | `-3.48`, `1` |
+|---|---|---|
+| `ROUND` — to the nearest | `3.5` | `-3.5` |
+| `FLOOR` — toward −∞ | `3.4` | `-3.5` |
+| `CEIL` — toward +∞ | `3.5` | `-3.4` |
+| `TRUNC` — toward zero | `3.4` | `-3.4` |
+
+```
+PRINT(ROUND(1234.5, -2), CEIL(1201, -2))    // 1200 1300
+PRINT(TRUNC(3.48, 1), TRUNC(-3.9))          // 3.4 -3
+```
+
+**The shown digits are rounded.** `n` is read as the decimal number `PRINT` shows for it — the
+shortest digits that round-trip ([Number display](#number-display-spec-v0140)) — and that decimal
+is rounded at the place `digits` names. The result is the number nearest to the rounded decimal, so
+`PRINT` shows the rounded decimal exactly when it has at most 15 significant digits.
+
+```
+PRINT(FLOOR(0.29, 2), FLOOR(4.35, 2))       // 0.29 4.35
+PRINT(ROUND(1.005, 2), ROUND(2.675, 2))     // 1.01 2.68
+PRINT(ROUND(10 / 3, 2))                     // 3.33
+PRINT(CEIL(0.1 + 0.2, 1))                   // 0.4 — 0.1 + 0.2 shows as 0.30000000000000004
+```
+
+The binary value behind most short decimals is a little above or below them — the double nearest
+`0.29` is 0.28999… — so rounding that value moves some numbers one step down or up; multiplying by
+100 to round does this: `FLOOR(0.29 * 100) / 100` is `0.28`. Rounding the shown digits avoids it,
+and gives the same result in every runtime.
+
+**Ties.** When the shown digits lie exactly halfway, `ROUND` goes away from zero, with or without
+`digits`, so `ROUND(-x, d)` is always `-ROUND(x, d)`: `ROUND(2.5)` → `3`, `ROUND(-2.5)` → `-3`,
+`ROUND(1.005, 2)` → `1.01`, `ROUND(-1.005, 2)` → `-1.01`. Until v0.29.0 a tie went toward +∞, so
+`ROUND(-2.5)` was `-2`.
+
+**The result.** Without `digits` the result is an integer, and one outside the 32-bit range is an
+`Integer overflow` error, as before. With `digits` it is a decimal — for `digits` `0` too — and
+never overflows: `ROUND(3000000000.7)` is an error, `ROUND(3000000000.7, 0)` is `3000000001`. A
+whole result shows without a fraction (`ROUND(3.0, 2)` → `3`); to show trailing zeros, use
+[`FORMAT`](#formatted-output).
+
+- `digits` must be an integer; a whole decimal such as `2.0` is accepted, as wherever an integer is
+  required. Any integer will do. Places past the number's last digit change nothing
+  (`ROUND(3.48, 400)` → `3.48`); a place above its first digit leaves `0` or one unit of that place
+  (`ROUND(3.48, -5)` → `0`, `CEIL(3.48, -5)` → `100000`).
+- A result beyond the range of numbers is `Infinity`, as in arithmetic:
+  `CEIL(TO_NUMBER("1.7976931348623157e308"), -308)` → `Infinity`. With `digits`, `Infinity`,
+  `-Infinity` and `NaN` come back unchanged.
+- A result of zero has no sign: `CEIL(-0.001, 2)` → `0`.
+
+| Case | Error |
+|---|---|
+| no argument | `ROUND() missing argument 1` |
+| `n` not a number | `ROUND() requires numeric arguments` |
+| `digits` not an integer | `ROUND() digits must be an integer` |
+| three or more arguments | `ROUND() takes at most 2 arguments` |
+
+A third argument is an error rather than ignored: until v0.29.0 these functions silently dropped
+their second argument, so `ROUND(3.48, 1)` was `3`.
 
 ### Type Conversion
 
@@ -1042,6 +1185,7 @@ all-whitespace text.
 | `REGEX_FIND(s, pattern)` | The first match of regex `pattern` in `s`, as a [match object](#regular-expressions) `{match, position, groups, named}`; `{}` if there is none (spec v0.29.0). |
 | `REGEX_FIND_ALL(s, pattern)` | Every match of `pattern` in `s`, left to right and without overlap, as an array of match objects; `[]` if there is none (spec v0.29.0). |
 | `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
+| `FORMAT(format, values...)` | A string made from `format`, each `{}` or `{:spec}` placeholder replaced by the next value — `FORMAT("{:.2f}", 3.4)` → `"3.40"` (spec v0.30.0). See [Formatted output](#formatted-output). |
 
 #### Whitespace
 
@@ -1604,7 +1748,7 @@ Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug
 x = SHELL("echo hello")   // 'SHELL' is not available in this environment — the whole script is refused
 ```
 
-Both built-in and external functions can be ignored. The check applies to normal function calls and to function calls inside multi block `thread` spawns.
+Both built-in and external functions can be ignored. The check applies to normal function calls and to function calls inside multi block `thread` spawns. Each name is blocked on its own: ignoring `PRINT` leaves `PRINTF` available, so a host that wants no script output ignores both.
 
 **Load-time rejection (spec v0.14.0).** A script that names *any* blocked construct — a hidden keyword or an ignored-function call, **anywhere in the source, dead branches included** — does not run at all. The run is refused **before the first statement executes**, failing on the **first violation in document order** with `Runtime Error at line L:C: 'X' is not available in this environment`. Nothing before the offending construct runs — no output, no side effects — so in the examples above `x = 10` never executes. Because the check scans the whole tree, a blocked construct in an untaken branch (`if false then SHELL(...) end`) still refuses the script, and a blocked function reached only through a `thread` spawn (`thread a: blocked_fn()`) is rejected at load rather than inside the worker (this supersedes the spec v0.13.0 worker-containment behavior — the worker is never reached). The language has no indirect calls (call sites are literal names) and its keywords are static, so this scan is exact.
 
@@ -1669,6 +1813,10 @@ Numbers render by **ECMA-262 `Number::toString`**, uniformly across `PRINT`, `TO
 > routine may differ by one digit; those are implementation-defined and outside the conformance
 > suite. No value an ordinary program produces is affected.
 
+To round a value to a number of decimal places, use `ROUND(x, 2)` and its kin
+([Rounding to digits](#rounding-to-digits)); to show a fixed number of decimals, trailing zeros
+included, use `FORMAT("{:.2f}", x)` ([Formatted output](#formatted-output)).
+
 ## Runtime Errors
 
 ProperTee reports errors with line and column information:
@@ -1709,7 +1857,12 @@ Common error conditions:
 | `FAIL` without a message | FAIL() requires a message argument |
 | All-uppercase function definition | Cannot define function 'X': all-uppercase names are reserved for built-in and host functions |
 | Integer literal too large | Integer literal out of range: 9999999999 |
-| Integer arithmetic overflow (`+` `-` `*`, unary `-`, `FLOOR`/`CEIL`/`ROUND`/`ABS`, `SUM`) | Integer overflow |
+| Integer arithmetic overflow (`+` `-` `*`, unary `-`, `FLOOR`/`CEIL`/`ROUND`/`TRUNC` without digits, `ABS`, `SUM`) | Integer overflow |
+| `SUM`/`MAX`/`MIN`/`ABS`/`ROUND`/`FLOOR`/`CEIL`/`TRUNC` given a value that is not a number | SUM() requires numeric arguments |
+| `digits` that is not an integer | ROUND() digits must be an integer |
+| A third argument to `ROUND`/`FLOOR`/`CEIL`/`TRUNC` | ROUND() takes at most 2 arguments |
+| A `FORMAT`/`PRINTF` format that is not valid | FORMAT() invalid format: {:x} |
+| `FORMAT`/`PRINTF` placeholders and values that do not match in number | FORMAT() format has 2 placeholders, got 3 values |
 | `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
 | `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
 | `FILE_LINES` of a file that cannot be read | FILE_LINES() cannot read 'x': no such file |
@@ -1729,6 +1882,39 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.30.0 — Rounding to digits, `TRUNC`, and formatted output
+
+Breaking for `ROUND` of a negative tie; three new built-ins; no grammar change. There was no way
+to keep a number of decimal places: `ROUND(3.48, 1)` silently dropped its second argument and
+returned `3`, rounding by multiplying went wrong (`FLOOR(0.29 * 100) / 100` is `0.28`), nothing
+rounded toward zero, and trailing zeros could not be shown.
+
+- **`ROUND`, `FLOOR` and `CEIL(n, [digits])`** take the number of decimal places to keep, and the
+  new **`TRUNC(n, [digits])`** rounds toward zero. They round the digits `PRINT` shows, so
+  `FLOOR(0.29, 2)` is `0.29` in every runtime. With `digits` the result is a decimal, and a third
+  argument is an error. See [Rounding to digits](#rounding-to-digits).
+- **`ROUND` sends a tie away from zero**, with or without `digits`: `ROUND(-2.5)` is `-3`, where
+  it was `-2`, so `ROUND(-x)` is `-ROUND(x)`. Positive numbers round as before.
+- **`FORMAT(format, values...)`** builds a string from `{}` and `{:spec}` placeholders — alignment,
+  width, zero padding, thousands separators and a fixed number of decimals (`{:.2f}`) — and
+  **`PRINTF(format, values...)`** prints it as one line. See [Formatted output](#formatted-output).
+  `PRINT` itself is unchanged: reading its first argument as a format would silently change what
+  `PRINT("{}", x)` prints today.
+- `PRINTF` is an interpreter-dispatched name, like `PRINT`, so registering a host external under
+  it is now a host-API error. A host external named `TRUNC` or `FORMAT` replaces the new built-in,
+  as for any catalog name. A host that ignores `PRINT` to keep scripts quiet must ignore `PRINTF`
+  too.
+- The JavaScript runtime's `SUM`, `MAX`, `MIN`, `ABS`, `FLOOR`, `CEIL` and `ROUND` check their
+  arguments as the Java runtime always has: `SUM("a", 1)` is the error
+  `SUM() requires numeric arguments` instead of `"0a1"`, and `ROUND()` is
+  `ROUND() missing argument 1` instead of `NaN`.
+
+Migration: only `ROUND` of a negative number exactly halfway between two integers changes —
+`ROUND(-0.5)`, `ROUND(-1.5)`, `ROUND(-2.5)` are now `-1`, `-2`, `-3` — and it changes without an
+error, so check scripts that round negative numbers. A script that passed a second argument to
+`ROUND`, `FLOOR` or `CEIL` was getting a whole number; it now gets that many decimal places. The
+Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.29.0 — Regular-expression matches as objects, and `REGEX_FIND_ALL`
 

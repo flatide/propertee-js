@@ -1,0 +1,63 @@
+// spec v0.30.0: FORMAT and PRINTF fail loudly on a bad format, a count mismatch, or a value a
+// number-only spec cannot take
+function notAString() do
+    return FORMAT(5)
+end
+
+function tooManyValues() do
+    return FORMAT("{} {}", 1, 2, 3)
+end
+
+function tooFewValues() do
+    return FORMAT("{}")
+end
+
+function unknownSpec() do
+    return FORMAT("{:x}", 1)
+end
+
+function positional() do
+    return FORMAT("{1}", 1)
+end
+
+function unclosed() do
+    return FORMAT("total {", 1)
+end
+
+function unmatched() do
+    return FORMAT("a } b")
+end
+
+function textForNumber() do
+    return FORMAT("{:.2f}", "3.4")
+end
+
+function zeroWithAlign() do
+    return FORMAT("{:<05}", 1)
+end
+
+function printfName() do
+    PRINTF("{:,}", true)
+    return 0
+end
+
+multi r do
+    thread a: notAString()
+    thread b: tooManyValues()
+    thread c: tooFewValues()
+    thread d: unknownSpec()
+    thread e: positional()
+    thread f: unclosed()
+    thread g: unmatched()
+    thread h: textForNumber()
+    thread i: zeroWithAlign()
+    thread j: printfName()
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end
+
+PRINT("before")
+PRINTF("{} {}", 1)
+PRINT("unreachable")

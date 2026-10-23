@@ -1,0 +1,12 @@
+[THREAD ERROR] Runtime Error: ROUND() digits must be an integer
+[THREAD ERROR] Runtime Error: FLOOR() digits must be an integer
+[THREAD ERROR] Runtime Error: CEIL() takes at most 2 arguments
+[THREAD ERROR] Runtime Error: TRUNC() missing argument 1
+[THREAD ERROR] Runtime Error: ROUND() requires numeric arguments
+[THREAD ERROR] Runtime Error: Integer overflow
+a false Runtime Error: ROUND() digits must be an integer
+b false Runtime Error: FLOOR() digits must be an integer
+c false Runtime Error: CEIL() takes at most 2 arguments
+d false Runtime Error: TRUNC() missing argument 1
+e false Runtime Error: ROUND() requires numeric arguments
+f false Runtime Error: Integer overflow

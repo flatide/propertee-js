@@ -1,0 +1,44 @@
+// spec v0.30.0: the math built-ins check their arguments the same way in every runtime
+function sumText() do
+    return SUM("a", 1)
+end
+
+function maxEmpty() do
+    return MAX()
+end
+
+function minText() do
+    return MIN(1, "2")
+end
+
+function absEmpty() do
+    return ABS()
+end
+
+function absText() do
+    return ABS("x")
+end
+
+function floorBoolean() do
+    return FLOOR(true)
+end
+
+function roundEmpty() do
+    return ROUND()
+end
+
+multi r do
+    thread a: sumText()
+    thread b: maxEmpty()
+    thread c: minText()
+    thread d: absEmpty()
+    thread e: absText()
+    thread f: floorBoolean()
+    thread g: roundEmpty()
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end
+
+PRINT(SUM(), MAX(3, 7.5, 7.5), MIN(2, -1, -1.0))

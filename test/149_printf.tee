@@ -1,0 +1,24 @@
+// spec v0.30.0: PRINTF(format, values...) prints one line, PRINT(FORMAT(format, values...))
+PRINTF("{:<6}|{:>8.2f}|", "합계", 1234.5)
+PRINTF("{:<6}|{:>8.2f}|", "평균", 3.456)
+PRINTF("{:.1f}", TRUNC(3.48, 1))
+PRINTF("no placeholders")
+
+// it returns {}
+r = PRINTF("{} + {} = {}", 1, 2, 1 + 2)
+PRINT(r, TYPE_OF(r))
+
+// PRINTF(f, ...) prints what PRINT(FORMAT(f, ...)) prints
+PRINT(FORMAT("{:>5}|{:<5}|", 1, 2))
+PRINTF("{:>5}|{:<5}|", 1, 2)
+
+// in a thread
+function report(name, v) do
+    PRINTF("{}: {:.2f}", name, v)
+    return ROUND(v, 2)
+end
+
+multi res do
+    thread a: report("a", 1.005)
+end
+PRINT(res.a.value)

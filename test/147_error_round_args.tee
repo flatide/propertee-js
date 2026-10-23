@@ -1,0 +1,37 @@
+// spec v0.30.0: digits must be an integer, a third argument is an error, not dropped
+function digitsFraction() do
+    return ROUND(3.48, 1.5)
+end
+
+function digitsText() do
+    return FLOOR(3.48, "1")
+end
+
+function threeArguments() do
+    return CEIL(3.48, 1, 9)
+end
+
+function noArguments() do
+    return TRUNC()
+end
+
+function notANumber() do
+    return ROUND("3.48", 1)
+end
+
+function truncOverflow() do
+    return TRUNC(3000000000.5)
+end
+
+multi r do
+    thread a: digitsFraction()
+    thread b: digitsText()
+    thread c: threeArguments()
+    thread d: noArguments()
+    thread e: notANumber()
+    thread f: truncOverflow()
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end

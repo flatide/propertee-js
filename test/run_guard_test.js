@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Host-API test (spec v0.13.0): interpreter-dispatched names (PRINT, SLEEP, FAIL, UNWRAP)
+// Host-API test (spec v0.13.0): interpreter-dispatched names (PRINT, PRINTF, SLEEP, FAIL, UNWRAP)
 // cannot be replaced — registering an external under one of them throws at registration time.
 // Prints "OK" when every case behaves.
 import ProperTeeCustomVisitor from '../ProperTeeCustomVisitor.js';
@@ -11,7 +11,7 @@ const visitor = new ProperTeeCustomVisitor({}, {}, {
 
 const failures = [];
 
-for (const name of ['PRINT', 'SLEEP', 'FAIL', 'UNWRAP']) {
+for (const name of ['PRINT', 'PRINTF', 'SLEEP', 'FAIL', 'UNWRAP']) {
     try {
         visitor.registerExternal(name, () => 1);
         failures.push(`registerExternal(${name}) did not throw`);

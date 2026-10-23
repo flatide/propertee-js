@@ -5450,6 +5450,177 @@ function intResult(d) {
     return d;
 }
 
+// Spec v0.30.0: a finite number as the decimal digits PRINT shows for it — the shortest
+// round-trip digits of Number::toString (spec v0.14.0) — read as ±0.digits × 10^exponent.
+// digits has no leading or trailing zeros; zero has none. ROUND/FLOOR/CEIL/TRUNC with digits and
+// FORMAT's .Nf round these digits, not the binary value, so FLOOR(0.29, 2) is 0.29 and the result
+// is the reference runtime's (its DecimalDigits), which shows the same digits.
+const ZERO_DIGITS = { negative: false, digits: '', exponent: 0 };
+
+function decimalDigits(x) {
+    if (x === 0) return ZERO_DIGITS;                        // -0 too
+    const text = String(Math.abs(x));                       // "123.45", "0.0001", "1e+21", "1.5e-7"
+    const e = text.indexOf('e');
+    const mantissa = e < 0 ? text : text.slice(0, e);
+    const dot = mantissa.indexOf('.');
+    const all = dot < 0 ? mantissa : mantissa.slice(0, dot) + mantissa.slice(dot + 1);
+    let pointExp = (e < 0 ? 0 : Number(text.slice(e + 1))) - (dot < 0 ? 0 : mantissa.length - dot - 1);
+    let start = 0;
+    while (start < all.length - 1 && all[start] === '0') start++;
+    let end = all.length;
+    while (end - start > 1 && all[end - 1] === '0') { end--; pointExp++; }
+    const digits = all.slice(start, end);
+    return { negative: x < 0, digits, exponent: pointExp + digits.length };
+}
+
+// Rounded to `places` decimal places (negative: tens, hundreds, …) in the direction `mode`
+// ('HALF_UP' — a tie away from zero —, 'FLOOR', 'CEILING' or 'DOWN'). Places the digits do not
+// reach change nothing; a unit above the number leaves zero or one unit.
+function roundDigits(d, places, mode) {
+    const k = d.digits.length;
+    if (k === 0 || places >= k - d.exponent) return d;     // nothing to drop; covers any huge places
+    // A unit above 1e400 exceeds every double, so clamping changes no result.
+    const p = Math.max(places, -400);
+    const keep = d.exponent + p;                            // leading digits at or above the unit 10^-p
+    const up = mode === 'HALF_UP' ? keep >= 0 && d.digits[keep] >= '5'
+        : mode === 'FLOOR' ? d.negative
+        : mode === 'CEILING' ? !d.negative
+        : false;                                            // a nonzero digit is always dropped
+    if (keep <= 0) return up ? { negative: d.negative, digits: '1', exponent: 1 - p } : ZERO_DIGITS;
+    const kept = d.digits.slice(0, keep).split('');
+    let exponent = d.exponent;
+    if (up) {
+        let i = kept.length - 1;
+        while (i >= 0 && kept[i] === '9') kept[i--] = '0';
+        if (i >= 0) kept[i] = String(Number(kept[i]) + 1);
+        else { kept.unshift('1'); exponent++; }             // 0.99… → 1.0: one more digit
+    }
+    let s = kept.join('');
+    let end = s.length;
+    while (end > 1 && s[end - 1] === '0') end--;
+    return { negative: d.negative, digits: s.slice(0, end), exponent };
+}
+
+// The nearest number; a value beyond the double range is ±Infinity, and zero is +0.
+function digitsToNumber(d) {
+    if (d.digits === '') return 0;
+    const v = Number('0.' + d.digits + 'e' + d.exponent);
+    return v === 0 ? 0 : d.negative ? -v : v;
+}
+
+// The unsigned plain text with exactly `places` decimals and no exponent; round first.
+function fixedText(d, places) {
+    const k = d.digits.length;
+    let out = '';
+    if (d.exponent <= 0) out = '0';
+    else for (let i = 0; i < d.exponent; i++) out += i < k ? d.digits[i] : '0';
+    if (places > 0) {
+        out += '.';
+        for (let i = 0; i < places; i++) {
+            const at = d.exponent + i;
+            out += at >= 0 && at < k ? d.digits[at] : '0';
+        }
+    }
+    return out;
+}
+
+function isWholeNumber(v) {
+    return typeof v === 'number' && Number.isFinite(v) && Math.floor(v) === v;
+}
+
+// FN(n, [digits]) for FLOOR/CEIL/ROUND/TRUNC (spec v0.30.0). Without digits: an integer, ROUND's
+// tie away from zero (ROUND(-2.5) is -3). With digits: a decimal rounded on the shown digits;
+// Infinity/NaN come back as is. A third argument is an error, not dropped.
+function rounding(fn, args, mode) {
+    if (args.length > 2) throw new Error(`Runtime Error: ${fn}() takes at most 2 arguments`);
+    if (args.length < 1) throw new Error(`Runtime Error: ${fn}() missing argument 1`);
+    const n = args[0];
+    if (typeof n !== 'number') throw new Error(`Runtime Error: ${fn}() requires numeric arguments`);
+    if (args.length === 1) return intResult(wholeRound(n, mode));
+    if (!isWholeNumber(args[1])) throw new Error(`Runtime Error: ${fn}() digits must be an integer`);
+    if (!Number.isFinite(n)) return n;
+    return digitsToNumber(roundDigits(decimalDigits(n), args[1], mode));
+}
+
+// n rounded to a whole number; the same value as rounding its shown digits at place 0.
+function wholeRound(n, mode) {
+    if (mode === 'FLOOR') return Math.floor(n);
+    if (mode === 'CEILING') return Math.ceil(n);
+    if (mode === 'DOWN') return Math.trunc(n);
+    // |n| - floor(|n|) is exact, so the tie test is too (Math.round sends a tie toward +∞).
+    const a = Math.abs(n);
+    const f = Math.floor(a);
+    const r = a - f >= 0.5 ? f + 1 : f;
+    return n < 0 ? -r : r;
+}
+
+// MAX/MIN: the first argument that beats every other, checked one by one like the reference.
+function minMax(fn, args, max) {
+    if (args.length === 0) throw new Error(`Runtime Error: ${fn}() requires at least one argument`);
+    let best;
+    for (const a of args) {
+        if (typeof a !== 'number') throw new Error(`Runtime Error: ${fn}() requires numeric arguments`);
+        if (best === undefined || (max ? a > best : a < best)) best = a;
+    }
+    return best;
+}
+
+// A FORMAT placeholder's spec (spec v0.30.0): [align][0][width][,][.Nf], each part optional, in
+// this order — a strict subset of Python's format spec in which each part does what it does in
+// Python, applied to the text PRINT shows for the value. Width and precision take at most three
+// digits; `0` combines with neither an alignment nor `,`.
+const FORMAT_SPEC = /^([<>^])?(0)?([1-9][0-9]{0,2})?(,)?(?:\.([0-9]{1,3})f)?$/;
+
+// The format as literal text and placeholders, in order.
+function parseFormat(fn, format) {
+    const parts = [];
+    let literal = '';
+    let i = 0;
+    while (i < format.length) {
+        const c = format[i];
+        if (c === '{' && format.startsWith('{{', i)) { literal += '{'; i += 2; continue; }
+        if (c === '}' && format.startsWith('}}', i)) { literal += '}'; i += 2; continue; }
+        if (c === '}') throw new Error(`Runtime Error: ${fn}() invalid format: unmatched }`);
+        if (c !== '{') { literal += c; i++; continue; }
+        const close = format.indexOf('}', i + 1);
+        if (close < 0) throw new Error(`Runtime Error: ${fn}() invalid format: unclosed {`);
+        const text = format.slice(i, close + 1);
+        const inner = text.slice(1, -1);
+        const m = inner.startsWith(':') ? FORMAT_SPEC.exec(inner.slice(1)) : null;
+        if (inner !== '' && (m === null || (m[2] !== undefined && (m[1] !== undefined || m[4] !== undefined)))) {
+            throw new Error(`Runtime Error: ${fn}() invalid format: ${text}`);
+        }
+        if (literal !== '') { parts.push(literal); literal = ''; }
+        parts.push({
+            text,
+            align: m && m[1] !== undefined ? m[1] : '',
+            zero: !!(m && m[2] !== undefined),
+            width: m && m[3] !== undefined ? Number(m[3]) : 0,
+            comma: !!(m && m[4] !== undefined),
+            precision: m && m[5] !== undefined ? Number(m[5]) : -1
+        });
+        i = close + 1;
+    }
+    if (literal !== '') parts.push(literal);
+    return parts;
+}
+
+// "1234567.5" → "1,234,567.5": commas in the integer digits only.
+function groupThousands(body) {
+    const point = body.indexOf('.');
+    const whole = point < 0 ? body : body.slice(0, point);
+    let out = '';
+    for (let i = 0; i < whole.length; i++) {
+        if (i > 0 && (whole.length - i) % 3 === 0) out += ',';
+        out += whole[i];
+    }
+    return point < 0 ? out : out + body.slice(point);
+}
+
+function countOf(n, noun) {
+    return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 // Spec v0.25.0: the only text TO_NUMBER reads — an optional sign, ASCII digits with an optional
 // fraction (".5" and "5." included), an optional exponent. Number() alone would also read
 // "0x10", "0o17", "0b101" and "Infinity" (and "" as 0), which the Java runtime rejects.
@@ -5477,12 +5648,13 @@ function matchObject(match) {
     return { match: match[0], position: match.index + 1, groups: match.slice(1).map(value), named };
 }
 
-// Interpreter-dispatched names cannot be replaced by host registrations (spec v0.13.0).
-const INTERPRETER_DISPATCHED = new Set(['PRINT', 'SLEEP', 'FAIL', 'UNWRAP']);
+// Interpreter-dispatched names cannot be replaced by host registrations (spec v0.13.0; PRINTF
+// since v0.30.0).
+const INTERPRETER_DISPATCHED = new Set(['PRINT', 'PRINTF', 'SLEEP', 'FAIL', 'UNWRAP']);
 function requireReplaceableName(name) {
     if (INTERPRETER_DISPATCHED.has(name)) {
         throw new Error(`Cannot register an external function named '${name}': ` +
-            'interpreter-dispatched names (PRINT, SLEEP, FAIL, UNWRAP) cannot be replaced');
+            'interpreter-dispatched names (PRINT, PRINTF, SLEEP, FAIL, UNWRAP) cannot be replaced');
     }
     return name;
 }
@@ -5656,26 +5828,87 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             return String(a).localeCompare(String(b));
         };
 
+        // FORMAT(format, values...) and PRINTF's text (spec v0.30.0): each {} or {:spec} takes the
+        // next value; {{ and }} are literal braces. The format is checked whole before any value is
+        // used: an invalid format, then a count mismatch, then a value a number-only spec cannot
+        // take. {} is the value as PRINT shows it; .Nf rounds the shown digits like ROUND(x, N)
+        // and writes exactly N decimals without an exponent; `,` groups the integer digits; `0`
+        // pads with zeros after the sign; a value rounded to zero has no sign; Infinity and NaN
+        // take only the alignment and width. Numbers align right by default, the rest left.
+        const formatText = (fn, args) => {
+            if (args.length < 1) throw new Error(`Runtime Error: ${fn}() missing argument 1`);
+            if (typeof args[0] !== 'string') throw new Error(`Runtime Error: ${fn}() requires a string format`);
+            const parts = parseFormat(fn, args[0]);
+            const placeholders = parts.filter(part => typeof part !== 'string').length;
+            if (placeholders !== args.length - 1) {
+                throw new Error(`Runtime Error: ${fn}() format has ${countOf(placeholders, 'placeholder')}, got ${countOf(args.length - 1, 'value')}`);
+            }
+            let next = 1;
+            return parts.map(part => typeof part === 'string' ? part : formatValue(fn, part, args[next++])).join('');
+        };
+        const formatValue = (fn, p, v) => {
+            const number = typeof v === 'number';
+            if ((p.zero || p.comma || p.precision >= 0) && !number) {
+                throw new Error(`Runtime Error: ${fn}() ${p.text} requires a number, got ${this._valueTypeName(v)}`);
+            }
+            let text;
+            if (number && Number.isFinite(v)) {
+                let sign, body;
+                if (p.precision >= 0) {
+                    const d = roundDigits(decimalDigits(v), p.precision, 'HALF_UP');
+                    sign = d.negative && d.digits !== '' ? '-' : '';
+                    body = fixedText(d, p.precision);
+                } else {
+                    const shown = formatDisplayValue(v);
+                    sign = shown.startsWith('-') ? '-' : '';
+                    body = shown.slice(sign.length);
+                }
+                if (p.comma && !body.includes('e')) body = groupThousands(body);
+                if (p.zero) body = '0'.repeat(Math.max(0, p.width - sign.length - body.length)) + body;
+                text = sign + body;
+            } else {
+                text = formatDisplayValue(v);
+            }
+            const fill = p.width - text.length;
+            if (fill <= 0) return text;
+            const align = p.align || (number ? '>' : '<');
+            if (align === '<') return text + ' '.repeat(fill);
+            if (align === '^') return ' '.repeat(Math.floor(fill / 2)) + text + ' '.repeat(fill - Math.floor(fill / 2));
+            return ' '.repeat(fill) + text;
+        };
+
         const defaultFunctions = {
             'PRINT': (...args) => { this.stdout(...args.map(a => formatDisplayValue(a))); return {}; },
+            // PRINTF(format, values...) is one line: PRINT(FORMAT(format, values...)) (spec v0.30.0).
+            'PRINTF': (...args) => { this.stdout(formatText('PRINTF', args)); return {}; },
+            'FORMAT': (...args) => formatText('FORMAT', args),
+            // The math built-ins check their arguments like the reference runtime (spec v0.30.0).
             'SUM': (...args) => {
+                for (const a of args) {
+                    if (typeof a !== 'number') throw new Error('Runtime Error: SUM() requires numeric arguments');
+                }
                 const sum = args.reduce((a, b) => a + b, 0);   // spec v0.14.0: integer SUM overflow fails loudly (like +/*)
                 if (args.every(a => this._isIntValue(a)) && (sum < -2147483648 || sum > 2147483647)) {
                     throw new Error('Runtime Error: Integer overflow');
                 }
                 return sum;
             },
-            'MAX': (...args) => Math.max(...args),
-            'MIN': (...args) => Math.min(...args),
-            // FLOOR/CEIL/ROUND produce an Integer; a result outside the 32-bit range is a loud
-            // error, never a silent promotion — and |−2³¹| does not fit ABS (spec v0.13.0).
-            'ABS': (n) => {
+            'MAX': (...args) => minMax('MAX', args, true),
+            'MIN': (...args) => minMax('MIN', args, false),
+            // FLOOR/CEIL/ROUND/TRUNC without digits produce an Integer; a result outside the 32-bit
+            // range is a loud error, never a silent promotion — and |−2³¹| does not fit ABS (spec
+            // v0.13.0). With digits they produce a decimal (spec v0.30.0) — see rounding().
+            'ABS': (...args) => {
+                if (args.length < 1) throw new Error('Runtime Error: ABS() missing argument 1');
+                const n = args[0];
+                if (typeof n !== 'number') throw new Error('Runtime Error: ABS() requires numeric arguments');
                 if (n === -2147483648) throw new Error('Runtime Error: Integer overflow');
                 return Math.abs(n);
             },
-            'FLOOR': (n) => intResult(Math.floor(n)),
-            'CEIL': (n) => intResult(Math.ceil(n)),
-            'ROUND': (n) => intResult(Math.round(n)),
+            'FLOOR': (...args) => rounding('FLOOR', args, 'FLOOR'),
+            'CEIL': (...args) => rounding('CEIL', args, 'CEILING'),
+            'ROUND': (...args) => rounding('ROUND', args, 'HALF_UP'),
+            'TRUNC': (...args) => rounding('TRUNC', args, 'DOWN'),
             'LEN': (a) => {
                 if (Array.isArray(a)) return a.length;
                 if (typeof a === 'string') return a.length;
@@ -6086,7 +6319,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // or throw an exception which is automatically caught and wrapped as
     // {ok: false, value: "error message"}.
     registerExternal(name, func) {
-        requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
+        requireReplaceableName(name);   // host-API error for PRINT/PRINTF/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         this.functions[name] = (...args) => {
             const shellThread = name === 'SHELL' ? this.activeThread : null;
             if (shellThread) this._startShellObservation(shellThread);
@@ -6107,7 +6340,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // Used for blocking I/O (DB queries, HTTP calls) so other ProperTee threads aren't frozen.
     // The function can be synchronous or return a Promise for truly async operations.
     registerExternalAsync(name, func, timeoutMs = 0) {
-        requireReplaceableName(name);   // host-API error for PRINT/SLEEP/FAIL/UNWRAP (spec v0.13.0)
+        requireReplaceableName(name);   // host-API error for PRINT/PRINTF/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         const self = this;
         this.functions[name] = (...args) => {
             if (!self.activeThread) {

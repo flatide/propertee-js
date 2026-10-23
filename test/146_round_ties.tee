@@ -1,0 +1,13 @@
+// spec v0.30.0: ROUND sends a tie away from zero, with or without digits (was: toward +infinity)
+PRINT(ROUND(0.5), ROUND(1.5), ROUND(2.5), ROUND(-0.5), ROUND(-1.5), ROUND(-2.5))
+PRINT(ROUND(2.5, 0), ROUND(-2.5, 0), ROUND(0.125, 2), ROUND(-0.125, 2))
+PRINT(ROUND(1250, -2), ROUND(-1250, -2), ROUND(-1.005, 2), ROUND(-2.675, 2))
+
+// just under a tie stays under: 0.49999999999999994 is the largest double below 0.5
+PRINT(ROUND(0.49999999999999994), ROUND(-0.49999999999999994))
+
+// symmetric: ROUND(-x, d) is -ROUND(x, d)
+PRINT(ROUND(-1.005, 2) == -ROUND(1.005, 2), ROUND(-2.5) == -ROUND(2.5))
+
+// without digits ROUND is still an integer inside the 32-bit range
+PRINT(ROUND(2147483646.5), ROUND(-2147483647.5))
