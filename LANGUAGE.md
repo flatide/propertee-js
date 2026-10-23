@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.30.0
+# ProperTee Language Specification v0.31.0
 
 ## Overview
 
@@ -965,53 +965,27 @@ All built-in function names are UPPERCASE, and the all-uppercase namespace is re
 
 `FORMAT(format, values...)` returns a string made from `format`, with each placeholder in it
 replaced by the next value (spec v0.30.0). `PRINTF(format, values...)` prints that string as one
-line, as `PRINT` does, and returns `{}`; unlike C's `printf`, it ends the line.
+line, as `PRINT` does, and returns `{}`; unlike C's `printf`, it ends the line. A placeholder can
+hold a [number pattern](#number-patterns), a picture of how the number is written — `0.00`,
+`#,##0` — with the symbols of a spreadsheet's number format (spec v0.31.0).
 
 ```
-PRINTF("{} items, average {:.2f}", 3, 3.4)     // 3 items, average 3.40
-loop row in [["apples", 3, 1.5], ["pears", 12, 0.25]] do
-    PRINTF("{:<8}{:>4}{:>8.2f}", row.1, row.2, row.3)
-end
-// apples     3    1.50
-// pears     12    0.25
-line = FORMAT("{:,.2f} won", 1234567.891)      // "1,234,567.89 won"
-PRINTF("{:.1f}", TRUNC(3.48, 1))               // 3.4 — cutting digits off is TRUNC's job
+PRINTF("{} items, average {0.00}", 3, 3.4)     // 3 items, average 3.40
+PRINTF("Total: {#,##0} won", 1234567)          // Total: 1,234,567 won
+PRINTF("Done: {0.0%}", 0.4567)                 // Done: 45.7%
+line = FORMAT("Order {00000}", 42)             // "Order 00042"
 ```
 
 | Placeholder | Meaning |
 |---|---|
 | `{}` | The next value as `PRINT` shows it — a string without quotes, an array or object as `PRINT` writes it. |
-| `{:spec}` | The next value, written as `spec` says. |
+| `{pattern}` | The next value, a number, written as the [number pattern](#number-patterns) draws it — `{0.00}`, `{#,##0}`. This is the text `TEXT(value, "pattern")` returns. |
 | `{{` and `}}` | A literal `{` and `}`. |
 
-`spec` is `[align][0][width][,][.Nf]`. Every part is optional, and the parts come in this order.
-This is a small part of Python's format specification, and each part does what it does in Python.
-The parts work on the text `PRINT` shows for the value, though, so a result can differ from
-Python's: `true` stays `true` (Python formats it as `1`), and a whole or a large decimal keeps
-`PRINT`'s form — `2`, `10000000000000000` — where Python writes `2.0` and `1e+16`. With `.Nf` the
-number is written with exactly N decimals instead.
-
-| Part | Meaning | Example |
-|---|---|---|
-| `<` `>` `^` | Align left, right, or center within the width. Without one, numbers go right and everything else left. | `FORMAT("[{:^6}]", "ab")` → `[  ab  ]` |
-| width | The least number of characters, padded with spaces; longer text is not cut. At most three digits. | `FORMAT("[{:6}]", 42)` → `[    42]` |
-| `0` | Pad with zeros after the sign instead (numbers only). It does not combine with an alignment or `,`. | `FORMAT("{:08.2f}", -3.4)` → `-0003.40` |
-| `,` | Separate the integer digits into groups of three with commas (numbers only). | `FORMAT("{:,}", 1234567)` → `1,234,567` |
-| `.Nf` | Exactly N decimals, N at most three digits (numbers only). The number is rounded as `ROUND(x, N)` rounds it and is never written with an exponent. | `FORMAT("{:.2f}", 3.4)` → `3.40` |
-
-- The width counts characters as `LEN` does (UTF-16 code units). A character that takes two
-  columns in a terminal, such as a Hangul syllable, counts as one, so columns of such text do not
-  line up in a terminal.
-- `.Nf` rounds the digits `PRINT` shows, a tie away from zero, where Python rounds the binary value
-  with ties to even. The results can differ: `{:.2f}` of `1.005` is `1.01` (Python: `1.00`) and
-  `{:.0f}` of `2.5` is `3` (Python: `2`). A number that rounds to zero has no sign: `{:.1f}` of
-  `-0.04` is `0.0` (Python: `-0.0`).
-- `.Nf` writes a large number in full — `{:.2f}` of `1e21` is `1000000000000000000000.00` — while
-  `{}` shows `1e+21`, as `PRINT` does.
-- `Infinity`, `-Infinity` and `NaN` are written as `PRINT` shows them; only the alignment and the
-  width apply to them.
-- Positional (`{1}`) and named (`{name}`) placeholders are errors today, so a later version can
-  give them a meaning without changing what an existing script does.
+Nothing else goes between the braces — not a space, and not a position such as `{1}`, which would
+read like the pattern `{0}`. A name such as `{total}` is an error today, so a later version can
+give it a meaning without changing what an existing script does. To line values up in columns, use
+[`ALIGN_LEFT`, `ALIGN_RIGHT` and `ALIGN_CENTER`](#aligning-text).
 
 The format is checked as a whole before any value is used, and errors are reported in this order —
 the three kinds of invalid format as they occur from left to right:
@@ -1020,14 +994,122 @@ the three kinds of invalid format as they occur from left to right:
 |---|---|
 | no `format` | `FORMAT() missing argument 1` |
 | `format` not a string | `FORMAT() requires a string format` |
-| a placeholder of any other form — `{:x}`, `{1}`, `{name}` | `FORMAT() invalid format: {:x}` |
+| a placeholder that is neither `{}` nor a number pattern — `{:.2f}`, `{1}`, `{x}`, `{ 0.00 }` | `FORMAT() invalid format: {:.2f}` |
 | a `{` with no `}` after it | `FORMAT() invalid format: unclosed {` |
 | a `}` outside a placeholder that is not `}}` | `FORMAT() invalid format: unmatched }` |
 | more or fewer values than placeholders | `FORMAT() format has 2 placeholders, got 3 values` |
-| `0`, `,` or `.Nf` for a value that is not a number | `FORMAT() {:.2f} requires a number, got string` |
+| a value that is not a number under a pattern | `FORMAT() {0.00} requires a number, got string` |
 
-`PRINTF` reports the same errors under its own name — `PRINTF() invalid format: {:x}` — and, like
+`PRINTF` reports the same errors under its own name — `PRINTF() invalid format: {x}` — and, like
 the other built-ins' errors, without a line number.
+
+#### Number patterns
+
+A number pattern draws how a number is written. It uses the symbols of a spreadsheet's number
+format — Excel's custom formats and its `TEXT` function — so the pattern looks like the text it
+makes (spec v0.31.0). `TEXT(n, pattern)` writes one number this way, and a `{pattern}` placeholder
+writes the next value of a format this way.
+
+| Symbol | Meaning |
+|---|---|
+| `0` | A digit, always written: where the number has no digit, a `0` is written |
+| `#` | A digit, written only where the number has one |
+| `.` | The decimal point; the `0`s and `#`s after it are the decimals |
+| `,` | In the integer part: the digits are separated into groups of three with commas |
+| `%` | At the end only: the number is written times 100, followed by `%` |
+
+| Number | Pattern | Text |
+|---|---|---|
+| `3.14159` | `0.00` | `3.14` |
+| `3.4` | `0.00` | `3.40` |
+| `1234567.891` | `#,##0.00` | `1,234,567.89` |
+| `87.6` | `0` | `88` |
+| `7` | `000` | `007` |
+| `0.4567` | `0.0%` | `45.7%` |
+| `3.5`, `3` | `0.##` | `3.5`, `3` |
+
+- **Rounding** is `ROUND`'s: the digits `PRINT` shows are rounded to the pattern's decimals, a tie
+  away from zero ([Rounding to digits](#rounding-to-digits)). `1.005` with `0.00` is `1.01`,
+  `-2.5` with `0` is `-3`, and `9.995` with `0.00` is `10.00`.
+- **The integer digits are never cut.** The `0`s set the least number of digits, so `1234` with
+  `000` is `1234`, and at least one integer digit is written: `0.5` with `#.##` is `0.5`. Zeros
+  fill after the sign — `-7` with `000` is `-007` — and a `,` groups them with the other digits:
+  `7` with `0,000` is `0,007`.
+- **A `#` decimal** drops a trailing zero: with `0.0#`, `3.1` is `3.1` and `3` is `3.0`. When no
+  decimal is left, the decimal point is dropped too.
+- **`%`** moves the decimal point of the shown digits two places, so nothing is lost: `0.145` with
+  `0%` is `15%`, where multiplying the binary value by 100 gives 14.499999999999998.
+- A number that rounds to zero has no sign: `-0.004` with `0.00` is `0.00`. A large number is
+  written in full, never with an exponent: `1e21` with `#,##0` is `1,000,000,000,000,000,000,000`.
+- `Infinity`, `-Infinity` and `NaN` are written as `PRINT` shows them, whatever the pattern.
+- The integer part is `#`s followed by `0`s, and a comma may stand between two of them — never
+  first, last, or two in a row; the decimals are `0`s followed by `#`s. Precisely, a pattern matches
+  the regular expression `(#(,?#)*(,?0)*|0(,?0)*)(\.(0+#*|#+))?%?`. Anything else is not a pattern —
+  another character, `0#`, `0.#0`, `0.`, `.00`, `,0`, `0,` or `0,,0`.
+
+Patterns take only the part of a spreadsheet's number format that writes a number, and they differ
+from Excel where Excel surprises:
+
+- `3` with `0.##` is `3`, not Excel's `3.`, and `0.5` with `#.##` is `0.5`, not `.5`.
+- A trailing comma (`#,##0,`), which Excel uses to divide by 1000, is not a pattern.
+- A pattern holds no text (`#,##0" won"`), no section for negative numbers (`0;-0`), no color and
+  no date. Text goes around the placeholder: `{#,##0} won`.
+- A value that is not a number is an error, numeric text such as `"3.4"` included. Excel's `TEXT`
+  converts numeric text and passes other text through, but ProperTee converts no value silently, as
+  `5 == "5"` is `false`.
+
+`TEXT` checks its pattern before its number:
+
+| Case | Error |
+|---|---|
+| a missing argument | `TEXT() missing argument 2` |
+| a third argument | `TEXT() takes at most 2 arguments` |
+| `pattern` not a string | `TEXT() requires a string pattern` |
+| `pattern` not a number pattern | `TEXT() invalid pattern: '0.0.0'` |
+| `n` not a number | `TEXT() requires a number, got string` |
+
+#### Aligning text
+
+`ALIGN_LEFT(value, width)`, `ALIGN_RIGHT(value, width)` and `ALIGN_CENTER(value, width)` write the
+value as `PRINT` shows it and pad it with spaces to `width` columns, as a word processor's
+alignment buttons line text up (spec v0.31.0). Longer text is not cut, and centering puts an odd
+space on the right. `width` is an integer from 0 to 999.
+
+```
+loop row in [["사과", 3, 1500], ["배", 12, 25000], ["apple", 100, 1234567]] do
+    PRINT(ALIGN_LEFT(row.1, 6), ALIGN_RIGHT(row.2, 3), ALIGN_RIGHT(TEXT(row.3, "#,##0"), 9))
+end
+// 사과     3     1,500
+// 배      12    25,000
+// apple  100 1,234,567
+```
+
+The width counts **columns on screen**, so a table holding Hangul or Chinese text lines up in a
+terminal. Each code point is counted on its own, by the first of these rules that applies:
+
+- A combining mark or a format character (General_Category Mn, Me or Cf) takes none, and so does a
+  Hangul medial vowel or final consonant (U+1160–U+11FF, U+D7B0–U+D7FF), which joins the letter
+  before it into one syllable. A combining mark that is also wide, such as U+3099, takes none.
+- A character whose Unicode East_Asian_Width is W or F — Hangul syllables, Han characters, kana,
+  fullwidth forms, most emoji — takes two columns, and so does any code point in U+3400–U+4DBF,
+  U+4E00–U+9FFF, U+F900–U+FAFF, U+20000–U+2FFFD and U+30000–U+3FFFD.
+- Every other code point takes one, an unpaired surrogate (`SUBSTRING("😀", 1, 1)`) included.
+
+The data is Unicode 16.0, fixed so that every runtime counts alike. Because each code point counts
+alone, an emoji sequence may not match what a terminal draws: `❤️` (U+2764 U+FE0F) counts one
+column, and a family emoji such as `👨‍👩‍👧` counts six. `LEN` counts differently, in UTF-16 code
+units: `LEN("사과")` is 2, while `ALIGN_LEFT("사과", 6)` adds two spaces. Whether the columns line up
+on screen also depends on the font — a terminal draws a Hangul syllable two columns wide, but a web
+page whose monospace font has no Hangul may not.
+
+| Case | Error |
+|---|---|
+| a missing argument | `ALIGN_LEFT() missing argument 2` |
+| a third argument | `ALIGN_LEFT() takes at most 2 arguments` |
+| `width` not an integer from 0 to 999 | `ALIGN_LEFT() width must be an integer from 0 to 999` |
+
+A third argument is an error today, so a later version can add a fill character without changing
+what an existing script does.
 
 ### Math
 
@@ -1097,7 +1179,7 @@ and gives the same result in every runtime.
 `Integer overflow` error, as before. With `digits` it is a decimal — for `digits` `0` too — and
 never overflows: `ROUND(3000000000.7)` is an error, `ROUND(3000000000.7, 0)` is `3000000001`. A
 whole result shows without a fraction (`ROUND(3.0, 2)` → `3`); to show trailing zeros, use
-[`FORMAT`](#formatted-output).
+[`TEXT`](#number-patterns): `TEXT(3.0, "0.00")` → `"3.00"`.
 
 - `digits` must be an integer; a whole decimal such as `2.0` is accepted, as wherever an integer is
   required. Any integer will do. Places past the number's last digit change nothing
@@ -1185,7 +1267,11 @@ all-whitespace text.
 | `REGEX_FIND(s, pattern)` | The first match of regex `pattern` in `s`, as a [match object](#regular-expressions) `{match, position, groups, named}`; `{}` if there is none (spec v0.29.0). |
 | `REGEX_FIND_ALL(s, pattern)` | Every match of `pattern` in `s`, left to right and without overlap, as an array of match objects; `[]` if there is none (spec v0.29.0). |
 | `REPLACE(s, target, replacement)` | Replace all occurrences of `target` with `replacement`. Literal string match (not regex). |
-| `FORMAT(format, values...)` | A string made from `format`, each `{}` or `{:spec}` placeholder replaced by the next value — `FORMAT("{:.2f}", 3.4)` → `"3.40"` (spec v0.30.0). See [Formatted output](#formatted-output). |
+| `FORMAT(format, values...)` | A string made from `format`, each `{}` or `{pattern}` placeholder replaced by the next value — `FORMAT("{0.00} won", 3.4)` → `"3.40 won"` (spec v0.30.0; number patterns since v0.31.0). See [Formatted output](#formatted-output). |
+| `TEXT(n, pattern)` | The number `n` written as the [number pattern](#number-patterns) draws it — `TEXT(1234.5, "#,##0.00")` → `"1,234.50"` (spec v0.31.0). |
+| `ALIGN_LEFT(value, width)` | The value as `PRINT` shows it, padded with spaces on the right to `width` screen columns, a Hangul syllable taking two — `ALIGN_LEFT("ab", 4)` → `"ab  "` (spec v0.31.0). See [Aligning text](#aligning-text). |
+| `ALIGN_RIGHT(value, width)` | Likewise, padded on the left — `ALIGN_RIGHT(42, 5)` → `"   42"` (spec v0.31.0). |
+| `ALIGN_CENTER(value, width)` | Likewise, padded on both sides, an odd space on the right — `ALIGN_CENTER("ab", 5)` → `" ab  "` (spec v0.31.0). |
 
 #### Whitespace
 
@@ -1815,7 +1901,7 @@ Numbers render by **ECMA-262 `Number::toString`**, uniformly across `PRINT`, `TO
 
 To round a value to a number of decimal places, use `ROUND(x, 2)` and its kin
 ([Rounding to digits](#rounding-to-digits)); to show a fixed number of decimals, trailing zeros
-included, use `FORMAT("{:.2f}", x)` ([Formatted output](#formatted-output)).
+included, use `TEXT(x, "0.00")` ([Number patterns](#number-patterns)).
 
 ## Runtime Errors
 
@@ -1861,8 +1947,10 @@ Common error conditions:
 | `SUM`/`MAX`/`MIN`/`ABS`/`ROUND`/`FLOOR`/`CEIL`/`TRUNC` given a value that is not a number | SUM() requires numeric arguments |
 | `digits` that is not an integer | ROUND() digits must be an integer |
 | A third argument to `ROUND`/`FLOOR`/`CEIL`/`TRUNC` | ROUND() takes at most 2 arguments |
-| A `FORMAT`/`PRINTF` format that is not valid | FORMAT() invalid format: {:x} |
+| A `FORMAT`/`PRINTF` format that is not valid | FORMAT() invalid format: {:.2f} |
 | `FORMAT`/`PRINTF` placeholders and values that do not match in number | FORMAT() format has 2 placeholders, got 3 values |
+| A `TEXT` pattern that is not a number pattern | TEXT() invalid pattern: '0.0.0' |
+| An `ALIGN_LEFT`/`ALIGN_RIGHT`/`ALIGN_CENTER` width that is not an integer from 0 to 999 | ALIGN_LEFT() width must be an integer from 0 to 999 |
 | `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
 | `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
 | `FILE_LINES` of a file that cannot be read | FILE_LINES() cannot read 'x': no such file |
@@ -1883,6 +1971,44 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 
 ## Changelog
 
+### v0.31.0 — Number patterns, `TEXT`, and `ALIGN_LEFT`/`ALIGN_RIGHT`/`ALIGN_CENTER`
+
+Breaking for `FORMAT` and `PRINTF` placeholders; four new built-ins; no grammar change. The
+v0.30.0 placeholders came from Python's format specification — `{:>10,.2f}` — whose symbols have to
+be learned before they can be read. That does not suit a language meant to be read by people who
+are not programmers.
+
+- **Number patterns** replace `{:spec}`: a placeholder holds a picture of the number drawn with the
+  symbols of a spreadsheet's number format — `{0.00}`, `{#,##0}`, `{000}`, `{0.0%}`. See
+  [Number patterns](#number-patterns).
+- **`TEXT(n, pattern)`** writes one number as a pattern draws it, as Excel's `TEXT` does:
+  `TEXT(1234.5, "#,##0.00")` → `"1,234.50"`.
+- **`ALIGN_LEFT`, `ALIGN_RIGHT` and `ALIGN_CENTER(value, width)`** pad a value with spaces to a
+  width counted in screen columns — a Hangul syllable takes two — and take over the alignment and
+  width of the v0.30.0 placeholders. See [Aligning text](#aligning-text).
+- `{}`, `{{` and `}}`, the names and arguments of `FORMAT` and `PRINTF`, and the rounding functions
+  are unchanged. A host external named `TEXT` or `ALIGN_LEFT`, `ALIGN_RIGHT`, `ALIGN_CENTER`
+  replaces the new built-in, as for any catalog name.
+
+Migration: a v0.30.0 placeholder with a spec is now the error `FORMAT() invalid format: {:.2f}`,
+so no script changes its output silently.
+
+| v0.30.0 | v0.31.0 |
+|---|---|
+| `{:.2f}` | `{0.00}` |
+| `{:,}` | `{#,##0}` — a pattern sets the decimals: `{#,##0.##}` keeps up to two |
+| `{:,.2f}` | `{#,##0.00}` |
+| `{:05}` | `{00000}` for an integer — the zeros count digits, not the sign; a pattern also sets the decimals |
+| `{:10}` | `ALIGN_RIGHT(value, 10)` for a number, `ALIGN_LEFT(value, 10)` for anything else — v0.30.0's defaults |
+| `{:>10}`, `{:<10}`, `{:^10}` | `ALIGN_RIGHT(value, 10)`, `ALIGN_LEFT(value, 10)`, `ALIGN_CENTER(value, 10)` |
+| `{:>10.2f}` | `ALIGN_RIGHT(TEXT(value, "0.00"), 10)` |
+
+The width of `ALIGN_*` counts screen columns, where v0.30.0 counted UTF-16 code units, so text with
+Hangul or other wide characters gets fewer spaces: `FORMAT("{:>6}", "사과")` was `"    사과"`, and
+`ALIGN_RIGHT("사과", 6)` is `"  사과"`.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
+
 ### v0.30.0 — Rounding to digits, `TRUNC`, and formatted output
 
 Breaking for `ROUND` of a negative tie; three new built-ins; no grammar change. There was no way
@@ -1900,7 +2026,8 @@ rounded toward zero, and trailing zeros could not be shown.
   width, zero padding, thousands separators and a fixed number of decimals (`{:.2f}`) — and
   **`PRINTF(format, values...)`** prints it as one line. See [Formatted output](#formatted-output).
   `PRINT` itself is unchanged: reading its first argument as a format would silently change what
-  `PRINT("{}", x)` prints today.
+  `PRINT("{}", x)` prints today. (v0.31.0 replaced the `{:spec}` placeholders with number
+  patterns.)
 - `PRINTF` is an interpreter-dispatched name, like `PRINT`, so registering a host external under
   it is now a host-API error. A host external named `TRUNC` or `FORMAT` replaces the new built-in,
   as for any catalog name. A host that ignores `PRINT` to keep scripts quiet must ignore `PRINTF`

@@ -1,22 +1,26 @@
 [THREAD ERROR] Runtime Error: FORMAT() requires a string format
 [THREAD ERROR] Runtime Error: FORMAT() format has 2 placeholders, got 3 values
 [THREAD ERROR] Runtime Error: FORMAT() format has 1 placeholder, got 0 values
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {:x}
+[THREAD ERROR] Runtime Error: FORMAT() invalid format: {:.2f}
 [THREAD ERROR] Runtime Error: FORMAT() invalid format: {1}
+[THREAD ERROR] Runtime Error: FORMAT() invalid format: {0.0.0}
+[THREAD ERROR] Runtime Error: FORMAT() invalid format: { 0.00 }
+[THREAD ERROR] Runtime Error: FORMAT() invalid format: {x}
 [THREAD ERROR] Runtime Error: FORMAT() invalid format: unclosed {
 [THREAD ERROR] Runtime Error: FORMAT() invalid format: unmatched }
-[THREAD ERROR] Runtime Error: FORMAT() {:.2f} requires a number, got string
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {:<05}
-[THREAD ERROR] Runtime Error: PRINTF() {:,} requires a number, got boolean
+[THREAD ERROR] Runtime Error: FORMAT() {0.00} requires a number, got string
+[THREAD ERROR] Runtime Error: PRINTF() {#,##0} requires a number, got boolean
 a false Runtime Error: FORMAT() requires a string format
 b false Runtime Error: FORMAT() format has 2 placeholders, got 3 values
 c false Runtime Error: FORMAT() format has 1 placeholder, got 0 values
-d false Runtime Error: FORMAT() invalid format: {:x}
+d false Runtime Error: FORMAT() invalid format: {:.2f}
 e false Runtime Error: FORMAT() invalid format: {1}
-f false Runtime Error: FORMAT() invalid format: unclosed {
-g false Runtime Error: FORMAT() invalid format: unmatched }
-h false Runtime Error: FORMAT() {:.2f} requires a number, got string
-i false Runtime Error: FORMAT() invalid format: {:<05}
-j false Runtime Error: PRINTF() {:,} requires a number, got boolean
+f false Runtime Error: FORMAT() invalid format: {0.0.0}
+g false Runtime Error: FORMAT() invalid format: { 0.00 }
+h false Runtime Error: FORMAT() invalid format: {x}
+i false Runtime Error: FORMAT() invalid format: unclosed {
+j false Runtime Error: FORMAT() invalid format: unmatched }
+k false Runtime Error: FORMAT() {0.00} requires a number, got string
+l false Runtime Error: PRINTF() {#,##0} requires a number, got boolean
 before
 Runtime error: Runtime Error: PRINTF() format has 2 placeholders, got 1 value

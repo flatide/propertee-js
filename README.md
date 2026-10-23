@@ -123,7 +123,7 @@ Prerequisites: [antlr4 CLI](https://www.antlr.org/) (`brew install antlr` on mac
 ## Testing
 
 ```bash
-# Run all 126 tests (121 fixtures + 5 host-API tests)
+# Run every fixture (test/*.tee) and the host-API tests
 npm test
 
 # Run a single test

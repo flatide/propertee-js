@@ -1,0 +1,24 @@
+// spec v0.31.0: ALIGN_LEFT/ALIGN_RIGHT/ALIGN_CENTER(value, width) pad the value as PRINT shows it
+// with spaces to `width` columns; centering puts an odd space on the right
+PRINT("[" + ALIGN_LEFT("ab", 6) + "] [" + ALIGN_RIGHT("ab", 6) + "] [" + ALIGN_CENTER("ab", 6) + "] [" + ALIGN_CENTER("ab", 7) + "]")
+
+// any value, as PRINT shows it; longer text is not cut; a whole decimal width
+PRINT("[" + ALIGN_RIGHT(42, 5) + "] [" + ALIGN_LEFT(true, 6) + "] [" + ALIGN_LEFT([1, "a"], 12) + "] [" + ALIGN_RIGHT({}, 4) + "]")
+PRINT("[" + ALIGN_LEFT("long text", 3) + "] [" + ALIGN_RIGHT("x", 0) + "] [" + ALIGN_CENTER("", 3) + "] [" + ALIGN_LEFT("a", 2.0) + "]")
+
+// columns: a Hangul syllable, a Han character, kana, a fullwidth letter and most emoji take two
+PRINT("[" + ALIGN_LEFT("사과", 6) + "] [" + ALIGN_RIGHT("漢字", 6) + "] [" + ALIGN_LEFT("カナ", 6) + "] [" + ALIGN_LEFT("ＡＢ", 6) + "] [" + ALIGN_LEFT("😀", 4) + "]")
+PRINT(LEN("사과"), LEN(ALIGN_LEFT("사과", 6)), LEN("😀"), LEN(ALIGN_LEFT("😀", 4)))
+
+// a combining accent, and the vowel and final consonant of a decomposed Hangul syllable, take none
+PRINT("[" + ALIGN_LEFT("é", 3) + "] [" + ALIGN_LEFT("한", 4) + "]", LEN("é"), LEN("한"))
+
+// the zero-column rule comes first: a combining mark that is also wide (U+3099 after か, the
+// variation selector U+E0100 after 葛) takes none; an ideographic space takes two, a halfwidth
+// katakana one, and an unpaired surrogate one
+PRINT("[" + ALIGN_LEFT("が", 4) + "] [" + ALIGN_LEFT("葛󠄀", 4) + "] [" + ALIGN_LEFT("　", 4) + "] [" + ALIGN_LEFT("ｱ", 4) + "]", LEN(ALIGN_LEFT(SUBSTRING("😀", 1, 1), 3)))
+
+// a table whose columns line up on screen
+loop row in [["사과", 3, 1500], ["배", 12, 25000], ["apple", 100, 1234567]] do
+    PRINT(ALIGN_LEFT(row.1, 6), ALIGN_RIGHT(row.2, 3), ALIGN_RIGHT(TEXT(row.3, "#,##0"), 9))
+end

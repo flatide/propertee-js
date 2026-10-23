@@ -1,5 +1,5 @@
-// spec v0.30.0: FORMAT and PRINTF fail loudly on a bad format, a count mismatch, or a value a
-// number-only spec cannot take
+// spec v0.31.0: FORMAT and PRINTF fail loudly on a bad format, a count mismatch, or a value that
+// is not a number under a pattern
 function notAString() do
     return FORMAT(5)
 end
@@ -12,12 +12,24 @@ function tooFewValues() do
     return FORMAT("{}")
 end
 
-function unknownSpec() do
-    return FORMAT("{:x}", 1)
+function oldSpec() do
+    return FORMAT("{:.2f}", 1)
 end
 
 function positional() do
     return FORMAT("{1}", 1)
+end
+
+function badPattern() do
+    return FORMAT("{0.0.0}", 1)
+end
+
+function spaces() do
+    return FORMAT("{ 0.00 }", 1)
+end
+
+function leftToRight() do
+    return FORMAT("{x} {", 1)
 end
 
 function unclosed() do
@@ -29,15 +41,11 @@ function unmatched() do
 end
 
 function textForNumber() do
-    return FORMAT("{:.2f}", "3.4")
-end
-
-function zeroWithAlign() do
-    return FORMAT("{:<05}", 1)
+    return FORMAT("{0.00}", "3.4")
 end
 
 function printfName() do
-    PRINTF("{:,}", true)
+    PRINTF("{#,##0}", true)
     return 0
 end
 
@@ -45,17 +53,19 @@ multi r do
     thread a: notAString()
     thread b: tooManyValues()
     thread c: tooFewValues()
-    thread d: unknownSpec()
+    thread d: oldSpec()
     thread e: positional()
-    thread f: unclosed()
-    thread g: unmatched()
-    thread h: textForNumber()
-    thread i: zeroWithAlign()
-    thread j: printfName()
+    thread f: badPattern()
+    thread g: spaces()
+    thread h: leftToRight()
+    thread i: unclosed()
+    thread j: unmatched()
+    thread k: textForNumber()
+    thread l: printfName()
 end
 
-loop k, v in r do
-    PRINT(k, v.ok, v.value)
+loop key, v in r do
+    PRINT(key, v.ok, v.value)
 end
 
 PRINT("before")

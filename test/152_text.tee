@@ -1,0 +1,37 @@
+// spec v0.31.0: TEXT(n, pattern) writes one number as a number pattern draws it
+// 0 always writes a digit and # only when there is one; the decimals follow the point
+PRINT(TEXT(3.14159, "0.00"), TEXT(3.4, "0.00"), TEXT(87.6, "0"), TEXT(3, "0.000"))
+PRINT(TEXT(3, "0.##"), TEXT(3.5, "0.##"), TEXT(3.14159, "0.##"), TEXT(3.1, "0.0#"), TEXT(3, "0.0#"))
+
+// the integer digits are never cut, at least one is written, and zeros fill after the sign
+PRINT(TEXT(7, "000"), TEXT(1234, "000"), TEXT(-7, "000"), TEXT(0.5, "#.##"), TEXT(0.5, "000.0"))
+
+// , groups the integer digits by three, filled zeros included
+PRINT(TEXT(1234567, "#,##0"), TEXT(1234567.891, "#,##0.00"), TEXT(999, "#,##0"), TEXT(-1234.5, "#,##0.0"))
+PRINT(TEXT(7, "0,000"), TEXT(-7, "0,000"), TEXT(1234567, "#,0"), TEXT(1234567, "0,0"))
+
+// % writes the number times 100, moving the point on the shown digits — exactly
+PRINT(TEXT(0.4567, "0.0%"), TEXT(0.145, "0%"), TEXT(0.5, "0.#%"), TEXT(1.5, "#,##0%"), TEXT(-0.001, "0%"))
+
+// rounding is ROUND's: the shown digits, a tie away from zero; zero has no sign
+PRINT(TEXT(1.005, "0.00"), TEXT(2.675, "0.00"), TEXT(2.5, "0"), TEXT(-2.5, "0"), TEXT(9.995, "0.00"))
+PRINT(TEXT(0.1 + 0.2, "0.00"), TEXT(10 / 3, "0.####"), TEXT(-0.004, "0.00"), TEXT(-0.5, "0.##"))
+PRINT(TEXT(0, "#"), TEXT(-0.4, "#"), TEXT(0, "0.##%"))
+
+// a large number is written in full; integers and decimals alike
+PRINT(TEXT(TO_NUMBER("1e21"), "#,##0"), TEXT(TO_NUMBER("1e-7"), "0.00"), TEXT(2 * 1000, "0.0"), TEXT(2000.0, "0.0"))
+PRINT(TEXT(2147483647, "#,##0"), TEXT(TO_NUMBER("123456789012345680000"), "0"))
+
+// Infinity and NaN are written as PRINT shows them
+big = TO_NUMBER("1e308") * 10
+PRINT(TEXT(big, "#,##0.00"), TEXT(-big, "0%"), TEXT(big - big, "000"), TEXT(big, "0%"), TEXT(big - big, "0.0#%"))
+
+// a long pattern is read in one pass
+p = "0"
+loop i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] do
+    p = p + p
+end
+PRINT(LEN(p), LEN(TEXT(1, p)), LEN(TEXT(1, "#," + p + "." + p)), LEN(FORMAT("{" + p + "%}", 0.5)))
+
+// TEXT writes what {pattern} writes
+PRINT(TEXT(1234.5, "#,##0.00") == FORMAT("{#,##0.00}", 1234.5), TYPE_OF(TEXT(1, "0")))

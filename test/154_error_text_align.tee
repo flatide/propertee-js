@@ -1,0 +1,65 @@
+// spec v0.31.0: TEXT and ALIGN_* fail loudly; the pattern is checked before the value
+function text(n, pattern) do
+    return TEXT(n, pattern)
+end
+
+function textNoArgs() do
+    return TEXT()
+end
+
+function textOneArg() do
+    return TEXT(3)
+end
+
+function textThreeArgs() do
+    return TEXT(3, "0", 1)
+end
+
+function alignNoArgs() do
+    return ALIGN_RIGHT()
+end
+
+function alignNoWidth() do
+    return ALIGN_LEFT("a")
+end
+
+function alignFill() do
+    return ALIGN_RIGHT("7", 3, "0")
+end
+
+function align(width) do
+    return ALIGN_CENTER("a", width)
+end
+
+multi r do
+    thread a: textNoArgs()
+    thread b: textOneArg()
+    thread c: textThreeArgs()
+    thread d: text(3, 2)
+    thread e: text(3, "0.0.0")
+    thread f: text(3, "")
+    thread g: text(3, ".2f")
+    thread h: text(3, "0.")
+    thread i: text(3, ".00")
+    thread j: text(3, "0#")
+    thread k: text(3, "0.#0")
+    thread l: text(3, ",0")
+    thread m: text(3, "0,")
+    thread n: text(3, "#,##0,")
+    thread o: text(3, "0%%")
+    thread p: text(3, "0원")
+    thread q: text("3.4", "0.00")
+    thread r: text(true, "0")
+    thread s: text("x", "y")
+    thread t: alignNoArgs()
+    thread u: alignNoWidth()
+    thread v: alignFill()
+    thread w: align(-1)
+    thread x: align(1000)
+    thread y: align(2.5)
+    thread z: align("5")
+end
+
+loop key, res in r do
+    PRINT(key, res.ok, res.value)
+end

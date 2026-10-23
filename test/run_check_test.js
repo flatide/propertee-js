@@ -73,7 +73,7 @@ function expectEqual(label, actual, expected) {
     expectEqual('dispatched names present',
         ['FAIL', 'UNWRAP', 'PRINT', 'PRINTF', 'SLEEP'].every(n => names.includes(n)), true);
     expectEqual('catalog sample present',
-        ['CONTAINS', 'FILE_LINES', 'FORMAT', 'JSON_PARSE', 'LIST_DIR_NAMES', 'SHELL', 'TRUNC', 'TYPE_OF'].every(n => names.includes(n)), true);
+        ['ALIGN_LEFT', 'CONTAINS', 'FILE_LINES', 'FORMAT', 'JSON_PARSE', 'LIST_DIR_NAMES', 'SHELL', 'TEXT', 'TRUNC', 'TYPE_OF'].every(n => names.includes(n)), true);
 }
 
 if (failures > 0) process.exit(1);

@@ -1,34 +1,21 @@
-// spec v0.30.0: FORMAT(format, values...) fills {} and {:spec} placeholders in order
-PRINT(FORMAT("{} 개, 평균 {:.2f}", 3, 3.4))
+// spec v0.31.0: FORMAT(format, values...) fills {} and {pattern} placeholders in order
+PRINT(FORMAT("{}개, 평균 {0.00}점", 3, 3.4))
 
 // {} is the value as PRINT shows it
 PRINT(FORMAT("{}|{}|{}|{}|{}|{}", "text", 42, 2.5, true, null, 10 / 4))
 PRINT(FORMAT("{} {} {}", [1, "a"], {"k": "v"}, {}))
 PRINT(FORMAT("{} {}", TO_NUMBER("1e21"), 0.1 + 0.2))
 
-// .Nf: exactly N decimals, rounded like ROUND(x, N), never an exponent
-PRINT(FORMAT("[{:.2f}] [{:.0f}] [{:.3f}] [{:.1f}]", 3.4, 2.5, 7, 1.25))
-PRINT(FORMAT("[{:.2f}] [{:.2f}] [{:.2f}] [{:.4f}]", 1.005, 2.675, 0.1 + 0.2, 10 / 3))
-PRINT(FORMAT("[{:.1f}] [{:.0f}] [{:.2f}]", -0.04, -0.4, -1.005))
-PRINT(FORMAT("[{:.2f}]", TO_NUMBER("1e21")))
-
-// width and alignment: numbers go right, everything else left; nothing is cut
-PRINT(FORMAT("[{:6}] [{:6}] [{:<6}] [{:>6}] [{:^6}] [{:^7}] [{:2}]", 42, "ab", 42, "ab", "ab", "ab", "long"))
-PRINT(FORMAT("[{:>10.2f}] [{:<10.2f}] [{:^10.2f}]", -3.456, -3.456, -3.456))
-PRINT(FORMAT("[{:8}] [{:<8}]", true, [1, 2]))
-PRINT(FORMAT("{:<6}|{:>8.2f}|", "합계", 1234.5))
-
-// 0 pads with zeros after the sign; , groups the integer digits by three
-PRINT(FORMAT("[{:08.2f}] [{:05}] [{:05}] [{:06}]", -3.4, 42, -42, 2.5))
-PRINT(FORMAT("[{:,}] [{:,}] [{:,}] [{:,.2f}] [{:>12,.0f}]", 1234567, -1234.5, 999, 1234567.891, 9876543.5))
+// {pattern} is the number as the pattern draws it — 0 always writes a digit, # only when there is one
+PRINT(FORMAT("[{0.00}] [{0}] [{0.000}] [{0.0}]", 3.4, 2.5, 7, 1.25))
+PRINT(FORMAT("[{#,##0}] [{#,##0.00}] [{0,000}] [{000}]", 1234567, 1234567.891, 7, 42))
+PRINT(FORMAT("[{0.0%}] [{0%}] [{0.##}] [{0.##}] [{0.0#}]", 0.4567, 0.145, 3, 3.14159, 3.1))
+PRINT(FORMAT("[{0.00}] [{0}] [{000}] [{0.0}]", -3.456, -2.5, -7, -0.04))
+PRINT(FORMAT("[{0.00}] [{#,##0}]", TO_NUMBER("1e21"), TO_NUMBER("1e308") * 10))
 
 // {{ and }} are literal braces
-PRINT(FORMAT("{{}} {{{}}} }}{{", 5))
-
-// Infinity and NaN take only the alignment and width
-big = TO_NUMBER("1e308") * 10
-PRINT(FORMAT("[{:.2f}] [{:,}] [{:10}] [{:<10}] [{:08.1f}]", big, -big, big, big - big, big))
+PRINT(FORMAT("{{}} {{{}}} }}{{ {{0.00}}", 5))
 
 // FORMAT returns the text; nothing is printed
-line = FORMAT("{:,.2f}원", 1234567.891)
+line = FORMAT("{#,##0.00}원", 1234567.891)
 PRINT(line, LEN(line), TYPE_OF(line))
