@@ -20,7 +20,7 @@ PRINT(TEXT(0, "#"), TEXT(-0.4, "#"), TEXT(0, "0.##%"))
 
 // a large number is written in full; integers and decimals alike
 PRINT(TEXT(TO_NUMBER("1e21"), "#,##0"), TEXT(TO_NUMBER("1e-7"), "0.00"), TEXT(2 * 1000, "0.0"), TEXT(2000.0, "0.0"))
-PRINT(TEXT(2147483647, "#,##0"), TEXT(TO_NUMBER("123456789012345680000"), "0"))
+PRINT(TEXT(9007199254740991, "#,##0"), TEXT(TO_NUMBER("123456789012345680000"), "0"))
 
 // Infinity and NaN are written as PRINT shows them
 big = TO_NUMBER("1e308") * 10

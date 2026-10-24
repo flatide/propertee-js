@@ -1,4 +1,4 @@
-// spec v0.13.0: integer arithmetic overflow is a runtime error (no silent wrap)
+// spec v0.13.0, v0.33.0: integer arithmetic outside the range is a runtime error (no silent wrap)
 PRINT("before")
-x = 2147483647 + 1
+x = 9007199254740991 + 1
 PRINT("unreachable")

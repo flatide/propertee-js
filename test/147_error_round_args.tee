@@ -20,7 +20,7 @@ function notANumber() do
 end
 
 function truncOverflow() do
-    return TRUNC(3000000000.5)
+    return TRUNC(10000000000000000.5)
 end
 
 multi r do

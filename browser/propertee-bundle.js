@@ -5442,10 +5442,19 @@ class ModuleErrorListener extends antlr4.error.ErrorListener {
     }
 }
 
-// The 32-bit integer envelope for integer-producing builtins (spec v0.13.0).
+// The integer range is ±(2^53 − 1) (spec v0.33.0; 32-bit since v0.13.0 before): every integer in it
+// is exact as a number here, and it is the range RFC 8259 §6 says JSON readers agree on.
+const MAX_INTEGER = Number.MAX_SAFE_INTEGER;
+const INTEGER_OVERFLOW = 'Integer overflow: the result is outside ±9,007,199,254,740,991';
+
+function literalOutOfRange(token) {
+    return `Integer literal out of range: ${token} is larger than 9,007,199,254,740,991`;
+}
+
+// The integer range for integer-producing builtins (spec v0.13.0, v0.33.0).
 function intResult(d) {
-    if (d < -2147483648 || d > 2147483647) {
-        throw new Error('Runtime Error: Integer overflow');
+    if (d < -MAX_INTEGER || d > MAX_INTEGER) {
+        throw new Error(`Runtime Error: ${INTEGER_OVERFLOW}`);
     }
     return d;
 }
@@ -6103,22 +6112,28 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 for (const a of args) {
                     if (typeof a !== 'number') throw new Error('Runtime Error: SUM() requires numeric arguments');
                 }
-                const sum = args.reduce((a, b) => a + b, 0);   // spec v0.14.0: integer SUM overflow fails loudly (like +/*)
-                if (args.every(a => this._isIntValue(a)) && (sum < -2147483648 || sum > 2147483647)) {
-                    throw new Error('Runtime Error: Integer overflow');
+                if (args.every(a => this._isIntValue(a))) {
+                    // Spec v0.33.0: integers add in order, like +, and a running total outside the
+                    // range is the overflow (spec v0.14.0) — so every total is exact.
+                    let total = 0;
+                    for (const a of args) {
+                        total += a;
+                        if (!Number.isSafeInteger(total)) throw new Error(`Runtime Error: ${INTEGER_OVERFLOW}`);
+                    }
+                    return total;
                 }
-                return sum;
+                return args.reduce((a, b) => a + b, 0);
             },
             'MAX': (...args) => minMax('MAX', args, true),
             'MIN': (...args) => minMax('MIN', args, false),
-            // FLOOR/CEIL/ROUND/TRUNC without digits produce an Integer; a result outside the 32-bit
-            // range is a loud error, never a silent promotion — and |−2³¹| does not fit ABS (spec
-            // v0.13.0). With digits they produce a decimal (spec v0.30.0) — see rounding().
+            // FLOOR/CEIL/ROUND/TRUNC without digits produce an integer; a result outside the integer
+            // range is a loud error, never a silent promotion (spec v0.13.0, v0.33.0). The range is
+            // symmetric, so ABS cannot overflow. With digits they produce a decimal (spec v0.30.0) —
+            // see rounding().
             'ABS': (...args) => {
                 if (args.length < 1) throw new Error('Runtime Error: ABS() missing argument 1');
                 const n = args[0];
                 if (typeof n !== 'number') throw new Error('Runtime Error: ABS() requires numeric arguments');
-                if (n === -2147483648) throw new Error('Runtime Error: Integer overflow');
                 return Math.abs(n);
             },
             'FLOOR': (...args) => rounding('FLOOR', args, 'FLOOR'),
@@ -6297,11 +6312,16 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     throw new Error('Runtime Error: RANDOM() requires zero or two arguments');
                 } else {
                     if (typeof args[0] !== 'number' || typeof args[1] !== 'number')
-                        throw new Error('Runtime Error: RANDOM() arguments must be numbers');
+                        throw new Error('Runtime Error: RANDOM() requires numeric arguments');
                     const min = args[0];
                     const max = args[1];
+                    // Spec v0.33.0: the bounds are integers in the range (a fraction used to give a
+                    // decimal result here).
+                    if (!(Number.isSafeInteger(min) && Number.isSafeInteger(max))) {
+                        throw new Error('Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991');
+                    }
                     if (min > max) throw new Error('Runtime Error: RANDOM() min cannot be greater than max');
-                    return min + Math.floor(Math.random() * (max - min + 1));
+                    return Math.min(max, min + Math.floor(Math.random() * (max - min + 1)));
                 }
             },
             // --- String matching ---
@@ -7593,7 +7613,8 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 const key = this._processStringEscapes(raw.substring(1, raw.length - 1));
                 keyName = key.length === 0 ? null : key; // empty string treated as unnamed
             } else if (ctorName === 'ArrayAccessContext') {
-                keyName = accessCtx.INTEGER().getText();
+                // an integer literal: the integer range (spec v0.33.0), and "007" names key "7"
+                keyName = String(this._intLiteral(accessCtx.INTEGER().getText(), accessCtx));
             } else if (ctorName === 'VarEvalAccessContext') {
                 const varName = accessCtx.ID().getText();
                 let keyValue = undefined;
@@ -7724,26 +7745,35 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitIntegerAtom(ctx) {
-        // Spec v0.13.0: integer literals must fit the 32-bit range (tokens are unsigned digits).
-        const value = parseInt(ctx.getText(), 10);
-        if (value > 2147483647) {
-            throw this.createError(`Integer literal out of range: ${ctx.getText()}`, ctx);
+        return this._intLiteral(ctx.getText(), ctx);
+    }
+
+    // Spec v0.13.0, v0.33.0: integer literals must fit the integer range (tokens are unsigned
+    // digits). A token past 2^53 parses to a number at least 2^53, so the test is exact.
+    _intLiteral(token, ctx) {
+        const value = parseInt(token, 10);
+        if (value > MAX_INTEGER) {
+            throw this.createError(literalOutOfRange(token), ctx);
         }
         return value;
     }
 
-    // Spec v0.13.0 (32-bit envelope): a value is "an integer" when it is whole AND in the 32-bit
-    // range — JS has one number type, so out-of-range integral values (which can only enter as
-    // data, e.g. JSON_PARSE) count as decimals, exactly like the Java runtimes' Double promotion.
+    // Spec v0.13.0, v0.33.0: a value is "an integer" when it is whole AND in the integer range —
+    // JS has one number type, so integral values outside it (which can only enter as data, e.g.
+    // JSON_PARSE) count as decimals, exactly like the Java runtime's Double promotion.
     _isIntValue(v) {
-        return Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
+        return Number.isSafeInteger(v);
     }
 
-    /** Integer-integer +,-,* stay integers and must fit the 32-bit range (spec v0.13.0). */
+    /**
+     * Integer-integer +,-,* stay integers and must fit the integer range (spec v0.13.0, v0.33.0).
+     * A true result inside the range is exact here; one outside rounds to at least 2^53 in size,
+     * so it is never a safe integer.
+     */
     _intArith(l, r, op, ctx) {
         const result = op === '+' ? l + r : op === '-' ? l - r : l * r;
-        if (result < -2147483648 || result > 2147483647) {
-            throw this.createError('Integer overflow', ctx);
+        if (!Number.isSafeInteger(result)) {
+            throw this.createError(INTEGER_OVERFLOW, ctx);
         }
         return result;
     }
@@ -7791,7 +7821,8 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const str = ctx.STRING().getText();
             return this._processStringEscapes(str.substring(1, str.length - 1));
         }
-        if (ctx.INTEGER()) return ctx.INTEGER().getText();
+        // an integer literal: the integer range (spec v0.33.0), and "007" names key "7"
+        if (ctx.INTEGER()) return String(this._intLiteral(ctx.INTEGER().getText(), ctx));
         return null;
     }
 
@@ -8011,7 +8042,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitArrayAccess(ctx) {
-        return parseInt(ctx.INTEGER().getText(), 10); // 1-based; member access converts for arrays
+        return this._intLiteral(ctx.INTEGER().getText(), ctx); // 1-based; member access converts for arrays
     }
 
     *visitStringKeyAccess(ctx) {
@@ -8029,11 +8060,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         if (typeof value !== 'number') {
             throw this.createError(`Unary minus requires numeric operand. Got -${typeof value}`, ctx);
         }
-        // 32-bit envelope (spec v0.13.0): -MIN does not fit.
-        if (value === -2147483648) {
-            throw this.createError('Integer overflow', ctx);
-        }
-        return -value;
+        return -value;   // the integer range is symmetric (spec v0.33.0)
     }
 
     *visitNotExpr(ctx) {
@@ -8474,10 +8501,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const monitorClause = ctx.monitorClause();
         if (monitorClause) {
             const intervalToken = monitorClause.INTEGER().getText();
-            const interval = parseInt(intervalToken, 10);
-            if (interval > 2147483647) {   // an INTEGER literal — the 32-bit rule (spec v0.13.0)
-                throw this.createError(`Integer literal out of range: ${intervalToken}`, monitorClause);
-            }
+            const interval = this._intLiteral(intervalToken, monitorClause);   // an INTEGER literal (the integer range)
             monitorSpec = {
                 interval: interval,
                 blockCtx: monitorClause.block()

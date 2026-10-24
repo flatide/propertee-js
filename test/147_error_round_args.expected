@@ -3,10 +3,10 @@
 [THREAD ERROR] Runtime Error: CEIL() takes at most 2 arguments
 [THREAD ERROR] Runtime Error: TRUNC() missing argument 1
 [THREAD ERROR] Runtime Error: ROUND() requires numeric arguments
-[THREAD ERROR] Runtime Error: Integer overflow
+[THREAD ERROR] Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
 a false Runtime Error: ROUND() digits must be an integer
 b false Runtime Error: FLOOR() digits must be an integer
 c false Runtime Error: CEIL() takes at most 2 arguments
 d false Runtime Error: TRUNC() missing argument 1
 e false Runtime Error: ROUND() requires numeric arguments
-f false Runtime Error: Integer overflow
+f false Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991

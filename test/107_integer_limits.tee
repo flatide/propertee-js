@@ -1,12 +1,21 @@
-// spec v0.13.0: the 32-bit integer envelope, in-range behavior
-max = 2147483647
-PRINT(max)
-min = -2147483647 - 1
-PRINT(min)
-PRINT(min + max)
-PRINT(46340 * 46340)
-PRINT(FLOOR(2147483647.9))
-PRINT(CEIL(-2147483648.9))
-PRINT(ROUND(2147483646.5))
-PRINT(ABS(-2147483647))
-PRINT(max / 1)
+// spec v0.33.0: the integer range is ±9,007,199,254,740,991 (2^53 − 1; spec v0.13.0 pinned 32
+// bits), in-range behavior
+max = 9007199254740991
+min = -9007199254740991
+PRINT(max, min, min + max)
+PRINT(-min, ABS(min), max % 10)
+PRINT(2147483647 + 1, 46341 * 46341, 94906265 * 94906265)
+
+// terabytes add up as integers
+tb = 1024 * 1024 * 1024 * 1024
+total = 0
+loop size in [3 * tb, 2 * tb, 500000000] do
+    total = total + size
+end
+PRINT(tb, total)
+
+PRINT(SUM(max, -1, 1), SUM(4503599627370496, 4503599627370495))
+PRINT(FLOOR(4503599627370495.5), CEIL(-4503599627370495.5), ROUND(4503599627370494.5), TRUNC(-9007199254740991.0))
+
+// a decimal goes past the range, holding about 16 significant digits
+PRINT(max / 1, max + 0.5, max * 1000.5)

@@ -1,3 +1,3 @@
-// spec v0.13.0: integer-producing builtins honor the envelope (no clamping)
+// spec v0.13.0, v0.33.0: integer-producing builtins honor the range (no clamping)
 PRINT("before")
-PRINT(FLOOR(3000000000.7))
+PRINT(FLOOR(10000000000000000.7))

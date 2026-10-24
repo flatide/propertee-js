@@ -9,5 +9,6 @@ PRINT(ROUND(0.49999999999999994), ROUND(-0.49999999999999994))
 // symmetric: ROUND(-x, d) is -ROUND(x, d)
 PRINT(ROUND(-1.005, 2) == -ROUND(1.005, 2), ROUND(-2.5) == -ROUND(2.5))
 
-// without digits ROUND is still an integer inside the 32-bit range
-PRINT(ROUND(2147483646.5), ROUND(-2147483647.5))
+// without digits ROUND is still an integer inside the integer range (spec v0.33.0); the
+// largest tie a decimal holds is 4503599627370495.5
+PRINT(ROUND(4503599627370495.5), ROUND(-4503599627370495.5), ROUND(9007199254740991.0))

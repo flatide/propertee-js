@@ -1,0 +1,76 @@
+// spec v0.33.0: built-ins at the integer range ±9,007,199,254,740,991 — positions past 32 bits
+// clamp, RANDOM takes bounds anywhere in the range, MILTIME is an integer, and data inside the
+// range reads as integers
+big = 3000000000
+PRINT("[" + SUBSTRING("abcdef", 2, big) + "]", "[" + SUBSTRING("abcdef", -big) + "]")
+PRINT(SLICE([1, 2, 3], 2, big), SLICE([1, 2, 3], -big))
+
+low = 9007199254740000
+n = RANDOM(low, 9007199254740991)
+PRINT(n >= low and n <= 9007199254740991, RANDOM(-9007199254740991, -9007199254740991), RANDOM(big, big))
+
+t = MILTIME()
+PRINT(t > 1700000000000, t * 1000 > 0, t * 10000000.5 > 0)
+
+PRINT(UNWRAP(JSON_PARSE("[9007199254740991, -9007199254740991, 9007199254740993]")))
+PRINT(TO_NUMBER("9007199254740991") - 1, UNWRAP(JSON_PARSE("9007199254740992")) + 1)
+PRINT(TEXT(-9007199254740991, "#,##0"))
+PRINT({007: 1, 9007199254740991: 2})
+
+// each failure below is caught as its thread's error Result
+function multiply() do
+    return 94906266 * 94906266
+end
+
+function subtract() do
+    return -9007199254740991 - 1
+end
+
+function fromData() do
+    return UNWRAP(JSON_PARSE("9007199254740991")) + 1
+end
+
+function nanoseconds() do
+    return MILTIME() * 1000000
+end
+
+function rounded() do
+    return ROUND(-10000000000000000.0)
+end
+
+function runningTotal() do
+    return SUM(9007199254740991, 1, -1)
+end
+
+function randomBounds() do
+    return RANDOM(0, 10000000000000000.0)
+end
+
+function randomOrder() do
+    return RANDOM(5, 1)
+end
+
+function randomFraction() do
+    return RANDOM(1.2, 1.5)
+end
+
+function bigKey() do
+    return {9007199254740992: 1}
+end
+
+multi r do
+    thread a: multiply()
+    thread b: subtract()
+    thread c: fromData()
+    thread d: nanoseconds()
+    thread e: rounded()
+    thread f: runningTotal()
+    thread g: randomBounds()
+    thread h: randomOrder()
+    thread i: randomFraction()
+    thread j: bigKey()
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end

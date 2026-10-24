@@ -1191,10 +1191,10 @@ PRINT("Hello, World!")</textarea>
                 { name: 'CEIL', sig: 'CEIL(n, [digits])', desc: 'Round up, toward +infinity. With digits, keep that many decimal places; a negative digits rounds to tens, hundreds, ... (spec v0.30.0).', returns: 'An integer without digits; a decimal with digits.', fails: 'Runtime error if n is not a number, digits is not an integer, or there is a third argument.', sample: 'PRINT(CEIL(3.2), CEIL(3.41, 1), CEIL(1201, -2))', output: '4 3.5 1300' },
                 { name: 'ROUND', sig: 'ROUND(n, [digits])', desc: 'Round to the nearest; a tie goes away from zero, so ROUND(-2.5) is -3. With digits, keep that many decimal places (spec v0.30.0); the digits PRINT shows are rounded, so ROUND(2.675, 2) is 2.68.', returns: 'An integer without digits; a decimal with digits.', fails: 'Runtime error if n is not a number, digits is not an integer, or there is a third argument.', sample: 'PRINT(ROUND(3.5), ROUND(-2.5), ROUND(2.675, 2))', output: '4 -3 2.68' },
                 { name: 'TRUNC', sig: 'TRUNC(n, [digits])', desc: 'Round toward zero, cutting the digits off. With digits, keep that many decimal places (spec v0.30.0).', returns: 'An integer without digits; a decimal with digits.', fails: 'Runtime error if n is not a number, digits is not an integer, or there is a third argument.', sample: 'PRINT(TRUNC(3.48, 1), TRUNC(-3.48, 1), TRUNC(-3.9))', output: '3.4 -3.4 -3' },
-                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in an inclusive range. The single-argument form was removed in spec v0.7.0.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if called with one argument, arguments are not numbers, or min > max.', sample: 'PRINT(RANDOM(1, 6))', output: '4', outputNote: 'varies' },
+                { name: 'RANDOM', sig: 'RANDOM() | RANDOM(min, max)', desc: 'Random decimal [0,1), or random integer in an inclusive range. The single-argument form was removed in spec v0.7.0.', returns: 'A number: decimal in [0,1) with no args, else an integer.', fails: 'Runtime error if called with one argument, arguments are not numbers, a bound is not an integer within ±9,007,199,254,740,991, or min > max.', sample: 'PRINT(RANDOM(1, 6))', output: '4', outputNote: 'varies' },
             ]},
             { cat: 'Conversion', fns: [
-                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a decimal numeral to a number (spec v0.25.0): an optional sign, digits with an optional fraction (.5 and 5. included), and an optional exponent (1e3, 2.5E-4). Surrounding whitespace — the six TRIM characters — is ignored. Hexadecimal, octal and binary, type suffixes, Infinity and NaN do not convert.', returns: 'A number — an integer for digits-only text that fits 32 bits, otherwise a decimal.', fails: 'Runtime error if s is not a string, is not a decimal numeral (empty text included), or is too large to represent (1e999).', sample: 'PRINT(TO_NUMBER(" 42\\n") + 1, TO_NUMBER("2.5e3"))', output: '43 2500' },
+                { name: 'TO_NUMBER', sig: 'TO_NUMBER(s)', desc: 'Convert a decimal numeral to a number (spec v0.25.0): an optional sign, digits with an optional fraction (.5 and 5. included), and an optional exponent (1e3, 2.5E-4). Surrounding whitespace — the six TRIM characters — is ignored. Hexadecimal, octal and binary, type suffixes, Infinity and NaN do not convert.', returns: 'A number — an integer for digits-only text within ±9,007,199,254,740,991, otherwise a decimal.', fails: 'Runtime error if s is not a string, is not a decimal numeral (empty text included), or is too large to represent (1e999).', sample: 'PRINT(TO_NUMBER(" 42\\n") + 1, TO_NUMBER("2.5e3"))', output: '43 2500' },
                 { name: 'TO_STRING', sig: 'TO_STRING(v)', desc: 'Convert any value to its string form.', returns: 'A string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TO_STRING(true))', output: 'true' },
                 { name: 'TYPE_OF', sig: 'TYPE_OF(v)', desc: 'Type name of a value.', returns: 'A string: "number", "string", "boolean", "array", "object", or "null".', fails: 'Does not fail (accepts any value).', sample: 'PRINT(TYPE_OF([1, 2]))', output: 'array' },
             ]},
@@ -1256,7 +1256,7 @@ PRINT("Hello, World!")</textarea>
             ]},
             { cat: 'Time', fns: [
                 { name: 'SLEEP', sig: 'SLEEP(ms)', desc: 'Pause the current thread for ms milliseconds.', returns: 'The empty object {}.', fails: 'Runtime error if ms is not a number.', sample: 'PRINT("before")\nSLEEP(300)\nPRINT("after")', output: 'before\nafter' },
-                { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current epoch time.', returns: 'A number (epoch milliseconds).', fails: 'Does not fail.', sample: 'PRINT(MILTIME())', output: '1792592182371', outputNote: 'varies' },
+                { name: 'MILTIME', sig: 'MILTIME()', desc: 'Current epoch time.', returns: 'An integer (epoch milliseconds).', fails: 'Does not fail.', sample: 'PRINT(MILTIME())', output: '1792592182371', outputNote: 'varies' },
                 { name: 'DATE', sig: 'DATE()', desc: 'Current date.', returns: 'A string "YYYY-MM-DD".', fails: 'Does not fail.', sample: 'PRINT(DATE())', output: '2026-10-21', outputNote: 'varies' },
                 { name: 'TIME', sig: 'TIME()', desc: 'Current time of day.', returns: 'A string "HH:MM:SS".', fails: 'Does not fail.', sample: 'PRINT(TIME())', output: '23:16:22', outputNote: 'varies' },
             ]},
@@ -1265,7 +1265,7 @@ PRINT("Hello, World!")</textarea>
             ]},
             { cat: 'File I/O', fns: [
                 { name: 'FILE_EXISTS', sig: 'FILE_EXISTS(path)', desc: 'Existence test. (Playground uses an in-memory FS.)', returns: 'A boolean (true if a file or directory exists at path).', fails: 'Returns a Result with .ok=false if path is not a string. Missing path is not a failure — it returns false.', sample: 'MKDIR("/d")\nPRINT(FILE_EXISTS("/d"))', output: 'true' },
-                { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Metadata for a path.', returns: RESULT_NOTE + ' .value = {type: "file"|"dir", size, modified}.', fails: 'Returns .ok=false with an error message if path is not a string or does not exist.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)', output: 'file 2' },
+                { name: 'FILE_INFO', sig: 'FILE_INFO(path)', desc: 'Metadata for a path.', returns: RESULT_NOTE + ' .value = {type: "file"|"dir", size, modified} — size in bytes and modified in epoch milliseconds, both integers.', fails: 'Returns .ok=false with an error message if path is not a string or does not exist.', sample: 'WRITE_FILE("/d/a.txt", "hi")\nres = FILE_INFO("/d/a.txt")\nPRINT(res.value.type, res.value.size)', output: 'file 2' },
                 { name: 'READ_FILE', sig: 'READ_FILE(path)', desc: 'Read the whole file as one string (spec v0.18.0). The counterpart of WRITE_FILE; for large files use FILE_LINES (spec v0.26.0).', returns: RESULT_NOTE + ' .value = the file content (content-exact).', fails: 'Returns .ok=false if the file cannot be read.', sample: 'WRITE_FILE("/d/a.txt", "hi\\nthere")\nres = READ_FILE("/d/a.txt")\nPRINT(res.ok, LEN(res.value))', output: 'true 8' },
                 { name: 'READ_LINES', sig: 'READ_LINES(path, [start], [count])', desc: 'Read lines (1-based start, count limit).', returns: RESULT_NOTE + ' .value = an array of line strings.', fails: 'Returns .ok=false if path is missing, or start/count are non-integers or < 1.', sample: 'WRITE_FILE("/d/a.txt", "x\\ny\\nz\\n")\nres = READ_LINES("/d/a.txt", 2, 1)\nPRINT(res.ok, res.value.1)', output: 'true y' },
                 { name: 'FILE_LINES', sig: 'FILE_LINES(path)', desc: 'The file\'s lines as an ordinary array of strings (spec v0.26.0). The file is read as the array is used: a loop goes through it line by line keeping only the current line and LEN counts without keeping, so a file of any size can be processed in a loop; using the array as a whole (an element, SLICE, SORT, PRINT, ==, ...) reads it fully first and is refused above the host\'s whole-use limit (64 MB). The array is the file as it was at the call: lines appended later are not part of it, and any other change fails the next read. Lines end at \\n, \\r\\n or \\r; a leading UTF-8 BOM is dropped.', returns: 'An array of strings — not a Result.', fails: 'Runtime error at the call if the file does not exist or cannot be read; at the use if the file changed since the call, holds invalid UTF-8 or a line over 16 MB, or is too large to use as a whole.', sample: 'WRITE_LINES("/d/a.txt", ["name,age", "Alice,30", "Bob,25"])\nloop n, line in FILE_LINES("/d/a.txt") do\n    if n == 1 then continue end\n    PRINT(n, line)\nend', output: '2 Alice,30\n3 Bob,25' },
@@ -1307,8 +1307,8 @@ PRINT("Hello, World!")</textarea>
             CEIL: { desc: '올림 — +무한대 쪽으로. digits를 주면 그만큼의 소수 자릿수를 남기고, 음수면 십·백 자리로 (스펙 v0.30.0).', returns: 'digits가 없으면 정수, 있으면 소수.', fails: 'n이 숫자가 아니거나, digits가 정수가 아니거나, 인자가 셋 이상이면 런타임 에러.' },
             ROUND: { desc: '반올림 — 가까운 쪽으로, 동점은 0에서 먼 쪽이라 ROUND(-2.5)는 -3. digits를 주면 그만큼의 소수 자릿수를 남김 (스펙 v0.30.0). PRINT가 보여 주는 숫자를 반올림하므로 ROUND(2.675, 2)는 2.68.', returns: 'digits가 없으면 정수, 있으면 소수.', fails: 'n이 숫자가 아니거나, digits가 정수가 아니거나, 인자가 셋 이상이면 런타임 에러.' },
             TRUNC: { desc: '버림 — 0 쪽으로, 자릿수를 잘라 냄. digits를 주면 그만큼의 소수 자릿수를 남김 (스펙 v0.30.0).', returns: 'digits가 없으면 정수, 있으면 소수.', fails: 'n이 숫자가 아니거나, digits가 정수가 아니거나, 인자가 셋 이상이면 런타임 에러.' },
-            RANDOM: { desc: '난수: [0,1) 소수 또는 범위 내 정수.', returns: '숫자: 인자 없으면 [0,1) 소수, 그 외 정수.', fails: '인자가 숫자가 아니거나 max가 양수가 아니거나 min > max이면 런타임 에러.' },
-            TO_NUMBER: { desc: '10진수 표기를 숫자로 변환(스펙 v0.25.0). 생략 가능한 부호, 숫자와 생략 가능한 소수부(.5와 5. 포함), 생략 가능한 지수(1e3, 2.5E-4)로 이루어짐. 앞뒤 공백(TRIM과 같은 6개 문자)은 무시. 16진수·8진수·2진수, 타입 접미사, Infinity, NaN은 변환되지 않음.', returns: '숫자 — 숫자만으로 된 텍스트가 32비트에 들면 정수, 나머지는 소수.', fails: 's가 문자열이 아니거나, 10진수 표기가 아니거나(빈 텍스트 포함), 표현할 수 없을 만큼 크면(1e999) 런타임 에러.' },
+            RANDOM: { desc: '난수: [0,1) 소수 또는 범위 내 정수.', returns: '숫자: 인자 없으면 [0,1) 소수, 그 외 정수.', fails: '인자가 하나뿐이거나, 숫자가 아니거나, 경계가 ±9,007,199,254,740,991 안의 정수가 아니거나, min > max이면 런타임 에러.' },
+            TO_NUMBER: { desc: '10진수 표기를 숫자로 변환(스펙 v0.25.0). 생략 가능한 부호, 숫자와 생략 가능한 소수부(.5와 5. 포함), 생략 가능한 지수(1e3, 2.5E-4)로 이루어짐. 앞뒤 공백(TRIM과 같은 6개 문자)은 무시. 16진수·8진수·2진수, 타입 접미사, Infinity, NaN은 변환되지 않음.', returns: '숫자 — 숫자만으로 된 텍스트가 ±9,007,199,254,740,991 안이면 정수, 나머지는 소수.', fails: 's가 문자열이 아니거나, 10진수 표기가 아니거나(빈 텍스트 포함), 표현할 수 없을 만큼 크면(1e999) 런타임 에러.' },
             TO_STRING: { desc: '임의의 값을 문자열로 변환.', returns: '문자열.', fails: '실패하지 않음(모든 값 허용).' },
             TYPE_OF: { desc: '값의 타입 이름.', returns: '문자열: "number", "string", "boolean", "array", "object", "null".', fails: '실패하지 않음(모든 값 허용).' },
             LEN: { desc: '문자열/배열/객체의 길이.', returns: '숫자(그 외 타입은 0).', fails: '실패하지 않음(미지원 타입은 0 반환).' },
@@ -1358,12 +1358,12 @@ PRINT("Hello, World!")</textarea>
             ERR: { desc: 'genuine 에러 Result {status: "error", ok: false, value} 생성. value는 어떤 타입이든 가능(구조화된 에러 허용).', returns: 'genuine Result. 인자 생략 시 value = {}.', fails: '실패하지 않음(이걸 UNWRAP하면 실패).' },
             IS_RESULT: { desc: 'genuine-Result 출처 관찰 — 런타임 또는 OK/ERR가 만든 Result만 true(수제 {status, ok, value} 리터럴은 false).', returns: '불리언.', fails: '실패하지 않음(모든 값 허용).' },
             SLEEP: { desc: '현재 스레드를 ms 밀리초 동안 멈춤.', returns: '빈 객체 {}.', fails: 'ms가 숫자가 아니면 런타임 에러.' },
-            MILTIME: { desc: '현재 epoch 시간.', returns: '숫자(epoch 밀리초).', fails: '실패하지 않음.' },
+            MILTIME: { desc: '현재 epoch 시간.', returns: '정수(epoch 밀리초).', fails: '실패하지 않음.' },
             DATE: { desc: '현재 날짜.', returns: '문자열 "YYYY-MM-DD".', fails: '실패하지 않음.' },
             TIME: { desc: '현재 시각.', returns: '문자열 "HH:MM:SS".', fails: '실패하지 않음.' },
             ENV: { desc: '환경 변수 읽기. (Playground는 USER/HOME/LANG/PT_ENV 기본 제공.)', returns: '변수 값(문자열); 없으면 default; default도 없으면 {}.', fails: '없는 변수는 실패가 아님(default 또는 {} 반환). name이 문자열이 아닐 때만 런타임 에러.' },
             FILE_EXISTS: { desc: '존재 여부 확인. (Playground는 메모리 내 FS 사용.)', returns: '불리언(path에 파일/디렉토리가 있으면 true).', fails: 'path가 문자열이 아니면 .ok=false 인 Result 반환. 없는 경로는 실패가 아니라 false 반환.' },
-            FILE_INFO: { desc: '경로의 메타데이터.', returns: RESULT_NOTE_KO + ' .value = {type: "file"|"dir", size, modified}.', fails: 'path가 문자열이 아니거나 존재하지 않으면 .ok=false 와 에러 메시지.' },
+            FILE_INFO: { desc: '경로의 메타데이터.', returns: RESULT_NOTE_KO + ' .value = {type: "file"|"dir", size, modified} — size는 바이트, modified는 epoch 밀리초이며 둘 다 정수.', fails: 'path가 문자열이 아니거나 존재하지 않으면 .ok=false 와 에러 메시지.' },
             READ_FILE: { desc: '파일 전체를 하나의 문자열로 읽기 (스펙 v0.18.0). WRITE_FILE의 대응 함수; 큰 파일에는 FILE_LINES가 적합 (스펙 v0.26.0).', returns: RESULT_NOTE_KO + ' .value = 파일 내용(내용 그대로).', fails: '파일을 읽을 수 없으면 .ok=false.' },
             READ_LINES: { desc: '줄 읽기(start 1부터, count 제한).', returns: RESULT_NOTE_KO + ' .value = 줄 문자열 배열.', fails: 'path가 없거나 start/count가 정수가 아니거나 < 1이면 .ok=false.' },
             FILE_LINES: { desc: '파일의 줄들을 평범한 문자열 배열로 (스펙 v0.26.0). 파일은 배열이 쓰일 때 읽힘: 루프는 현재 줄만 유지하며 한 줄씩 지나가고 LEN은 보관 없이 세므로 크기와 상관없이 루프로 처리 가능; 통째로 쓰면(요소, SLICE, SORT, PRINT, == 등) 먼저 전부 읽으며 호스트의 통째 사용 상한(64 MB)을 넘으면 거부. 배열은 호출 시점의 파일: 그 뒤 추가된 줄은 포함되지 않고, 그 밖의 변경은 다음 읽기에서 실패. 줄 끝은 \\n, \\r\\n, \\r; 선행 UTF-8 BOM은 제거.', returns: '문자열 배열 — Result가 아님.', fails: '파일이 없거나 읽을 수 없으면 호출 시점에 런타임 에러; 호출 뒤 파일이 바뀌었거나, 잘못된 UTF-8이거나, 16 MB를 넘는 줄이 있거나, 통째로 쓰기에 너무 크면 사용 시점에 런타임 에러.' },
@@ -1726,10 +1726,13 @@ end`
                 }
             });
 
+            // A file's size in bytes, as a real host reports it: the UTF-8 length, not the UTF-16 one.
+            const utf8Bytes = (text) => new TextEncoder().encode(text).length;
+
             visitor.registerExternal('FILE_INFO', (p) => {
                 if (typeof p !== 'string') return err('FILE_INFO() requires a string argument');
                 p = norm(p);
-                if (p in files) return ok({ type: 'file', size: files[p].length, modified: now });
+                if (p in files) return ok({ type: 'file', size: utf8Bytes(files[p]), modified: now });
                 if (p in dirs) return ok({ type: 'dir', size: 0, modified: now });
                 return err('FILE_INFO() path not found: ' + p);
             });
@@ -1819,7 +1822,7 @@ end`
                             const name = baseOf(k);
                             if (seen[name]) continue;
                             seen[name] = true;
-                            entries.push({ name: name, type: type, size: type === 'file' ? files[k].length : 0 });
+                            entries.push({ name: name, type: type, size: type === 'file' ? utf8Bytes(files[k]) : 0 });
                         }
                     }
                 };

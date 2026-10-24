@@ -1,2 +1,2 @@
 before
-Runtime error: Runtime Error: Integer overflow
+Runtime error: Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
