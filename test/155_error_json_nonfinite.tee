@@ -1,0 +1,38 @@
+// spec v0.32.0: JSON has no form for Infinity, -Infinity or NaN, so JSON_FORMAT fails on them,
+// naming the first one and the path a script reaches it by
+function infinity() do
+    return TO_NUMBER("1e308") * 10
+end
+
+function json(v) do
+    return JSON_FORMAT(v)
+end
+
+inf = infinity()
+ninf = -inf
+nan = inf - inf
+
+// display is unchanged, and so is JSON of every finite number
+PRINT(inf, ninf, nan)
+PRINT([inf, nan], TO_STRING(nan))
+PRINT(JSON_FORMAT({"max": TO_NUMBER("1.7976931348623157e308"), "text": "Infinity", "zero": -0.0}))
+
+multi r do
+    thread a: json(::inf)
+    thread b: json(::ninf)
+    thread c: json(::nan)
+    thread d: json([1, 2, ::inf])
+    thread e: json({"list": [1, ::nan]})
+    thread f: json([::nan, ::inf])
+    thread g: json({"rows": [{"id": 1, "rate": 0.5}, {"id": 2, "rate": ::ninf}]})
+    thread h: json({"my key": [::inf]})
+    thread i: json({"2": ::inf})
+    thread j: json({"a\"b": ::nan})
+    thread k: json({"합계": ::inf})
+    thread l: json({"_x9": {"": ::inf}})
+    thread m: json([[], {}, [[::nan]]])
+end
+
+loop key, res in r do
+    PRINT(key, res.ok, res.value)
+end

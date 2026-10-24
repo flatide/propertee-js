@@ -5792,6 +5792,41 @@ function countOf(n, noun) {
     return `${n} ${noun}${n === 1 ? '' : 's'}`;
 }
 
+// Spec v0.32.0: JSON has no form for Infinity, -Infinity or NaN. The first one in `value`, in the
+// order JSON.stringify writes, as {path, number} — or null when there is none. The path starts at
+// `name` and goes down one member at a time, 1-based (value.list.2); a key that is not a plain
+// ASCII name is quoted as JSON writes a string (value."my key"). The number is as PRINT shows it.
+const PLAIN_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+function firstNonFinite(value, name) {
+    const members = [];   // filled on the way back, innermost first
+    const find = (v) => {
+        if (typeof v === 'number') return Number.isFinite(v) ? null : v;
+        if (Array.isArray(v)) {
+            for (let i = 0; i < v.length; i++) {
+                const d = find(v[i]);
+                if (d !== null) { members.push(String(i + 1)); return d; }
+            }
+        } else if (v !== null && typeof v === 'object') {
+            for (const key of Object.keys(v)) {
+                const d = find(v[key]);
+                if (d !== null) { members.push(PLAIN_NAME.test(key) ? key : JSON.stringify(key)); return d; }
+            }
+        }
+        return null;
+    };
+    const d = find(value);
+    return d === null ? null : { path: [name, ...members.reverse()].join('.'), number: String(d) };
+}
+
+// JSON_FORMAT's text of `value` for `fn`, which calls it `name` ("value", "body"): TEE_NULL as JSON
+// null, and a number JSON cannot hold a runtime error naming the first (spec v0.32.0), where
+// JSON.stringify would write null.
+function teeJson(value, fn, name) {
+    const found = firstNonFinite(value, name);
+    if (found) throw new Error(`Runtime Error: ${fn}() ${found.path} is ${found.number}, which JSON cannot represent`);
+    return JSON.stringify(value === TEE_NULL ? null : value, (k, v) => v === TEE_NULL ? null : v);
+}
+
 // Spec v0.25.0: the only text TO_NUMBER reads — an optional sign, ASCII digits with an optional
 // fraction (".5" and "5." included), an optional exponent. Number() alone would also read
 // "0x10", "0o17", "0b101" and "Infinity" (and "" as 0), which the Java runtime rejects.
@@ -6392,7 +6427,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 }
             },
             'JSON_FORMAT': (value) => {
-                return teeJsonStringify(value);
+                return teeJson(value, 'JSON_FORMAT', 'value');
             },
             'MILTIME': () => {
                 return Date.now();
@@ -6736,6 +6771,17 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     static error(message) {
         return makeResult("error", false, message);
+    }
+
+    // For hosts that write JSON (spec v0.32.0): json() is JSON_FORMAT's text, throwing
+    // "Runtime Error: <fn>() <place> is NaN, which JSON cannot represent" for a number JSON cannot
+    // hold; firstNonFinite() finds that number and its place without writing anything.
+    static json(value, fn, name) {
+        return teeJson(value, fn, name);
+    }
+
+    static firstNonFinite(value, name) {
+        return firstNonFinite(value, name);
     }
 
     getLocation(ctx) {

@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.31.0
+# ProperTee Language Specification v0.32.0
 
 ## Overview
 
@@ -32,6 +32,12 @@ Scripts that don't touch JSON `null` never see it; check for it explicitly (`if 
 - Arithmetic that produces a whole number result displays without a decimal point: `10 / 2` displays as `5`
 - Division always produces a decimal internally: `7 / 2` → `3.5`
 - Whole-number results of other operations display as integers: `1.0 + 2.0` → `3`
+- Decimal arithmetic past the range of numbers gives `Infinity` or `-Infinity`
+  (`TO_NUMBER("1e308") * 10`), and `Infinity - Infinity` gives `NaN`. `JSON_PARSE` also reads a
+  numeral too large to represent, such as `1e999`, as `Infinity`. They display as `Infinity`,
+  `-Infinity` and `NaN`, but JSON has no form for them
+  ([Numbers JSON cannot hold](#numbers-json-cannot-hold)). Division by zero is an error, not
+  infinity.
 
 #### Integer vs decimal is nominal (spec v0.14.0)
 
@@ -1401,7 +1407,33 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 | Function | Description |
 |---|---|
 | `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON. JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
-| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly. |
+| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly, except for a numeral too large to represent. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error (spec v0.32.0); see [below](#numbers-json-cannot-hold). |
+
+#### Numbers JSON cannot hold
+
+JSON has no way to write `Infinity`, `-Infinity` or `NaN`, which decimal arithmetic past the range
+of numbers produces. `JSON_PARSE` and `READ_JSON_FILE` also read a numeral too large to represent,
+such as `1e999`, as `Infinity`, so such JSON text does not round-trip. Turning a value that holds
+one into JSON is therefore a runtime error
+(spec v0.32.0), wherever it happens: in `JSON_FORMAT`, in `WRITE_JSON_FILE`, which then writes
+nothing, and in an HTTP request body that is not a string, which is then not sent. The error names
+the first such number, in the order the JSON would be written, and where it is:
+
+```
+data = {"rows": [{"rate": 0.5}, {"rate": TO_NUMBER("1e308") * 10}]}
+PRINT(JSON_FORMAT(data))
+// Runtime Error: JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent
+```
+
+- The place starts at `value` (`body` for an HTTP request body) and goes down one member at a
+  time, the way a script reaches it: `value.rows.2.rate` is `data.rows.2.rate`. Array positions
+  count from 1.
+- A key that is a plain name — an ASCII letter or `_`, then ASCII letters, digits or `_` — is
+  written as it is. Any other key is written in double quotes, as JSON writes a string:
+  `value."unit price"`, `value."2"`, `value."합계"`.
+- A value without such a number is written exactly as before. `PRINT`, `FORMAT` and `TEXT` still
+  show the three as `Infinity`, `-Infinity` and `NaN`, so a script that wants to keep one in JSON
+  can store the number as text: `TO_STRING(x)` is `"Infinity"`.
 
 ### File I/O
 
@@ -1415,7 +1447,7 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 | `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure or invalid JSON. A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
 | `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
 | `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
-| `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. |
+| `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error, and nothing is written ([Numbers JSON cannot hold](#numbers-json-cannot-hold), spec v0.32.0). |
 | `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
 | `MKDIR(path)` | Create directory (including parents). Returns Result. |
 | `LIST_DIR(path, [pattern])` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. `type` is `"dir"`, `"file"` or `"link"`; `pattern` keeps only the entries whose names match it, like `"*.csv"` (spec v0.27.0). See [Listing a directory](#listing-a-directory). |
@@ -1591,7 +1623,7 @@ Each `SHELL()` call creates a fresh process via `/bin/sh -c <cmd>`. There are no
 
 `options` is an object: `{"headers": {"Key": "Value", ...}, "timeout": <ms>, "body": <for HTTP()>}` — all optional. (`"header"` is also accepted for `"headers"`.)
 
-**Request body.** A string body is sent as-is; any other value (object/array/number/boolean) is serialized as JSON. So `HTTP_POST(url, {"a": 1})` sends `{"a":1}` (not the bare `a=1` form). Set `"Content-Type": "application/json"` in `headers` if the server requires it.
+**Request body.** A string body is sent as-is; any other value (object/array/number/boolean) is serialized as JSON. So `HTTP_POST(url, {"a": 1})` sends `{"a":1}` (not the bare `a=1` form). Set `"Content-Type": "application/json"` in `headers` if the server requires it. A body holding `Infinity`, `-Infinity` or `NaN` is a runtime error, and the request is not sent ([Numbers JSON cannot hold](#numbers-json-cannot-hold), spec v0.32.0).
 
 **Result shape.** A request that completes returns `{status, body, headers}` as `value`, with `ok` true only for a 2xx status (4xx/5xx keep the full `value` with `ok` false). A transport-level failure (bad URL, DNS, connection refused, timeout) returns `ok` false with `value = {"status": 0, "body": "<error message>", "headers": {}}`. So `res.value` is always that object — check `res.ok` and `res.value.status`.
 
@@ -1953,6 +1985,7 @@ Common error conditions:
 | An `ALIGN_LEFT`/`ALIGN_RIGHT`/`ALIGN_CENTER` width that is not an integer from 0 to 999 | ALIGN_LEFT() width must be an integer from 0 to 999 |
 | `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
 | `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
+| `JSON_FORMAT`, `WRITE_JSON_FILE` or an HTTP request body given a value holding `Infinity`, `-Infinity` or `NaN` | JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent |
 | `FILE_LINES` of a file that cannot be read | FILE_LINES() cannot read 'x': no such file |
 | `FILE_LINES` array used as a whole beyond the host's limit | FILE_LINES() 'x' is too large to use as a whole (494 MB, the limit is 64 MB) — go through it with a loop: loop line in ... do |
 | `FILE_LINES` array read after its file changed | FILE_LINES() cannot read 'x': it was modified after FILE_LINES() was called — call FILE_LINES() again |
@@ -1970,6 +2003,29 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.32.0 — JSON has no `Infinity` or `NaN`
+
+Mildly breaking, no grammar change. Decimal arithmetic past the range of numbers gives `Infinity`
+or `-Infinity`, and `Infinity - Infinity` gives `NaN`, but JSON has no way to write them. Until now
+each runtime wrote them its own way, and neither wrote JSON:
+
+- The Java 25 runtime wrote the tokens `Infinity`, `-Infinity` and `NaN`, which JSON readers
+  reject. `READ_JSON_FILE` rejected them too, so a file `WRITE_JSON_FILE` had just written could
+  not be read back.
+- The JavaScript runtime wrote `null`. That turned a number into a different value without a word,
+  although the language never produces `null` on its own ([no implicit null](#values-and-types)).
+
+Now `JSON_FORMAT`, `WRITE_JSON_FILE` and an HTTP request body that is not a string fail with a
+runtime error that names the first such number and where it is:
+`JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent`. `WRITE_JSON_FILE` writes
+nothing, and the HTTP request is not sent. See [Numbers JSON cannot hold](#numbers-json-cannot-hold).
+
+Migration: a script that wrote such a value now stops at that point instead of producing text that
+is not JSON. The error says where the number is, so its source can be fixed; to keep the number,
+store it as text with `TO_STRING`. Every value without one is written exactly as before.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.31.0 — Number patterns, `TEXT`, and `ALIGN_LEFT`/`ALIGN_RIGHT`/`ALIGN_CENTER`
 
@@ -2157,7 +2213,8 @@ accepted the same decimal numerals, but outside them they disagreed. The new rul
   `REPLACE`).
 - **No infinity.** Both runtimes turned `"Infinity"`, `"-Infinity"`, and numerals too large to
   represent (`"1e999"`) into infinity, which `JSON_FORMAT` then wrote as the invalid JSON token
-  `Infinity` on Java 25 and as `null` on JavaScript. `"Infinity"` now fails like any other
+  `Infinity` on Java 25 and as `null` on JavaScript (an error since
+  [v0.32.0](#v0320--json-has-no-infinity-or-nan)). `"Infinity"` now fails like any other
   non-numeral, and a numeral too large to represent fails with
   `TO_NUMBER() value out of range: '1e999'`. This is the only change to behavior the two runtimes
   shared.

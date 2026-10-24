@@ -33,7 +33,8 @@ if (args.includes('--help') || args.includes('-h')) {
     console.log('  --module-root <dir>   Module root (default: entry file directory)');
     console.log('  --result-only         Print only the script\'s result, as JSON: its top-level');
     console.log('                        return value (else the final `result` global, else {}).');
-    console.log('                        PRINT output is discarded; stderr output is kept');
+    console.log('                        PRINT output is discarded; stderr output is kept.');
+    console.log('                        A result JSON cannot hold (Infinity, NaN) exits 1');
     console.log('  -v, --version         Show version');
     console.log('  -h, --help            Show this help');
     process.exit(0);
@@ -220,7 +221,17 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
         process.exit(1);
     }
     if (resultOnly) {
-        console.log(visitor.functions['JSON_FORMAT'](visitor.scriptResult()));
+        // JSON has no form for Infinity, -Infinity or NaN (spec v0.32.0), so such a result fails
+        // like a runtime error rather than printing text that is not JSON
+        const result = visitor.scriptResult();
+        const found = ProperTeeCustomVisitor.firstNonFinite(result, 'result');
+        if (found) {
+            console.error('Error: ' + (found.path === 'result'
+                ? `the result is ${found.number}`
+                : `the result contains ${found.number} at ${found.path}`) + ', which JSON cannot represent');
+            process.exit(1);
+        }
+        console.log(visitor.functions['JSON_FORMAT'](result));
     }
 
 } else {

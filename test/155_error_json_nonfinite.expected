@@ -1,0 +1,29 @@
+Infinity -Infinity NaN
+[ Infinity, NaN ] NaN
+{"max":1.7976931348623157e+308,"text":"Infinity","zero":0}
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value is -Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value is NaN, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value.3 is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value.list.2 is NaN, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value.1 is NaN, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value.rows.2.rate is -Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value."my key".1 is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value."2" is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value."a\"b" is NaN, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value."합계" is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value._x9."" is Infinity, which JSON cannot represent
+[THREAD ERROR] Runtime Error: JSON_FORMAT() value.3.1.1 is NaN, which JSON cannot represent
+a false Runtime Error: JSON_FORMAT() value is Infinity, which JSON cannot represent
+b false Runtime Error: JSON_FORMAT() value is -Infinity, which JSON cannot represent
+c false Runtime Error: JSON_FORMAT() value is NaN, which JSON cannot represent
+d false Runtime Error: JSON_FORMAT() value.3 is Infinity, which JSON cannot represent
+e false Runtime Error: JSON_FORMAT() value.list.2 is NaN, which JSON cannot represent
+f false Runtime Error: JSON_FORMAT() value.1 is NaN, which JSON cannot represent
+g false Runtime Error: JSON_FORMAT() value.rows.2.rate is -Infinity, which JSON cannot represent
+h false Runtime Error: JSON_FORMAT() value."my key".1 is Infinity, which JSON cannot represent
+i false Runtime Error: JSON_FORMAT() value."2" is Infinity, which JSON cannot represent
+j false Runtime Error: JSON_FORMAT() value."a\"b" is NaN, which JSON cannot represent
+k false Runtime Error: JSON_FORMAT() value."합계" is Infinity, which JSON cannot represent
+l false Runtime Error: JSON_FORMAT() value._x9."" is Infinity, which JSON cannot represent
+m false Runtime Error: JSON_FORMAT() value.3.1.1 is NaN, which JSON cannot represent

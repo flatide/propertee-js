@@ -993,6 +993,16 @@ PRINT("Hello, World!")</textarea>
                 (k, v) => v === TEE_NULL ? null : v, indent);
         }
 
+        // The run's result as JSON. JSON has no form for Infinity or NaN (spec v0.32.0), which
+        // JSON.stringify would show as null, so a result holding one is described instead.
+        function resultText(result) {
+            const found = ProperTeeCustomVisitor.firstNonFinite(result, 'result');
+            if (!found) return teeStringify(result, 2);
+            return '(not shown: ' + (found.path === 'result'
+                ? 'the result is ' + found.number
+                : 'the result contains ' + found.number + ' at ' + found.path) + ', which JSON cannot represent)';
+        }
+
         // `not a == b` parses as `(not a) == b` (LANGUAGE.md §Precedence) — with a boolean a and
         // a non-boolean b this silently always yields false. Hint at the parse before running.
         const NOT_COMPARISON = /\bnot\s+(?!\()((?:::)?[A-Za-z_]\w*(?:\.\$?[A-Za-z_]\w*|\.\d+)*|\d+(?:\.\d+)?)\s*(==|!=)/g;
@@ -1235,7 +1245,7 @@ PRINT("Hello, World!")</textarea>
             ]},
             { cat: 'JSON', fns: [
                 { name: 'JSON_PARSE', sig: 'JSON_PARSE(s)', desc: 'Parse a JSON string.', returns: RESULT_NOTE + ' .value = the parsed value (JSON null is preserved as null — spec v0.8.0).', fails: 'Returns a Result with .ok=false and .value = an error message if s is not a string or is invalid JSON. Does NOT stop the script.', sample: 'res = JSON_PARSE("{\\"a\\": 1}")\nPRINT(res.ok, res.value.a)', output: 'true 1' },
-                { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'Does not fail (accepts any value).', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))', output: '{"a":[1,2]}' },
+                { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'Runtime error if the value holds Infinity, -Infinity or NaN, which JSON cannot represent (spec v0.32.0); the message names the first one and where it is, e.g. value.rows.2.rate.', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))', output: '{"a":[1,2]}' },
             ]},
             { cat: 'Results', fns: [
                 { name: 'FAIL', sig: 'FAIL(message)', desc: 'Raise a runtime error at the call site — the explicit escalation for errors a script decides are fatal (spec v0.10.0).', returns: 'Never returns.', fails: 'Always — that is its purpose. The script stops exactly as with any runtime error; inside a multi thread, only that thread fails.', sample: 'res = JSON_PARSE("{bad")\nif not res.ok then\n    FAIL("config parse failed: " + res.value)\nend', output: 'Runtime Error at line 3:4: config parse failed: Invalid JSON: Expected property name or \'}\' in JSON at position 1 (line 1 column 2)', outputNote: 'example' },
@@ -1261,7 +1271,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'FILE_LINES', sig: 'FILE_LINES(path)', desc: 'The file\'s lines as an ordinary array of strings (spec v0.26.0). The file is read as the array is used: a loop goes through it line by line keeping only the current line and LEN counts without keeping, so a file of any size can be processed in a loop; using the array as a whole (an element, SLICE, SORT, PRINT, ==, ...) reads it fully first and is refused above the host\'s whole-use limit (64 MB). The array is the file as it was at the call: lines appended later are not part of it, and any other change fails the next read. Lines end at \\n, \\r\\n or \\r; a leading UTF-8 BOM is dropped.', returns: 'An array of strings — not a Result.', fails: 'Runtime error at the call if the file does not exist or cannot be read; at the use if the file changed since the call, holds invalid UTF-8 or a line over 16 MB, or is too large to use as a whole.', sample: 'WRITE_LINES("/d/a.txt", ["name,age", "Alice,30", "Bob,25"])\nloop n, line in FILE_LINES("/d/a.txt") do\n    if n == 1 then continue end\n    PRINT(n, line)\nend', output: '2 Alice,30\n3 Bob,25' },
                 { name: 'READ_JSON_FILE', sig: 'READ_JSON_FILE(path)', desc: 'Read a JSON file and parse it in one call (spec v0.18.0). Same conversion as JSON_PARSE; a leading UTF-8 BOM is ignored. Replaces the READ_LINES + JOIN + JSON_PARSE idiom.', returns: RESULT_NOTE + ' .value = the parsed value (object, array, or scalar; JSON null preserved).', fails: 'Returns .ok=false if the file cannot be read or its content is not valid JSON. Does NOT stop the script.', sample: 'WRITE_FILE("/d/cfg.json", "{\\"port\\": 8080}")\nres = READ_JSON_FILE("/d/cfg.json")\nPRINT(res.ok, res.value.port)', output: 'true 8080' },
                 { name: 'WRITE_FILE', sig: 'WRITE_FILE(path, content)', desc: 'Write a string to a file (overwrite).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false with an error message if path is not a string, or the write fails (e.g. bad path / permission on a real host).', sample: 'res = WRITE_FILE("/d/a.txt", "hello")\nPRINT(res.ok)', output: 'true' },
-                { name: 'WRITE_JSON_FILE', sig: 'WRITE_JSON_FILE(path, value)', desc: 'Serialize value as JSON (same output as JSON_FORMAT) and write it with a trailing newline, overwriting (spec v0.18.0). The counterpart of READ_JSON_FILE — the round-trip is lossless, null included.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the write fails.', sample: 'WRITE_JSON_FILE("/d/cfg.json", {"port": 8080})\nPRINT(READ_JSON_FILE("/d/cfg.json").value.port)', output: '8080' },
+                { name: 'WRITE_JSON_FILE', sig: 'WRITE_JSON_FILE(path, value)', desc: 'Serialize value as JSON (same output as JSON_FORMAT) and write it with a trailing newline, overwriting (spec v0.18.0). The counterpart of READ_JSON_FILE — the round-trip is lossless, null included.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the write fails. Runtime error if value holds Infinity, -Infinity or NaN, and nothing is written (spec v0.32.0).', sample: 'WRITE_JSON_FILE("/d/cfg.json", {"port": 8080})\nPRINT(READ_JSON_FILE("/d/cfg.json").value.port)', output: '8080' },
                 { name: 'WRITE_LINES', sig: 'WRITE_LINES(path, lines)', desc: 'Write an array of strings as lines.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string or lines is not an array, or the write fails.', sample: 'WRITE_LINES("/d/a.txt", ["one", "two"])\nres = READ_LINES("/d/a.txt")\nPRINT(LEN(res.value))', output: '2' },
                 { name: 'APPEND_FILE', sig: 'APPEND_FILE(path, content)', desc: 'Append a string to a file.', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or the append fails.', sample: 'WRITE_FILE("/d/a.txt", "a\\n")\nAPPEND_FILE("/d/a.txt", "b\\n")\nPRINT(LEN(READ_LINES("/d/a.txt").value))', output: '2' },
                 { name: 'MKDIR', sig: 'MKDIR(path)', desc: 'Create a directory (including parents).', returns: RESULT_NOTE + ' .value = {} on success.', fails: 'Returns .ok=false if path is not a string, or creation fails on a real host.', sample: 'res = MKDIR("/a/b/c")\nPRINT(res.ok, FILE_EXISTS("/a/b/c"))', output: 'true true' },
@@ -1275,8 +1285,8 @@ PRINT("Hello, World!")</textarea>
             ]},
             { cat: 'HTTP', fns: [
                 { name: 'HTTP_GET', sig: 'HTTP_GET(url, [options])', desc: 'HTTP GET. options = {headers, timeout}. The playground mocks responses (a real host makes real requests).', returns: RESULT_NOTE + ' .value = {status, body, headers}. .ok is true only for a 2xx status.', fails: 'A 4xx/5xx keeps the full .value with .ok=false. A transport failure (bad URL/DNS/connect/timeout) gives .ok=false with .value = {status:0, body:<message>, headers:{}}.', sample: 'res = HTTP_GET("http://api/data")\nPRINT(res.ok, res.value.status)\nPRINT(res.value.body)', output: 'true 200\n{"method":"GET","url":"http://api/data"}' },
-                { name: 'HTTP_POST', sig: 'HTTP_POST(url, body, [options])', desc: 'HTTP POST. A string body is sent as-is; an object/array body is serialized to JSON. options = {headers, timeout}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Non-2xx -> .ok=false (value retained). Transport failure -> .ok=false, .value.status=0.', sample: 'data = {"test": "ok"}\nopts = {"headers": {"Content-Type": "application/json"}}\nres = HTTP_POST("http://api/submit", data, opts)\nPRINT(res.ok, res.value.body)', output: 'true {"method":"POST","url":"http://api/submit","received":"{\\"test\\":\\"ok\\"}"}' },
-                { name: 'HTTP', sig: 'HTTP(method, url, [options])', desc: 'General request for any method (PUT/DELETE/PATCH/...). options = {headers, timeout, body}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Same as HTTP_GET: non-2xx -> .ok=false; transport failure -> .value.status=0.', sample: 'opts = {"headers": {"X-Token": "abc"}}\nres = HTTP("GET", "http://api/me", opts)\nPRINT(res.value.status)', output: '200' },
+                { name: 'HTTP_POST', sig: 'HTTP_POST(url, body, [options])', desc: 'HTTP POST. A string body is sent as-is; an object/array body is serialized to JSON. options = {headers, timeout}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Non-2xx -> .ok=false (value retained). Transport failure -> .ok=false, .value.status=0. Runtime error if a body that is not a string holds Infinity, -Infinity or NaN, and nothing is sent (spec v0.32.0).', sample: 'data = {"test": "ok"}\nopts = {"headers": {"Content-Type": "application/json"}}\nres = HTTP_POST("http://api/submit", data, opts)\nPRINT(res.ok, res.value.body)', output: 'true {"method":"POST","url":"http://api/submit","received":"{\\"test\\":\\"ok\\"}"}' },
+                { name: 'HTTP', sig: 'HTTP(method, url, [options])', desc: 'General request for any method (PUT/DELETE/PATCH/...). options = {headers, timeout, body}.', returns: RESULT_NOTE + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'Same as HTTP_GET: non-2xx -> .ok=false; transport failure -> .value.status=0. Runtime error if options.body holds Infinity, -Infinity or NaN, and nothing is sent (spec v0.32.0).', sample: 'opts = {"headers": {"X-Token": "abc"}}\nres = HTTP("GET", "http://api/me", opts)\nPRINT(res.value.status)', output: '200' },
             ]},
         ];
 
@@ -1341,7 +1351,7 @@ PRINT("Hello, World!")</textarea>
             MERGE: { desc: '두 객체 병합.', returns: '새 객체(키 충돌 시 obj2 우선).', fails: '인자 중 객체가 아닌 것이 있으면 런타임 에러.' },
             REMOVE_KEY: { desc: '키 하나 제거.', returns: '새 객체(키가 없어도 에러 없음).', fails: 'obj가 객체가 아니거나 key가 문자열이 아니면 런타임 에러.' },
             JSON_PARSE: { desc: 'JSON 문자열 파싱.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(JSON null은 null로 보존 — spec v0.8.0).', fails: 's가 문자열이 아니거나 잘못된 JSON이면 .ok=false 와 에러 메시지 반환. 스크립트는 중단되지 않음.' },
-            JSON_FORMAT: { desc: '임의의 값을 JSON으로 직렬화.', returns: 'JSON 문자열.', fails: '실패하지 않음(모든 값 허용).' },
+            JSON_FORMAT: { desc: '임의의 값을 JSON으로 직렬화.', returns: 'JSON 문자열.', fails: '값에 JSON으로 쓸 수 없는 Infinity, -Infinity, NaN이 있으면 런타임 에러 (스펙 v0.32.0); 메시지가 첫 번째 수와 위치(예: value.rows.2.rate)를 알려 줌.' },
             FAIL: { desc: '호출 지점에서 런타임 에러 발생 — 스크립트가 치명적이라고 판단한 에러의 명시적 승격 (spec v0.10.0).', returns: '반환하지 않음.', fails: '항상 — 그것이 목적. 여느 런타임 에러처럼 스크립트가 중단되며, multi 스레드 안에서는 해당 스레드만 실패.' },
             UNWRAP: { desc: 'ok인 genuine Result의 값을 꺼냄; 에러 Result면 TO_STRING(res.value)로 FAIL처럼 승격(두 번째 인자가 있으면 "message: " 접두).', returns: 'res.ok가 true면 res.value.', fails: 'res.ok가 false이거나 res가 genuine Result가 아니면 런타임 에러(스크립트 리터럴은 genuine이 아님 — OK/ERR로 생성).' },
             OK: { desc: 'genuine Result {status: "done", ok: true, value} 생성.', returns: 'genuine Result. 인자 생략 시 value = {}.', fails: '실패하지 않음.' },
@@ -1357,7 +1367,7 @@ PRINT("Hello, World!")</textarea>
             READ_FILE: { desc: '파일 전체를 하나의 문자열로 읽기 (스펙 v0.18.0). WRITE_FILE의 대응 함수; 큰 파일에는 FILE_LINES가 적합 (스펙 v0.26.0).', returns: RESULT_NOTE_KO + ' .value = 파일 내용(내용 그대로).', fails: '파일을 읽을 수 없으면 .ok=false.' },
             READ_LINES: { desc: '줄 읽기(start 1부터, count 제한).', returns: RESULT_NOTE_KO + ' .value = 줄 문자열 배열.', fails: 'path가 없거나 start/count가 정수가 아니거나 < 1이면 .ok=false.' },
             FILE_LINES: { desc: '파일의 줄들을 평범한 문자열 배열로 (스펙 v0.26.0). 파일은 배열이 쓰일 때 읽힘: 루프는 현재 줄만 유지하며 한 줄씩 지나가고 LEN은 보관 없이 세므로 크기와 상관없이 루프로 처리 가능; 통째로 쓰면(요소, SLICE, SORT, PRINT, == 등) 먼저 전부 읽으며 호스트의 통째 사용 상한(64 MB)을 넘으면 거부. 배열은 호출 시점의 파일: 그 뒤 추가된 줄은 포함되지 않고, 그 밖의 변경은 다음 읽기에서 실패. 줄 끝은 \\n, \\r\\n, \\r; 선행 UTF-8 BOM은 제거.', returns: '문자열 배열 — Result가 아님.', fails: '파일이 없거나 읽을 수 없으면 호출 시점에 런타임 에러; 호출 뒤 파일이 바뀌었거나, 잘못된 UTF-8이거나, 16 MB를 넘는 줄이 있거나, 통째로 쓰기에 너무 크면 사용 시점에 런타임 에러.' },
-            WRITE_JSON_FILE: { desc: 'value를 JSON으로 직렬화(JSON_FORMAT과 동일 출력)해 끝 줄바꿈 하나와 함께 쓰기(덮어쓰기) (스펙 v0.18.0). READ_JSON_FILE의 대응 함수 — 왕복은 null 포함 무손실.', returns: RESULT_NOTE_KO + ' .value = 성공 시 {}.', fails: 'path가 문자열이 아니거나 쓰기 실패면 .ok=false.' },
+            WRITE_JSON_FILE: { desc: 'value를 JSON으로 직렬화(JSON_FORMAT과 동일 출력)해 끝 줄바꿈 하나와 함께 쓰기(덮어쓰기) (스펙 v0.18.0). READ_JSON_FILE의 대응 함수 — 왕복은 null 포함 무손실.', returns: RESULT_NOTE_KO + ' .value = 성공 시 {}.', fails: 'path가 문자열이 아니거나 쓰기 실패면 .ok=false. value에 Infinity, -Infinity, NaN이 있으면 런타임 에러이고 아무것도 쓰지 않음 (스펙 v0.32.0).' },
             READ_JSON_FILE: { desc: 'JSON 파일을 읽어 한 번에 파싱 (스펙 v0.18.0). JSON_PARSE와 동일한 변환; 선행 UTF-8 BOM 무시. READ_LINES + JOIN + JSON_PARSE 관용구를 대체.', returns: RESULT_NOTE_KO + ' .value = 파싱된 값(객체·배열·스칼라; JSON null 보존).', fails: '파일을 읽을 수 없거나 유효한 JSON이 아니면 .ok=false. 스크립트를 중단하지 않음.' },
             WRITE_FILE: { desc: '문자열을 파일에 쓰기(덮어쓰기).', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 쓰기 실패 시(실제 호스트에서 잘못된 경로/권한 등) .ok=false 와 에러 메시지.' },
             WRITE_LINES: { desc: '문자열 배열을 줄 단위로 쓰기.', returns: RESULT_NOTE_KO + ' 성공 시 .value = {}.', fails: 'path가 문자열이 아니거나 lines가 배열이 아니거나 쓰기 실패 시 .ok=false.' },
@@ -1369,8 +1379,8 @@ PRINT("Hello, World!")</textarea>
             SHELL: { desc: '셸 명령 실행. Playground는 작은 셸을 흉내(echo, pwd, ls, cat, whoami, env, true, false)하며 메모리 FS와 연동; 실제 호스트는 진짜 셸 실행.', returns: RESULT_NOTE_KO + ' 종료 코드 0이면 .value = 명령의 stdout.', fails: '0이 아닌 종료는 .ok=false 와 출력 반환 — 예: 없는 파일 cat, false, 알 수 없는 명령("... command not found").' },
             SHELL_CTX: { desc: 'SHELL에 넘길 셸 컨텍스트(작업 디렉토리 + env) 생성. Result를 그대로 넘기면 SHELL이 자동으로 풉니다.', returns: RESULT_NOTE_KO + ' .value = 컨텍스트 객체 {cwd, env}.', fails: 'cwd가 문자열이 아니거나 디렉토리가 없으면 .ok=false.' },
             HTTP_GET: { desc: 'HTTP GET. options = {headers, timeout}. Playground는 응답을 흉내냅니다(실제 호스트는 실제 요청).', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}. .ok는 2xx일 때만 true.', fails: '4xx/5xx는 .value를 유지한 채 .ok=false. 전송 실패(잘못된 URL/DNS/연결/타임아웃)는 .ok=false, .value = {status:0, body:<메시지>, headers:{}}.' },
-            HTTP_POST: { desc: 'HTTP POST. 문자열 body 는 그대로, 객체/배열 body 는 JSON 으로 직렬화. options = {headers, timeout}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: '2xx 아니면 .ok=false(value 유지). 전송 실패는 .ok=false, .value.status=0.' },
-            HTTP: { desc: '임의 메서드(PUT/DELETE/PATCH/...)용 범용 요청. options = {headers, timeout, body}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'HTTP_GET과 동일: 2xx 아니면 .ok=false, 전송 실패는 .value.status=0.' },
+            HTTP_POST: { desc: 'HTTP POST. 문자열 body 는 그대로, 객체/배열 body 는 JSON 으로 직렬화. options = {headers, timeout}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: '2xx 아니면 .ok=false(value 유지). 전송 실패는 .ok=false, .value.status=0. 문자열이 아닌 body에 Infinity, -Infinity, NaN이 있으면 런타임 에러이고 보내지 않음 (스펙 v0.32.0).' },
+            HTTP: { desc: '임의 메서드(PUT/DELETE/PATCH/...)용 범용 요청. options = {headers, timeout, body}.', returns: RESULT_NOTE_KO + ' .value = {status, body, headers}, .ok = 2xx.', fails: 'HTTP_GET과 동일: 2xx 아니면 .ok=false, 전송 실패는 .value.status=0. options.body에 Infinity, -Infinity, NaN이 있으면 런타임 에러이고 보내지 않음 (스펙 v0.32.0).' },
         };
         const CAT_KO = { 'I/O': '입출력', 'Math': '수학', 'Conversion': '변환', 'String': '문자열', 'Array': '배열', 'Object': '객체', 'JSON': 'JSON', 'Results': 'Result', 'Time': '시간', 'Environment': '환경', 'File I/O': '파일 입출력', 'Shell': '셸', 'HTTP': 'HTTP' };
         const UI_STR = {
@@ -1680,13 +1690,16 @@ end`
             });
 
             // WRITE_JSON_FILE (spec v0.18.0): READ_JSON_FILE's counterpart — JSON_FORMAT output
-            // + one trailing newline, overwrite.
-            visitor.registerExternal('WRITE_JSON_FILE', (p, value) => {
+            // + one trailing newline, overwrite. A value JSON cannot hold (Infinity, NaN) is a
+            // runtime error that writes nothing (spec v0.32.0), so like FILE_LINES this is installed
+            // as a builtin rather than through registerExternal, whose throws become Result errors.
+            visitor.functions['WRITE_JSON_FILE'] = (p, value) => {
                 if (typeof p !== 'string') return err('WRITE_JSON_FILE() first argument must be a string path');
+                const text = ProperTeeCustomVisitor.json(value, 'WRITE_JSON_FILE', 'value');
                 p = norm(p); mkdirp(parentOf(p));
-                files[p] = teeStringify(value) + '\n';
+                files[p] = text + '\n';
                 return ok({});
-            });
+            };
 
             // READ_JSON_FILE (spec v0.18.0): read + JSON-parse in one call. Same value conversion
             // as JSON_PARSE (first-class null -> TEE_NULL); a leading UTF-8 BOM is ignored.
@@ -1939,15 +1952,21 @@ end`
             };
             const optBody = (opts) => (opts && typeof opts === 'object' && opts.body !== undefined) ? opts.body : null;
             // String body sent as-is; objects/arrays serialized as JSON (so {"a":1} -> {"a":1}, not [object Object]).
-            const coerceBody = (body) => {
+            // A body JSON cannot hold (Infinity, NaN) is a runtime error and nothing is sent (spec
+            // v0.32.0), so HTTP and HTTP_POST are installed as builtins: registerExternal would turn
+            // the throw into an error Result.
+            const coerceBody = (fn, body) => {
                 if (body == null) return '';
                 if (typeof body === 'string') return body;
-                return teeStringify(body);
+                return ProperTeeCustomVisitor.json(body, fn, 'body');
             };
 
-            visitor.registerExternal('HTTP', (method, url, opts) => runHttp(String(method || 'GET'), url, optHeaders(opts), coerceBody(optBody(opts))));
+            // As in the reference, a URL that is not a string is an error Result before the body is looked at.
+            visitor.functions['HTTP'] = (method, url, opts) => runHttp(String(method || 'GET'), url, optHeaders(opts),
+                typeof url === 'string' ? coerceBody('HTTP', optBody(opts)) : null);
             visitor.registerExternal('HTTP_GET', (url, opts) => runHttp('GET', url, optHeaders(opts), null));
-            visitor.registerExternal('HTTP_POST', (url, body, opts) => runHttp('POST', url, optHeaders(opts), coerceBody(body)));
+            visitor.functions['HTTP_POST'] = (url, body, opts) => runHttp('POST', url, optHeaders(opts),
+                typeof url === 'string' ? coerceBody('HTTP_POST', body) : null);
         }
 
         const examples = {
@@ -2832,7 +2851,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
                 const mainGenerator = visitor.visitRoot(tree);
                 const result = await scheduler.run(mainGenerator);
 
-                appendOutput('Finished with result: ' + teeStringify(result, 2) + '\n', '#a6e3a1');
+                appendOutput('Finished with result: ' + resultText(result) + '\n', '#a6e3a1');
 
             } catch (e) {
                 appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
@@ -3056,7 +3075,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
                 const result = await scheduler.run(mainGenerator);
 
                 if (isDebugging) {
-                    appendOutput('Finished with result: ' + teeStringify(result, 2) + '\n', '#a6e3a1');
+                    appendOutput('Finished with result: ' + resultText(result) + '\n', '#a6e3a1');
                     endDebugSession();
                 }
 

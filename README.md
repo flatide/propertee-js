@@ -101,7 +101,9 @@ REPL commands: `.vars` (show variables), `.exit` (quit).
 `--result-only` discards the script's `PRINT` output and prints only its result as one line of
 JSON: the top-level `return` value, else the final `result` global, else `{}` — the value TeeBox
 reports for a run, and the same rule as the Java CLI's `propertee2 --result-only`. stderr output
-(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. Options go
+(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. So does a
+result holding Infinity, -Infinity or NaN, which JSON cannot hold (spec v0.32.0):
+`Error: the result contains NaN at result.list.2, which JSON cannot represent`. Options go
 before the script path (later words are `_ARGS`); embedding hosts read the same value with
 `visitor.scriptResult()` after the run.
 
@@ -228,6 +230,20 @@ if (!ok) {
 
 In the browser the same call is `window.checkScript(source, { visitor })` — the playground runs
 exactly this before every execution.
+
+### Writing JSON from a host
+
+JSON has no form for Infinity, -Infinity or NaN (spec v0.32.0). A host function that turns a script
+value into JSON, as the playground's `WRITE_JSON_FILE` and `HTTP_POST` do, can use the runtime's own
+check:
+
+- `ProperTeeCustomVisitor.json(value, fn, name)` returns `JSON_FORMAT`'s text, or throws
+  `Runtime Error: <fn>() <name>.list.2 is NaN, which JSON cannot represent`.
+- `ProperTeeCustomVisitor.firstNonFinite(value, name)` returns `{path, number}` for the first such
+  number, or `null`, without writing anything.
+
+A function registered with `registerExternal` turns any throw into an error Result. For the throw
+to be a runtime error, as in the built-ins, install the function in `visitor.functions` directly.
 
 ## Project Structure
 
