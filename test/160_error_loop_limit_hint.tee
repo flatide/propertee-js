@@ -1,0 +1,47 @@
+// spec v0.35.0: the loop-limit error suggests 'loop ... infinite do' for every loop — a condition
+// loop, a loop over an array or object, and one over keys and values — in both runtimes
+function overCondition() do
+    i = 0
+    loop i < 2000 do
+        i = i + 1
+    end
+    return i
+end
+
+function overValues(items) do
+    n = 0
+    loop v in items do
+        n = n + 1
+    end
+    return n
+end
+
+function overKeysAndValues(collection) do
+    n = 0
+    loop k, v in collection do
+        n = n + 1
+    end
+    return n
+end
+
+items = []
+table = {}
+i = 0
+loop i < 1001 infinite do
+    i = i + 1
+    items = PUSH(items, i)
+    key = "k" + TO_STRING(i)
+    table.$key = i
+end
+
+multi r do
+    thread condition: overCondition()
+    thread values: overValues(::items)
+    thread keysAndValues: overKeysAndValues(::table)
+    thread indexesAndValues: overKeysAndValues(::items)
+    thread justEnough: overValues(SLICE(::items, 1, 1000))
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end

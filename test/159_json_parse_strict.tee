@@ -1,0 +1,76 @@
+// spec v0.35.0: JSON_PARSE refuses a numeral too large to represent, naming the first one and where
+// it is; the text must be JSON as RFC 8259 writes it, in both runtimes; more than 1000 levels of
+// nesting is invalid. Messages for other invalid JSON differ between the runtimes, so only ok is
+// shown for them.
+function ch(hex) do
+    return UNWRAP(JSON_PARSE("\"\\u" + hex + "\""))
+end
+function show(text) do
+    r = JSON_PARSE(text)
+    if r.ok then
+        return "ok " + JSON_FORMAT(r.value)
+    end
+    return "error " + r.value
+end
+
+// too large to represent: an error Result, not Infinity
+PRINT(show("1e999"))
+PRINT(show("-1e999"))
+PRINT(show("{\"rows\": [{\"size\": 1}, {\"size\": -1E400}]}"))
+PRINT(show("{\"unit price\": 1e309, \"later\": 1e999}"))
+digits = "1"
+n = 0
+loop n < 309 do
+    digits = digits + "0"
+    n = n + 1
+end
+PRINT(show("[1, " + digits + "]"))
+res = JSON_PARSE("{\"size\": 1e999}")
+PRINT(res.ok, IS_RESULT(res))
+
+// still numbers: too small is 0, past the integer range a decimal, the largest decimal
+PRINT(show("[1e-999, 123456789012345678901234567890, 1.7976931348623157e308, -0, 0.5, 1E5, 1e+5, 2.5e-3, -0.0e-0]"))
+
+// not JSON numbers
+loop text in ["01", "-01", "1.", ".5", "1.e5", "+1", "1e", "1e+", "1-2", "--1", "1e5.5", "1+", "[1, 2e]", "-", "0x10", "1_000", "Infinity", "NaN"] do
+    PRINT(text, JSON_PARSE(text).ok)
+end
+
+// whitespace is space, tab, LF and CR only
+PRINT(show(" \t\n\r[1] \r\n"))
+loop hex in ["000b", "000c", "001c", "00a0", "2002", "3000", "feff"] do
+    PRINT(hex, JSON_PARSE(ch(hex) + "[1]").ok)
+end
+
+// a control character must be escaped in a string; \u takes four hex digits
+PRINT(show("\"a\\tb\\u0041\""))
+loop hex in ["0000", "0009", "000a", "001f"] do
+    PRINT(hex, JSON_PARSE("\"a" + ch(hex) + "b\"").ok)
+end
+loop text in ["\"\\uZZZZ\"", "\"\\u41\"", "\"\\u+041\"", "\"\\u" + ch("ff21") + "041\"", "\"\\x41\""] do
+    PRINT(JSON_PARSE(text).ok)
+end
+
+// at most 1000 levels; brackets inside a string do not count
+deep = ""
+n = 0
+loop n < 1000 infinite do
+    deep = "[" + deep + "]"
+    n = n + 1
+end
+PRINT(JSON_PARSE(deep).ok, LEN(UNWRAP(JSON_PARSE(deep))))
+PRINT(show("[" + deep + "]"))
+nested = "1"
+n = 0
+loop n < 1001 infinite do
+    nested = "{\"a\":" + nested + "}"
+    n = n + 1
+end
+PRINT(show(nested))
+brackets = ""
+n = 0
+loop n < 1001 infinite do
+    brackets = brackets + "["
+    n = n + 1
+end
+PRINT(LEN(UNWRAP(JSON_PARSE("[\"\\\"" + brackets + "\"]")).1))

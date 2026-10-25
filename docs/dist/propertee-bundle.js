@@ -5854,6 +5854,57 @@ function firstNonFinite(value, name) {
     return d === null ? null : { path: [name, ...members.reverse()].join('.'), number: String(d) };
 }
 
+// Spec v0.35.0: JSON nested more than 1000 levels deep is invalid, as in the Java runtime, whose parser
+// makes a call per level. JSON.parse has no such limit, so the text is scanned first; the position is
+// the bracket that goes one level too deep, the same as the Java runtime's.
+const JSON_MAX_DEPTH = 1000;
+function jsonTooDeep(text) {
+    let depth = 0;
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inString) {
+            if (c === '\\') i++;
+            else if (c === '"') inString = false;
+        } else if (c === '"') {
+            inString = true;
+        } else if (c === '[' || c === '{') {
+            if (++depth > JSON_MAX_DEPTH) return i;
+        } else if (c === ']' || c === '}') {
+            depth--;
+        }
+    }
+    return -1;
+}
+
+// JSON_PARSE's and READ_JSON_FILE's Result for `text`, as `fn` reports it: the value with JSON null as
+// TEE_NULL (spec v0.8.0), or an error. A numeral too large to represent, which JSON.parse reads as
+// Infinity, is an error naming the first one and where it is (spec v0.35.0) — it used to come through
+// and fail only when written back as JSON.
+function parseJson(text, fn) {
+    const deep = jsonTooDeep(text);
+    if (deep >= 0) return makeResult("error", false, `Invalid JSON: nested more than ${JSON_MAX_DEPTH} levels deep at position ${deep}`);
+    let value;
+    try {
+        const convert = (v) => {
+            if (v === null || v === undefined) return TEE_NULL;
+            if (Array.isArray(v)) return v.map(convert);
+            if (typeof v === 'object') {
+                const result = {};
+                for (const [k, val] of Object.entries(v)) result[k] = convert(val);
+                return result;
+            }
+            return v;
+        };
+        value = convert(JSON.parse(text));
+    } catch (e) {
+        return makeResult("error", false, "Invalid JSON: " + e.message);
+    }
+    const big = firstNonFinite(value, 'value');   // JSON has no NaN to read
+    if (big) return makeResult("error", false, `${fn}() ${big.path} is a number too large to represent`);
+    return makeResult("done", true, value);
+}
+
 // JSON_FORMAT's text of `value` for `fn`, which calls it `name` ("value", "body"): TEE_NULL as JSON
 // null, and a number JSON cannot hold a runtime error naming the first (spec v0.32.0), where
 // JSON.stringify would write null.
@@ -6451,25 +6502,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             'JSON_PARSE': (str) => {
                 if (typeof str !== 'string')
                     return makeResult("error", false, "JSON_PARSE() requires a string argument");
-                try {
-                    const parsed = JSON.parse(str);
-                    const convert = (v) => {
-                        // spec v0.8.0 (#4): JSON null is preserved (was normalized to {})
-                        if (v === null || v === undefined) return TEE_NULL;
-                        if (Array.isArray(v)) return v.map(convert);
-                        if (typeof v === 'object') {
-                            const result = {};
-                            for (const [k, val] of Object.entries(v)) {
-                                result[k] = convert(val);
-                            }
-                            return result;
-                        }
-                        return v;
-                    };
-                    return makeResult("done", true, convert(parsed));
-                } catch (e) {
-                    return makeResult("error", false, "Invalid JSON: " + e.message);
-                }
+                return parseJson(str, 'JSON_PARSE');
             },
             'JSON_FORMAT': (value) => {
                 return teeJson(value, 'JSON_FORMAT', 'value');
@@ -6827,6 +6860,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     static firstNonFinite(value, name) {
         return firstNonFinite(value, name);
+    }
+
+    // For hosts that read JSON (spec v0.35.0): JSON_PARSE's Result for `text`, its errors naming
+    // `fn` — a host's READ_JSON_FILE reads a file's text the way JSON_PARSE reads a string.
+    static parseJson(text, fn) {
+        return parseJson(text, fn);
     }
 
     getLocation(ctx) {
@@ -7340,8 +7379,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         this.stderr(`Warning: Loop exceeded maximum iterations (${maxIterations}), stopping loop`);
                         break;
                     } else {
+                        // spec v0.35.0: every loop suggests 'loop ... infinite do' (this one said
+                        // 'loop condition infinite do')
                         throw this.createError(
-                            `Loop exceeded maximum iterations (${maxIterations}). Use 'loop condition infinite do' if you need unlimited iterations.`,
+                            `Loop exceeded maximum iterations (${maxIterations}). Use 'loop ... infinite do' if you need unlimited iterations.`,
                             ctx
                         );
                     }

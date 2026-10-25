@@ -1,0 +1,9 @@
+[THREAD ERROR] Runtime Error at line 5:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+[THREAD ERROR] Runtime Error at line 13:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+[THREAD ERROR] Runtime Error at line 21:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+[THREAD ERROR] Runtime Error at line 21:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+condition false Runtime Error at line 5:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+values false Runtime Error at line 13:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+keysAndValues false Runtime Error at line 21:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+indexesAndValues false Runtime Error at line 21:4: Loop exceeded maximum iterations (1000). Use 'loop ... infinite do' if you need unlimited iterations.
+justEnough true 1000

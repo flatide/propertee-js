@@ -1,0 +1,47 @@
+error JSON_PARSE() value is a number too large to represent
+error JSON_PARSE() value is a number too large to represent
+error JSON_PARSE() value.rows.2.size is a number too large to represent
+error JSON_PARSE() value."unit price" is a number too large to represent
+error JSON_PARSE() value.2 is a number too large to represent
+false true
+ok [0,1.2345678901234568e+29,1.7976931348623157e+308,0,0.5,100000,100000,0.0025,0]
+01 false
+-01 false
+1. false
+.5 false
+1.e5 false
++1 false
+1e false
+1e+ false
+1-2 false
+--1 false
+1e5.5 false
+1+ false
+[1, 2e] false
+- false
+0x10 false
+1_000 false
+Infinity false
+NaN false
+ok [1]
+000b false
+000c false
+001c false
+00a0 false
+2002 false
+3000 false
+feff false
+ok "a\tbA"
+0000 false
+0009 false
+000a false
+001f false
+false
+false
+false
+false
+false
+true 1
+error Invalid JSON: nested more than 1000 levels deep at position 1000
+error Invalid JSON: nested more than 1000 levels deep at position 5000
+1002

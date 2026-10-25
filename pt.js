@@ -5,7 +5,7 @@ import { createInterface } from 'readline';
 import antlr4 from 'antlr4';
 import ProperTeeLexer from './ProperTeeLexer.js';
 import ProperTeeParser from './ProperTeeParser.js';
-import ProperTeeCustomVisitor, { TEE_NULL } from './ProperTeeCustomVisitor.js';
+import ProperTeeCustomVisitor, { TEE_NULL, firstNonFinite } from './ProperTeeCustomVisitor.js';
 import Scheduler from './Scheduler.js';
 
 const VERSION = '0.6.0';
@@ -96,6 +96,12 @@ try {
     properties = JSON.parse(propsJson);
 } catch (e) {
     console.error(`Error: Invalid properties JSON: ${e.message}`);
+    process.exit(1);
+}
+// a numeral too large to represent is refused, as JSON_PARSE refuses it (spec v0.35.0)
+const tooLarge = firstNonFinite(properties, 'props');
+if (tooLarge) {
+    console.error(`Error: Invalid properties: ${tooLarge.path} is a number too large to represent`);
     process.exit(1);
 }
 

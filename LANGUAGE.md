@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.34.0
+# ProperTee Language Specification v0.35.0
 
 ## Overview
 
@@ -35,9 +35,9 @@ Scripts that don't touch JSON `null` never see it; check for it explicitly (`if 
 - Division always produces a decimal internally: `7 / 2` → `3.5`
 - Whole-number results of other operations display as integers: `1.0 + 2.0` → `3`
 - Decimal arithmetic past the range of numbers gives `Infinity` or `-Infinity`
-  (`TO_NUMBER("1e308") * 10`), and `Infinity - Infinity` gives `NaN`. `JSON_PARSE` also reads a
-  numeral too large to represent, such as `1e999`, as `Infinity`. They display as `Infinity`,
-  `-Infinity` and `NaN`, but JSON has no form for them
+  (`TO_NUMBER("1e308") * 10`), and `Infinity - Infinity` gives `NaN`. Text does not turn into
+  them: `TO_NUMBER`, `JSON_PARSE` and `READ_JSON_FILE` refuse a numeral too large to represent,
+  such as `1e999`. They display as `Infinity`, `-Infinity` and `NaN`, but JSON has no form for them
   ([Numbers JSON cannot hold](#numbers-json-cannot-hold)). Division by zero is an error, not
   infinity.
 
@@ -1432,15 +1432,33 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 
 | Function | Description |
 |---|---|
-| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON. JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
-| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly, except for a numeral too large to represent. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error (spec v0.32.0); see [below](#numbers-json-cannot-hold). |
+| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON ([JSON text](#json-text)) or on a numeral too large to represent ([below](#numbers-json-cannot-hold), spec v0.35.0). JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
+| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error (spec v0.32.0); see [below](#numbers-json-cannot-hold). |
+
+#### JSON text
+
+`JSON_PARSE` and `READ_JSON_FILE` read JSON as RFC 8259 defines it, and anything else is invalid
+JSON (spec v0.35.0):
+
+- A number is an optional `-`, then `0` or digits that do not start with `0`, then an optional
+  fraction (`.` and at least one digit) and an optional exponent (`e` or `E`, an optional sign, at
+  least one digit). `01`, `.5`, `1.`, `+1` and `1e` are not numbers, and neither are `Infinity`
+  and `NaN`.
+- Whitespace between tokens is space, tab, line feed and carriage return only. (`READ_JSON_FILE`
+  also ignores a leading UTF-8 BOM.)
+- A string holds no raw control character (U+0000–U+001F); it is written as an escape such as `\t`
+  or `\u0009`. `\u` takes exactly four hex digits.
+- Nesting is at most 1000 levels deep. One level more fails with
+  `Invalid JSON: nested more than 1000 levels deep at position 1000`, where the position is that of
+  the bracket that goes too deep, counted from 0 as JSON readers count.
+
+Invalid JSON gives an error Result whose message starts with `Invalid JSON: `. Apart from the
+nesting message, the rest is the runtime's own wording and differs between runtimes.
 
 #### Numbers JSON cannot hold
 
 JSON has no way to write `Infinity`, `-Infinity` or `NaN`, which decimal arithmetic past the range
-of numbers produces. `JSON_PARSE` and `READ_JSON_FILE` also read a numeral too large to represent,
-such as `1e999`, as `Infinity`, so such JSON text does not round-trip. Turning a value that holds
-one into JSON is therefore a runtime error
+of numbers produces. Turning a value that holds one into JSON is therefore a runtime error
 (spec v0.32.0), wherever it happens: in `JSON_FORMAT`, in `WRITE_JSON_FILE`, which then writes
 nothing, and in an HTTP request body that is not a string, which is then not sent. The error names
 the first such number, in the order the JSON would be written, and where it is:
@@ -1461,6 +1479,19 @@ PRINT(JSON_FORMAT(data))
   show the three as `Infinity`, `-Infinity` and `NaN`, so a script that wants to keep one in JSON
   can store the number as text: `TO_STRING(x)` is `"Infinity"`.
 
+Reading meets the same gap from the other side. A numeral too large to represent, such as `1e999`,
+is valid JSON, but no number can hold it, so `JSON_PARSE` and `READ_JSON_FILE` return an error
+Result naming the first one and where it is, the place written as above (spec v0.35.0):
+
+```
+res = JSON_PARSE("{\"rows\": [{\"size\": 1}, {\"size\": 1e999}]}")
+PRINT(res.ok, res.value)
+// false JSON_PARSE() value.rows.2.size is a number too large to represent
+```
+
+A numeral too small to represent, such as `1e-999`, reads as `0`, and an integer numeral outside
+the integer range as the nearest decimal, as with `TO_NUMBER`.
+
 ### File I/O
 
 | Function | Description |
@@ -1470,7 +1501,7 @@ PRINT(JSON_FORMAT(data))
 | `READ_LINES(path, [start], [count])` | Read lines from file. `start` is 1-based (default 1). `count` limits lines read. Returns Result with string array. To go through a whole file line by line, `FILE_LINES` is simpler. |
 | `FILE_LINES(path)` | The file's lines as an array of strings (spec v0.26.0) — a plain array, not a Result: a file that cannot be read is a runtime error. The file is read as the array is used, so a file of any size can be gone through with a loop; see [Going through a file line by line](#going-through-a-file-line-by-line). |
 | `READ_FILE(path)` | Read the whole file as one string (spec v0.18.0). Returns Result: `ok` with the file content (UTF-8, content-exact), `error` on a read failure. The counterpart of `WRITE_FILE`; for large files use `FILE_LINES`. |
-| `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure or invalid JSON. A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
+| `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure, invalid JSON, or a numeral too large to represent (`READ_JSON_FILE() value.size is a number too large to represent`, spec v0.35.0). A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
 | `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
 | `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
 | `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error, and nothing is written ([Numbers JSON cannot hold](#numbers-json-cannot-hold), spec v0.32.0). |
@@ -2030,11 +2061,45 @@ out — see [Infinite Loops](#infinite-loops)). Other resource limits — recurs
 are **host/runtime discretion**: exhausting them fails the run, but the exact error surface is
 implementation-defined. Scripts should not rely on any particular recursion depth. The `FILE_LINES`
 whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configurable defaults
-([Going through a file line by line](#going-through-a-file-line-by-line)).
+([Going through a file line by line](#going-through-a-file-line-by-line)). JSON text is read to a
+fixed depth of 1000 levels in every runtime ([JSON text](#json-text)).
 
 ---
 
 ## Changelog
+
+### v0.35.0 — `JSON_PARSE` refuses numbers too large to represent
+
+Mildly breaking, no grammar change. `1e999` is valid JSON, but no number can hold it, and
+`JSON_PARSE` and `READ_JSON_FILE` read it as `Infinity`. It came through without a word and showed
+itself later, far from where it came in: arithmetic gave `Infinity` or `NaN`, `FLOOR` reported an
+integer overflow, and writing the data back as JSON failed (spec v0.32.0). `TO_NUMBER` has refused
+such a numeral since v0.25.0.
+
+- `JSON_PARSE` and `READ_JSON_FILE` return an error Result for a numeral too large to represent,
+  naming the first one and where it is, as the JSON writers do:
+  `JSON_PARSE() value.rows.2.size is a number too large to represent`. A numeral too small to
+  represent still reads as `0`.
+- The text must be JSON as RFC 8259 defines it ([JSON text](#json-text)). The JavaScript runtime
+  already read it so. The Java 25 runtime also took `01`, `.5`, `1.` and `1.e5`, Unicode spaces
+  between tokens, raw control characters in a string and `\u+041`; and a malformed number such as
+  `1e` or `[1, 2e]`, a malformed `\u` escape, or very deep nesting ended the whole run with a Java
+  exception instead of giving an error Result.
+- Nesting is at most 1000 levels deep in both runtimes:
+  `Invalid JSON: nested more than 1000 levels deep at position 1000`. Before, the Java 25 runtime
+  overflowed its stack and the JavaScript runtime gave its own error, each at a depth that depended
+  on the machine.
+- The command-line runtimes refuse such a numeral in `-p` properties too, as TeeBox already refused
+  it in run input.
+- The loop-limit error suggests `Use 'loop ... infinite do'` for every loop in both runtimes. The
+  Java 25 runtime suggested `loop condition infinite do` for every loop, which reads wrong for a loop
+  over an array or object, and the JavaScript runtime did for a condition loop.
+
+Migration: a script that read such a numeral got `Infinity`; it now gets an error Result, which the
+`res.ok` check or `UNWRAP` it has for invalid JSON already handles. JSON that only the Java 25
+runtime accepted has to be made valid JSON.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.34.0 — Positions must be integers in range
 
