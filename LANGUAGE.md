@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.33.0
+# ProperTee Language Specification v0.34.0
 
 ## Overview
 
@@ -277,6 +277,9 @@ s.1     // "h"
 s.5     // "o"
 ```
 
+The position must be an integer from 1 to `LEN(s)`: `s.0`, `s.6`, and `s.$i` with `i = 1.5` are
+runtime errors (`String index out of bounds`, `String index must be an integer`).
+
 ## Arrays
 
 Arrays are ordered, 1-based, and can contain mixed types.
@@ -294,7 +297,9 @@ nums.1      // 10 (first element)
 nums.3      // 30 (third element)
 ```
 
-Out-of-bounds access is a runtime error.
+The index must be an integer from 1 to `LEN(nums)`, when reading and when assigning: `nums.0`,
+`nums.4`, and `nums.$i` with `i = 1.5` are runtime errors (`Array index out of bounds`,
+`Array index must be an integer`). A whole decimal such as `2.0` is the index `2`.
 
 ### Array Mutation
 
@@ -1150,7 +1155,7 @@ what an existing script does.
 | `CEIL(n, [digits])` | Round up, toward +∞ |
 | `TRUNC(n, [digits])` | Round toward zero, cutting the digits off (spec v0.30.0) |
 | `RANDOM()` | Random decimal between 0.0 (inclusive) and 1.0 (exclusive) |
-| `RANDOM(min, max)` | Random integer from `min` to `max` (both inclusive). Both must be integers within the [integer range](#the-integer-range-spec-v0130-widened-in-v0330) (a whole decimal such as `2.0` will do), and `min` may not be greater than `max`. |
+| `RANDOM(min, max)` | Random integer from `min` to `max` (both inclusive), each equally likely. Both must be integers within the [integer range](#the-integer-range-spec-v0130-widened-in-v0330) (a whole decimal such as `2.0` will do), and `min` may not be greater than `max`. |
 
 Without `digits`, `ROUND`, `FLOOR`, `CEIL` and `TRUNC` return an integer; with it they keep that
 many decimal places — see [Rounding to digits](#rounding-to-digits).
@@ -1279,7 +1284,7 @@ all-whitespace text.
 | `UPPERCASE(s)` | Convert to uppercase |
 | `LOWERCASE(s)` | Convert to lowercase |
 | `TRIM(s)` | Remove leading/trailing whitespace — the six ASCII characters defined [below](#whitespace) (spec v0.24.0). |
-| `SUBSTRING(s, start, [length])` | Extract substring. `start` is 1-based. |
+| `SUBSTRING(s, start, [length])` | Up to `length` characters of `s` from position `start` (1-based); omit `length` for the rest of `s`. `start` must be an integer of 1 or more and `length` an integer of 0 or more, or it is a runtime error (spec v0.34.0): `SUBSTRING("hello", 0, 3)` fails instead of guessing what was meant. Past the end there is just less: `SUBSTRING("hello", 4, 10)` → `"lo"`, `SUBSTRING("hello", 6)` → `""`. |
 | `SPLIT(s, delimiter)` | Split `s` at every occurrence of the literal `delimiter` (not regex; occurrences are found left to right without overlap — `SPLIT("aaa", "aa")` → `["", "a"]`). **Every** field is kept — leading, interior, and trailing empty strings included — so `SPLIT(",a,,b,", ",")` → `["", "a", "", "b", ""]`, `SPLIT("", ",")` → `[""]`, and `JOIN(SPLIT(s, d), d) == s` always holds. An empty `delimiter` is a runtime error (spec v0.24.0) — use `CHARS` to split into characters. |
 | `WORDS(s)` | Split `s` into its whitespace-separated words (spec v0.24.0): runs of [whitespace](#whitespace) separate words and leading/trailing whitespace is ignored, so no element is ever an empty string — `WORDS("    test 1  2")` → `["test", "1", "2"]`. Empty or all-whitespace `s` → `[]`. |
 | `JOIN(arr, [separator])` | Join array elements into string. Default separator is `""`. |
@@ -1385,7 +1390,7 @@ the letters `A` and `Z` on JavaScript.
 | `PUSH(arr, values...)` | Returns new array with values appended. Original unchanged. |
 | `POP(arr)` | Returns new array with last element removed. Original unchanged. |
 | `CONCAT(arrs...)` | Returns new array concatenating all input arrays |
-| `SLICE(arr, start, [count])` | Returns a sub-array of up to `count` elements starting at `start` (1-based); omit `count` for the rest of the array. Same start+count convention as `SUBSTRING` and `READ_LINES`. |
+| `SLICE(arr, start, [count])` | Returns a sub-array of up to `count` elements starting at `start` (1-based); omit `count` for the rest of the array. Same start+count convention as `SUBSTRING` and `READ_LINES`: `start` must be an integer of 1 or more and `count` an integer of 0 or more (spec v0.34.0), and past the end there are just fewer elements. |
 | `SORT(arr)` | Returns new array sorted ascending. All elements must be the same type (number or string). |
 | `SORT_DESC(arr)` | Returns new array sorted descending. Same type restriction as `SORT`. |
 | `SORT_BY(arr, key)` | Returns new array of objects sorted ascending by the given key. |
@@ -1981,6 +1986,10 @@ Common error conditions:
 | Division by zero | Division by zero |
 | Missing property | Property 'x' does not exist |
 | Array out of bounds | Array index out of bounds |
+| Array index that is not an integer | Array index must be an integer |
+| String index out of bounds, or not an integer | String index out of bounds, String index must be an integer |
+| A `SUBSTRING`/`SLICE` start that is not an integer of 1 or more | SUBSTRING() start must be an integer of 1 or more |
+| A `SUBSTRING` length or `SLICE` count that is not an integer of 0 or more | SUBSTRING() length must be an integer of 0 or more (SLICE() count must be …) |
 | Loop limit exceeded | Loop exceeded maximum iterations (1000) |
 | Global write in multi block (worker or monitor watchdog) | Cannot assign to global variable '::x' inside multi block |
 | Global without `::` in local scope | Variable 'x' is not defined in local scope. Use ::x to access the global variable |
@@ -2026,6 +2035,43 @@ whole-use limit (64 MB) and line-length limit (16 MB) are likewise host-configur
 ---
 
 ## Changelog
+
+### v0.34.0 — Positions must be integers in range
+
+Breaking, no grammar change. A position that could not be meant was quietly turned into one that
+could, and the two runtimes did not even agree on which: `SUBSTRING("hello", 0, 3)` and
+`SUBSTRING("hello", -1, 3)` gave `"hel"` in the Java 25 runtime and `"he"` and `"h"` in the
+JavaScript runtime, and an array index of `1.5` read the first element in one and `null` in the
+other. A mistake in working out a position went unnoticed. Now it stops the script where it happens,
+as `nums.0` and `READ_LINES(path, 0)` already did.
+
+- `SUBSTRING(s, start, [length])` and `SLICE(arr, start, [count])`: `start` must be an integer of 1
+  or more, and `length` or `count` an integer of 0 or more; a whole decimal such as `2.0` will do.
+  The errors are `SUBSTRING() start must be an integer of 1 or more` and
+  `SUBSTRING() length must be an integer of 0 or more`, and the same for `SLICE()` with `count`.
+  Past the end is still fine and gives less: `SUBSTRING(s, p + 1)` is `""` when `p` is the last
+  position, and `SUBSTRING(name, 1, 20)` keeps a short name whole. A negative `length` gave `""` in
+  the Java 25 runtime and, in the JavaScript runtime, the characters before `start`.
+- An array or string index must be an integer, when reading and when assigning: `nums.$i` with
+  `i = 1.5` fails with `Array index must be an integer`, where the Java 25 runtime cut it to `1` and
+  the JavaScript runtime read `null` and ignored an assignment. A string gives
+  `String index must be an integer`.
+- A string index error says `String index …` in both runtimes; the Java 25 runtime said
+  `Array index out of bounds` and `Array index must be a number` for a string too. The JavaScript
+  runtime's `must be a number` errors drop the hint the Java 25 runtime did not give
+  (`, got string. Use arr.1 not arr."1"`).
+
+Migration: a script that gave a start below 1, a negative length or count, or a fractional position
+now stops at that line with one of these errors. Give the start that was meant — `1`, or
+`MAX(1, start)` where a calculation can go below it, which is what the Java 25 runtime did — and
+make a fraction whole with `FLOOR`, `ROUND` or `TRUNC` where one can arise. Code that matched the
+old index error text exactly needs the new wording.
+
+Fixed in both runtimes too, with no rule change: `RANDOM(min, max)` scaled a random decimal, so over
+a span past 2⁵³ it skipped integers — `RANDOM(-9007199254740991, 9007199254740991)` gave only odd
+numbers. Every integer from `min` to `max` now comes up equally often.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.33.0 — Integers up to 9,007,199,254,740,991
 

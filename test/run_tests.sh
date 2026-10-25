@@ -191,6 +191,17 @@ else
         FAIL=$((FAIL + 1))
     fi
 
+    # Builtin test (spec v0.33.0): RANDOM(min, max) can give every integer, the whole range included.
+    actual=$(node "$SCRIPT_DIR/run_random_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} random_integers (builtin)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} random_integers (builtin)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
+
     # Runtime test: member access on a missing key fails as on the Java runtime (own keys only).
     actual=$(node "$SCRIPT_DIR/run_member_access_test.js" 2>&1)
     if [ "$actual" = "OK" ]; then

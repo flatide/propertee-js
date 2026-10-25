@@ -5537,6 +5537,33 @@ function isWholeNumber(v) {
     return typeof v === 'number' && Number.isFinite(v) && Math.floor(v) === v;
 }
 
+// An integer from min to max, every one equally likely (spec v0.33.0). Scaling Math.random() skipped
+// integers once the span passed its random bits (the whole range gave only odd numbers), so draw
+// 32-bit chunks as a BigInt, keep the bits the span needs, and draw again past the end.
+function randomInteger(min, max) {
+    const size = BigInt(max) - BigInt(min) + 1n;               // up to 2^54 - 1, past a double
+    const bits = BigInt((size - 1n).toString(2).length);
+    for (;;) {
+        let r = 0n;
+        for (let have = 0n; have < bits; have += 32n) r = (r << 32n) | BigInt(Math.floor(Math.random() * 4294967296));
+        r &= (1n << bits) - 1n;
+        if (r < size) return Number(BigInt(min) + r);
+    }
+}
+
+// The from..to span of SUBSTRING and SLICE (spec v0.34.0): start must be an integer of 1 or more and
+// the length or count one of 0 or more, but past the end there is just less. String.substring is
+// not used for the clamping: it turns a negative position into 0 and swaps a start past the end.
+function span(fn, start, countName, count, size) {
+    if (start === undefined) throw new Error(`Runtime Error: ${fn}() missing argument 2`);
+    const position = (v, name, min) => {
+        if (!isWholeNumber(v) || v < min) throw new Error(`Runtime Error: ${fn}() ${name} must be an integer of ${min} or more`);
+        return v;
+    };
+    const from = Math.min(position(start, 'start', 1) - 1, size);
+    return [from, count === undefined ? size : Math.min(from + position(count, countName, 0), size)];
+}
+
 // FN(n, [digits]) for FLOOR/CEIL/ROUND/TRUNC (spec v0.30.0). Without digits: an integer, ROUND's
 // tie away from zero (ROUND(-2.5) is -3). With digits: a decimal rounded on the shown digits;
 // Infinity/NaN come back as is. A third argument is an error, not dropped.
@@ -6191,12 +6218,11 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return arrays.reduce((acc, arr) => [...acc, ...arr], []);
             },
             'SLICE': (arr, start, count) => {
-                if (!Array.isArray(arr)) throw new Error('Runtime Error: SLICE() first argument must be an array');
-                if (typeof start !== 'number') throw new Error('Runtime Error: SLICE() second argument must be a number');
-                if (count !== undefined && typeof count !== 'number') throw new Error('Runtime Error: SLICE() third argument must be a number');
+                if (arr === undefined) throw new Error('Runtime Error: SLICE() missing argument 1');
+                if (!Array.isArray(arr)) throw new Error('Runtime Error: SLICE() requires an array argument');
                 // spec v0.7.0 (#6): 3rd arg is a COUNT, like SUBSTRING and READ_LINES (was an end bound)
-                const zeroStart = Math.max(0, start - 1);
-                return count === undefined ? arr.slice(zeroStart) : arr.slice(zeroStart, zeroStart + Math.max(0, count));
+                const [from, to] = span('SLICE', start, 'count', count, arr.length);
+                return arr.slice(from, to);
             },
             'CHARS': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: CHARS() requires a string argument');
@@ -6229,11 +6255,10 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 return arr.join(separator);
             },
             'SUBSTRING': (str, start, length) => {
-                if (typeof str !== 'string') throw new Error('Runtime Error: SUBSTRING() first argument must be a string');
-                if (typeof start !== 'number') throw new Error('Runtime Error: SUBSTRING() second argument must be a number');
-                if (length !== undefined && typeof length !== 'number') throw new Error('Runtime Error: SUBSTRING() third argument must be a number');
-                const zeroBased = start - 1;
-                return length === undefined ? str.substring(zeroBased) : str.substring(zeroBased, zeroBased + length);
+                if (str === undefined) throw new Error('Runtime Error: SUBSTRING() missing argument 1');
+                if (typeof str !== 'string') throw new Error('Runtime Error: SUBSTRING() requires a string argument');
+                const [from, to] = span('SUBSTRING', start, 'length', length, str.length);
+                return str.substring(from, to);
             },
             'UPPERCASE': (str) => {
                 if (typeof str !== 'string') throw new Error('Runtime Error: UPPERCASE() requires a string argument');
@@ -6321,7 +6346,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         throw new Error('Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991');
                     }
                     if (min > max) throw new Error('Runtime Error: RANDOM() min cannot be greater than max');
-                    return Math.min(max, min + Math.floor(Math.random() * (max - min + 1)));
+                    return randomInteger(min, max);
                 }
             },
             // --- String matching ---
@@ -7182,9 +7207,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 throw this.createError(`Property '${key}' does not exist`, ctx);
             }
             if (Array.isArray(targetObj)) {
-                if (typeof key !== 'number') {
-                    throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
-                }
+                this._checkIndex('Array', key, ctx);
                 const idx = key - 1; // 1-based to 0-based
                 if (idx < 0 || idx >= targetObj.length) {
                     throw this.createError('Array index out of bounds', ctx);
@@ -7980,9 +8003,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Array access: convert 1-based to 0-based
         if (Array.isArray(targetObj)) {
-            if (typeof key !== 'number') {
-                throw this.createError('Array index must be a number, got string. Use arr.1 not arr."1"', ctx);
-            }
+            this._checkIndex('Array', key, ctx);
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('Array index out of bounds', ctx);
@@ -7992,9 +8013,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // String character access: convert 1-based to 0-based
         if (typeof targetObj === 'string') {
-            if (typeof key !== 'number') {
-                throw this.createError('String index must be a number, got string. Use str.1 not str."1"', ctx);
-            }
+            this._checkIndex('String', key, ctx);
             const idx = key - 1;
             if (idx < 0 || idx >= targetObj.length) {
                 throw this.createError('String index out of bounds', ctx);
@@ -8007,6 +8026,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
 
         return targetObj[key];
+    }
+
+    // An array or string index (spec v0.34.0) is an integer: a fraction is an error, where
+    // targetObj[0.5] would read undefined and an assignment would add a hidden property.
+    _checkIndex(what, key, ctx) {
+        if (typeof key !== 'number') throw this.createError(`${what} index must be a number`, ctx);
+        if (!Number.isInteger(key)) throw this.createError(`${what} index must be an integer`, ctx);
     }
 
     // Access visitors

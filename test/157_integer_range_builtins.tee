@@ -2,8 +2,8 @@
 // clamp, RANDOM takes bounds anywhere in the range, MILTIME is an integer, and data inside the
 // range reads as integers
 big = 3000000000
-PRINT("[" + SUBSTRING("abcdef", 2, big) + "]", "[" + SUBSTRING("abcdef", -big) + "]")
-PRINT(SLICE([1, 2, 3], 2, big), SLICE([1, 2, 3], -big))
+PRINT("[" + SUBSTRING("abcdef", 2, big) + "]", "[" + SUBSTRING("abcdef", big) + "]")
+PRINT(SLICE([1, 2, 3], 2, big), SLICE([1, 2, 3], big))
 
 low = 9007199254740000
 n = RANDOM(low, 9007199254740991)

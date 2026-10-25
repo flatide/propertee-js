@@ -1,0 +1,64 @@
+// spec v0.34.0: a SUBSTRING/SLICE start is an integer of 1 or more, a length or count one of 0 or
+// more, and an array or string index an integer; past the end there is just less
+s = "hello"
+PRINT("[" + SUBSTRING(s, 1, 0) + "]", "[" + SUBSTRING(s, 6) + "]", "[" + SUBSTRING(s, 9, 2) + "]", SUBSTRING(s, 4, 10), SUBSTRING(s, 2.0, 3.0))
+PRINT(SLICE([1, 2, 3], 2, 0), SLICE([1, 2, 3], 4), SLICE([1, 2, 3], 2.0, 9))
+p = FIND("key=", "=").1
+PRINT("[" + SUBSTRING("key=", p + 1) + "]")
+i = 2.0
+a = [10, 20, 30]
+a.$i = 99
+PRINT(a, a.$(i + 1), s.$i)
+
+// each failure below is caught as its thread's error Result
+function sub(start, length) do
+    return SUBSTRING("hello", start, length)
+end
+
+function rest(start) do
+    return SUBSTRING("hello", start)
+end
+
+function part(start, count) do
+    return SLICE([1, 2, 3], start, count)
+end
+
+function read(i) do
+    a = [10, 20, 30]
+    return a.$i
+end
+
+function write(i) do
+    a = [10, 20, 30]
+    a.$i = 99
+    return a
+end
+
+function char(i) do
+    s = "hello"
+    return s.$i
+end
+
+function charPastEnd() do
+    s = "hello"
+    return s.6
+end
+
+multi r do
+    thread zero: sub(0, 3)
+    thread negative: sub(-1, 3)
+    thread fraction: rest(2.5)
+    thread text: rest("2")
+    thread minusLength: sub(3, -2)
+    thread fractionLength: sub(2, 1.5)
+    thread sliceZero: part(0, 2)
+    thread sliceCount: part(2, -1)
+    thread readHalf: read(1.5)
+    thread writeHalf: write(1.5)
+    thread charHalf: char(1.5)
+    thread pastEnd: charPastEnd()
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end

@@ -1,0 +1,28 @@
+[] [] [] lo ell
+[] [] [ 2, 3 ]
+[]
+[ 10, 99, 30 ] 30 e
+[THREAD ERROR] Runtime Error: SUBSTRING() start must be an integer of 1 or more
+[THREAD ERROR] Runtime Error: SUBSTRING() start must be an integer of 1 or more
+[THREAD ERROR] Runtime Error: SUBSTRING() start must be an integer of 1 or more
+[THREAD ERROR] Runtime Error: SUBSTRING() start must be an integer of 1 or more
+[THREAD ERROR] Runtime Error: SUBSTRING() length must be an integer of 0 or more
+[THREAD ERROR] Runtime Error: SUBSTRING() length must be an integer of 0 or more
+[THREAD ERROR] Runtime Error: SLICE() start must be an integer of 1 or more
+[THREAD ERROR] Runtime Error: SLICE() count must be an integer of 0 or more
+[THREAD ERROR] Runtime Error at line 28:11: Array index must be an integer
+[THREAD ERROR] Runtime Error at line 33:4: Array index must be an integer
+[THREAD ERROR] Runtime Error at line 39:11: String index must be an integer
+[THREAD ERROR] Runtime Error at line 44:11: String index out of bounds
+zero false Runtime Error: SUBSTRING() start must be an integer of 1 or more
+negative false Runtime Error: SUBSTRING() start must be an integer of 1 or more
+fraction false Runtime Error: SUBSTRING() start must be an integer of 1 or more
+text false Runtime Error: SUBSTRING() start must be an integer of 1 or more
+minusLength false Runtime Error: SUBSTRING() length must be an integer of 0 or more
+fractionLength false Runtime Error: SUBSTRING() length must be an integer of 0 or more
+sliceZero false Runtime Error: SLICE() start must be an integer of 1 or more
+sliceCount false Runtime Error: SLICE() count must be an integer of 0 or more
+readHalf false Runtime Error at line 28:11: Array index must be an integer
+writeHalf false Runtime Error at line 33:4: Array index must be an integer
+charHalf false Runtime Error at line 39:11: String index must be an integer
+pastEnd false Runtime Error at line 44:11: String index out of bounds
