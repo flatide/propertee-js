@@ -1,0 +1,41 @@
+// spec v0.36.0: SUM, MAX and MIN take arrays, as a spreadsheet's MIN(A1:A10) takes a range — each
+// argument is a number or an array of numbers
+prices = [12.5, 3, 7.25, 3]
+PRINT(MIN(prices), MAX(prices), SUM(prices))
+PRINT(MIN(prices, 1), MAX(0, prices, [20]), SUM(prices, [], 0.25))
+PRINT(SUM([]), SUM(), MIN([5]), MAX(-1, []))
+PRINT(TYPE_OF(SUM([1, 2])), SUM([1, 2.5]), SUM([9007199254740990, 1]), MAX([1, 2]) + 1)
+
+// the least value among the ones that pass a test: collect them, then MIN
+items = [{"name": "a", "price": 5, "stock": 0}, {"name": "b", "price": 8, "stock": 3}, {"name": "c", "price": 6, "stock": 1}]
+inStock = []
+loop item in items do
+    if item.stock > 0 then
+        inStock = PUSH(inStock, item.price)
+    end
+end
+PRINT(MIN(inStock), SORT_BY(items, "price").1.name)
+
+function minOf(list) do
+    return MIN(list)
+end
+
+function maxOfNothing() do
+    return MAX()
+end
+
+function sumOf(list) do
+    return SUM(list)
+end
+
+multi r do
+    thread empty: minOf([])
+    thread nothing: maxOfNothing()
+    thread nested: minOf([[1], 2])
+    thread text: sumOf([1, "2"])
+    thread overflow: sumOf([9007199254740991, 1])
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end

@@ -1,0 +1,15 @@
+3 12.5 25.75
+1 20 26
+0 0 5 -1
+number 3.5 9007199254740991 3
+6 a
+[THREAD ERROR] Runtime Error: MIN() requires at least one number
+[THREAD ERROR] Runtime Error: MAX() requires at least one number
+[THREAD ERROR] Runtime Error: MIN() requires numeric arguments
+[THREAD ERROR] Runtime Error: SUM() requires numeric arguments
+[THREAD ERROR] Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
+empty false Runtime Error: MIN() requires at least one number
+nothing false Runtime Error: MAX() requires at least one number
+nested false Runtime Error: MIN() requires numeric arguments
+text false Runtime Error: SUM() requires numeric arguments
+overflow false Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991

@@ -202,6 +202,17 @@ else
         FAIL=$((FAIL + 1))
     fi
 
+    # Host-API test (spec v0.36.0): a host's Infinity or NaN is refused where it comes in.
+    actual=$(node "$SCRIPT_DIR/run_nonfinite_host_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} nonfinite_host (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} nonfinite_host (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
+
     # Runtime test: member access on a missing key fails as on the Java runtime (own keys only).
     actual=$(node "$SCRIPT_DIR/run_member_access_test.js" 2>&1)
     if [ "$actual" = "OK" ]; then

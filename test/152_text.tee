@@ -22,9 +22,9 @@ PRINT(TEXT(0, "#"), TEXT(-0.4, "#"), TEXT(0, "0.##%"))
 PRINT(TEXT(TO_NUMBER("1e21"), "#,##0"), TEXT(TO_NUMBER("1e-7"), "0.00"), TEXT(2 * 1000, "0.0"), TEXT(2000.0, "0.0"))
 PRINT(TEXT(9007199254740991, "#,##0"), TEXT(TO_NUMBER("123456789012345680000"), "0"))
 
-// Infinity and NaN are written as PRINT shows them
-big = TO_NUMBER("1e308") * 10
-PRINT(TEXT(big, "#,##0.00"), TEXT(-big, "0%"), TEXT(big - big, "000"), TEXT(big, "0%"), TEXT(big - big, "0.0#%"))
+// a percent of the largest decimals is written in full, not as an overflow
+big = TO_NUMBER("1.7976931348623157e308")
+PRINT(TEXT(big, "0%") == TEXT(big, "0") + "00%", LEN(TEXT(-big, "#,##0.0%")))
 
 // a long pattern is read in one pass
 p = "0"

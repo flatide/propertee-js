@@ -1,0 +1,58 @@
+// spec v0.36.0: numbers are always finite. A decimal result too large to represent is an error, as
+// an integer one outside the range is and division by zero always was — there is no Infinity or NaN.
+big = TO_NUMBER("1.7976931348623157e308")
+PRINT(big, -big, big * 1, big / 1, big - big, big + 0.5, TO_NUMBER("1e308") + TO_NUMBER("1e307"))
+
+function add(a, b) do
+    return a + b
+end
+
+function subtract(a, b) do
+    return a - b
+end
+
+function times(a, b) do
+    return a * b
+end
+
+function divide(a, b) do
+    return a / b
+end
+
+function sumOf(list) do
+    return SUM(list)
+end
+
+function ceilAt(n, digits) do
+    return CEIL(n, digits)
+end
+
+function floorAt(n, digits) do
+    return FLOOR(n, digits)
+end
+
+function sleepFor(ms) do
+    SLEEP(ms)
+    return ms
+end
+
+multi r do
+    thread plus: add(::big, ::big)
+    thread minus: subtract(-::big, ::big)
+    thread timesTen: times(::big, 10)
+    thread divided: divide(::big, 0.5)
+    thread sum: sumOf([::big, ::big])
+    thread ceil: ceilAt(::big, -308)
+    thread floor: floorAt(-::big, -308)
+    thread fine: divide(::big, 2)
+    thread sleepNegative: sleepFor(-5)
+    thread sleepText: sleepFor("5")
+end
+
+loop k, v in r do
+    PRINT(k, v.ok, v.value)
+end
+
+// outside a thread the error ends the run
+x = big * 2
+PRINT("not reached")

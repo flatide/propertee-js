@@ -24,9 +24,9 @@ PRINT(ROUND(3000000000.7, 0), FLOOR(-3000000000.7, 0))
 // a carry adds a digit
 PRINT(ROUND(9.96, 1), ROUND(99.5, 0), CEIL(9.001, 2))
 
-// a result past the double range is Infinity; Infinity comes back as is
+// the largest decimal rounds like any other; a result past it is an error (spec v0.36.0, 161)
 big = TO_NUMBER("1.7976931348623157e308")
-PRINT(CEIL(big, -308), FLOOR(-big, -308), ROUND(big * 10, 2))
+PRINT(ROUND(big, 2), FLOOR(big, -308), CEIL(-big, -308))
 
 // a value rounded to zero has no sign
 PRINT(TRUNC(-0.001, 2), CEIL(-0.001, 2), ROUND(-0.004, 2))

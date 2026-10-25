@@ -101,9 +101,10 @@ REPL commands: `.vars` (show variables), `.exit` (quit).
 `--result-only` discards the script's `PRINT` output and prints only its result as one line of
 JSON: the top-level `return` value, else the final `result` global, else `{}` — the value TeeBox
 reports for a run, and the same rule as the Java CLI's `propertee2 --result-only`. stderr output
-(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. So does a
-result holding Infinity, -Infinity or NaN, which JSON cannot hold (spec v0.32.0):
-`Error: the result contains NaN at result.list.2, which JSON cannot represent`. Options go
+(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. A result
+always fits JSON: numbers are finite (spec v0.36.0), so arithmetic past the range of numbers is a
+runtime error (`Number overflow: the result is too large to represent`), not an Infinity that JSON
+could not hold. The check of the result stays as a guard (spec v0.32.0). Options go
 before the script path (later words are `_ARGS`); embedding hosts read the same value with
 `visitor.scriptResult()` after the run.
 
@@ -244,6 +245,11 @@ check:
 
 A function registered with `registerExternal` turns any throw into an error Result. For the throw
 to be a runtime error, as in the built-ins, install the function in `visitor.functions` directly.
+
+A script's numbers are finite since spec v0.36.0, so these checks matter only for values a host
+builds itself. A host must not hand Infinity or NaN to a script either: an external's result
+holding one becomes an error Result (`FN() result.2 is NaN, which ProperTee numbers cannot
+represent`), and a property holding one makes the `ProperTeeCustomVisitor` constructor throw.
 
 ## Project Structure
 

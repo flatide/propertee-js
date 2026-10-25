@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.35.0
+# ProperTee Language Specification v0.36.0
 
 ## Overview
 
@@ -34,12 +34,13 @@ Scripts that don't touch JSON `null` never see it; check for it explicitly (`if 
 - Arithmetic that produces a whole number result displays without a decimal point: `10 / 2` displays as `5`
 - Division always produces a decimal internally: `7 / 2` → `3.5`
 - Whole-number results of other operations display as integers: `1.0 + 2.0` → `3`
-- Decimal arithmetic past the range of numbers gives `Infinity` or `-Infinity`
-  (`TO_NUMBER("1e308") * 10`), and `Infinity - Infinity` gives `NaN`. Text does not turn into
-  them: `TO_NUMBER`, `JSON_PARSE` and `READ_JSON_FILE` refuse a numeral too large to represent,
-  such as `1e999`. They display as `Infinity`, `-Infinity` and `NaN`, but JSON has no form for them
-  ([Numbers JSON cannot hold](#numbers-json-cannot-hold)). Division by zero is an error, not
-  infinity.
+- Numbers are always finite (spec v0.36.0). Decimal arithmetic whose result is too large to
+  represent is a runtime error, `Number overflow: the result is too large to represent`, as integer
+  arithmetic outside the integer range is and division by zero is: `TO_NUMBER("1e308") * 10` stops
+  the script. The largest decimal is about 1.8 × 10³⁰⁸ (`1.7976931348623157e+308`). There is no
+  `Infinity` and no `NaN`: text does not turn into them — `TO_NUMBER`, `JSON_PARSE` and
+  `READ_JSON_FILE` refuse a numeral too large to represent, such as `1e999` — and a host value
+  holding one is refused where it comes in ([Numbers and JSON](#numbers-and-json)).
 
 #### Integer vs decimal is nominal (spec v0.14.0)
 
@@ -92,7 +93,10 @@ is no silent wrap-around and no silent promotion to a decimal:
   integer, and one outside it as a decimal — data conversion is not script arithmetic, and JSON keeps
   round-tripping. A decimal holds about 16 significant digits, so such a numeral becomes the nearest
   decimal: `9007199254740993` reads as `9007199254740992`. Numbers a host supplies — `MILTIME()`, a
-  file's size and time, values passed in — are integers inside the range too.
+  file's size and time, values passed in — are integers inside the range too. They must be finite
+  (spec v0.36.0): a property or injected global holding `Infinity` or `NaN` stops the run before it
+  starts, an external function's result holding one is an error Result, and a host built-in's is a
+  runtime error — `rates.2 is Infinity, which ProperTee numbers cannot represent`.
 
 To go past the range, compute with a decimal: `MILTIME() * 1000000` (nanoseconds) is an overflow,
 while `MILTIME() * 1000000.0` is a decimal of about 16 significant digits. (The JavaScript runtime
@@ -1072,7 +1076,6 @@ writes the next value of a format this way.
   `0%` is `15%`, where multiplying the binary value by 100 gives 14.499999999999998.
 - A number that rounds to zero has no sign: `-0.004` with `0.00` is `0.00`. A large number is
   written in full, never with an exponent: `1e21` with `#,##0` is `1,000,000,000,000,000,000,000`.
-- `Infinity`, `-Infinity` and `NaN` are written as `PRINT` shows them, whatever the pattern.
 - The integer part is `#`s followed by `0`s, and a comma may stand between two of them — never
   first, last, or two in a row; the decimals are `0`s followed by `#`s. Precisely, a pattern matches
   the regular expression `(#(,?#)*(,?0)*|0(,?0)*)(\.(0+#*|#+))?%?`. Anything else is not a pattern —
@@ -1146,9 +1149,9 @@ what an existing script does.
 
 | Function | Description |
 |---|---|
-| `SUM(args...)` | Sum of all numeric arguments |
-| `MAX(args...)` | Maximum of all numeric arguments |
-| `MIN(args...)` | Minimum of all numeric arguments |
+| `SUM(args...)` | Sum of the numbers given. Each argument is a number or an array of numbers, as a spreadsheet's `SUM(A1:A10)` takes a range: `SUM(prices)`, `SUM(prices, 5)` (spec v0.36.0). `SUM()` and `SUM([])` are `0`. |
+| `MAX(args...)` | The largest of the numbers given, taken the same way: `MAX(sizes)`, `MAX(0, sizes)`. With no number at all — `MAX()`, `MAX([])` — a runtime error. |
+| `MIN(args...)` | The least of the numbers given, taken the same way: `MIN(prices)`. |
 | `ABS(n)` | Absolute value |
 | `ROUND(n, [digits])` | Round to the nearest; a tie goes away from zero — `ROUND(2.5)` → `3`, `ROUND(-2.5)` → `-3` |
 | `FLOOR(n, [digits])` | Round down, toward −∞ |
@@ -1162,7 +1165,23 @@ many decimal places — see [Rounding to digits](#rounding-to-digits).
 
 `SUM`, `MAX`, `MIN`, `ABS`, `ROUND`, `FLOOR`, `CEIL` and `TRUNC` take numbers: a value that is not
 a number is an error — `SUM("a", 1)` → `SUM() requires numeric arguments` — and `MAX` and `MIN`
-need at least one argument: `MAX() requires at least one argument`.
+need at least one number: `MAX() requires at least one number`. `SUM`, `MAX` and `MIN` also take
+arrays of numbers (spec v0.36.0), so the least value among the ones that pass a test is found by
+collecting them first:
+
+```
+inStock = []
+loop item in items do
+    if item.stock > 0 then
+        inStock = PUSH(inStock, item.price)
+    end
+end
+cheapest = MIN(inStock)       // an error if nothing is in stock
+```
+
+A loop that keeps the least value so far starts from the first element, `best = prices.1`, which
+fails on an empty list instead of leaving a made-up value. The item itself — the cheapest one, not
+its price — is `SORT_BY(items, "price").1`.
 
 The single-argument form `RANDOM(max)` was **removed in v0.7.0** — its exclusive upper bound clashed with the inclusive two-argument form. Calling `RANDOM` with one argument is a runtime error; write `RANDOM(0, max - 1)` for the old meaning.
 
@@ -1217,9 +1236,9 @@ whole result shows without a fraction (`ROUND(3.0, 2)` → `3`); to show trailin
   required. Any integer will do. Places past the number's last digit change nothing
   (`ROUND(3.48, 400)` → `3.48`); a place above its first digit leaves `0` or one unit of that place
   (`ROUND(3.48, -5)` → `0`, `CEIL(3.48, -5)` → `100000`).
-- A result beyond the range of numbers is `Infinity`, as in arithmetic:
-  `CEIL(TO_NUMBER("1.7976931348623157e308"), -308)` → `Infinity`. With `digits`, `Infinity`,
-  `-Infinity` and `NaN` come back unchanged.
+- A result too large to represent is an error, as in arithmetic:
+  `CEIL(TO_NUMBER("1.7976931348623157e308"), -308)` fails with `Number overflow` (spec v0.36.0;
+  it was `Infinity`).
 - A result of zero has no sign: `CEIL(-0.001, 2)` → `0`.
 
 | Case | Error |
@@ -1432,8 +1451,8 @@ Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-resu
 
 | Function | Description |
 |---|---|
-| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON ([JSON text](#json-text)) or on a numeral too large to represent ([below](#numbers-json-cannot-hold), spec v0.35.0). JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
-| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error (spec v0.32.0); see [below](#numbers-json-cannot-hold). |
+| `JSON_PARSE(s)` | Parse JSON string. Returns Result: `ok` with parsed value, `error` on invalid JSON ([JSON text](#json-text)) or on a numeral too large to represent ([below](#numbers-and-json), spec v0.35.0). JSON `null` is preserved as `null` (was normalized to `{}` until spec v0.7.0). |
+| `JSON_FORMAT(v)` | Convert any value to JSON string. `null` serializes as `null`, so `JSON_PARSE`/`JSON_FORMAT` round-trip losslessly. Every number can be written, since numbers are finite ([below](#numbers-and-json)). |
 
 #### JSON text
 
@@ -1455,33 +1474,12 @@ JSON (spec v0.35.0):
 Invalid JSON gives an error Result whose message starts with `Invalid JSON: `. Apart from the
 nesting message, the rest is the runtime's own wording and differs between runtimes.
 
-#### Numbers JSON cannot hold
+#### Numbers and JSON
 
-JSON has no way to write `Infinity`, `-Infinity` or `NaN`, which decimal arithmetic past the range
-of numbers produces. Turning a value that holds one into JSON is therefore a runtime error
-(spec v0.32.0), wherever it happens: in `JSON_FORMAT`, in `WRITE_JSON_FILE`, which then writes
-nothing, and in an HTTP request body that is not a string, which is then not sent. The error names
-the first such number, in the order the JSON would be written, and where it is:
-
-```
-data = {"rows": [{"rate": 0.5}, {"rate": TO_NUMBER("1e308") * 10}]}
-PRINT(JSON_FORMAT(data))
-// Runtime Error: JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent
-```
-
-- The place starts at `value` (`body` for an HTTP request body) and goes down one member at a
-  time, the way a script reaches it: `value.rows.2.rate` is `data.rows.2.rate`. Array positions
-  count from 1.
-- A key that is a plain name — an ASCII letter or `_`, then ASCII letters, digits or `_` — is
-  written as it is. Any other key is written in double quotes, as JSON writes a string:
-  `value."unit price"`, `value."2"`, `value."합계"`.
-- A value without such a number is written exactly as before. `PRINT`, `FORMAT` and `TEXT` still
-  show the three as `Infinity`, `-Infinity` and `NaN`, so a script that wants to keep one in JSON
-  can store the number as text: `TO_STRING(x)` is `"Infinity"`.
-
-Reading meets the same gap from the other side. A numeral too large to represent, such as `1e999`,
-is valid JSON, but no number can hold it, so `JSON_PARSE` and `READ_JSON_FILE` return an error
-Result naming the first one and where it is, the place written as above (spec v0.35.0):
+Numbers are finite (spec v0.36.0), so JSON can write every number a script holds. Reading has one
+gap: a numeral too large to represent, such as `1e999`, is valid JSON, but no number can hold it,
+so `JSON_PARSE` and `READ_JSON_FILE` return an error Result naming the first one and where it is
+(spec v0.35.0):
 
 ```
 res = JSON_PARSE("{\"rows\": [{\"size\": 1}, {\"size\": 1e999}]}")
@@ -1489,8 +1487,19 @@ PRINT(res.ok, res.value)
 // false JSON_PARSE() value.rows.2.size is a number too large to represent
 ```
 
+- The place starts at `value` and goes down one member at a time, the way a script would reach
+  it. Array positions count from 1.
+- A key that is a plain name — an ASCII letter or `_`, then ASCII letters, digits or `_` — is
+  written as it is. Any other key is written in double quotes, as JSON writes a string:
+  `value."unit price"`, `value."2"`, `value."합계"`.
+
 A numeral too small to represent, such as `1e-999`, reads as `0`, and an integer numeral outside
 the integer range as the nearest decimal, as with `TO_NUMBER`.
+
+Until v0.36.0 decimal arithmetic past the range of numbers gave `Infinity`, `-Infinity` and `NaN`,
+which JSON has no way to write either; from v0.32.0 `JSON_FORMAT`, `WRITE_JSON_FILE` and an HTTP
+request body failed on them (`JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot
+represent`). A script cannot make one now.
 
 ### File I/O
 
@@ -1504,7 +1513,7 @@ the integer range as the nearest decimal, as with `TO_NUMBER`.
 | `READ_JSON_FILE(path)` | Read a JSON file and parse it in one call (spec v0.18.0). Returns Result: `ok` with the parsed value (object, array, or scalar — same conversion as `JSON_PARSE`), `error` on a read failure, invalid JSON, or a numeral too large to represent (`READ_JSON_FILE() value.size is a number too large to represent`, spec v0.35.0). A leading UTF-8 BOM is ignored. Replaces the `READ_LINES` + `JOIN` + `JSON_PARSE` idiom. |
 | `WRITE_FILE(path, content)` | Write string to file (overwrite). Returns Result. |
 | `WRITE_LINES(path, lines)` | Write array of strings as lines (each followed by newline). Returns Result. |
-| `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. A value holding `Infinity`, `-Infinity` or `NaN` is a runtime error, and nothing is written ([Numbers JSON cannot hold](#numbers-json-cannot-hold), spec v0.32.0). |
+| `WRITE_JSON_FILE(path, value)` | Serialize `value` as JSON — the same output as `JSON_FORMAT` — and write it to the file with a trailing newline, overwriting (spec v0.18.0). Returns Result: `ok` with `{}`. The counterpart of `READ_JSON_FILE`: the round-trip is lossless, first-class `null` included. |
 | `APPEND_FILE(path, content)` | Append string to file. Returns Result. |
 | `MKDIR(path)` | Create directory (including parents). Returns Result. |
 | `LIST_DIR(path, [pattern])` | List directory entries. Returns Result with array of `{name, type, size}` objects, sorted by name. `type` is `"dir"`, `"file"` or `"link"`; `pattern` keeps only the entries whose names match it, like `"*.csv"` (spec v0.27.0). See [Listing a directory](#listing-a-directory). |
@@ -1648,7 +1657,7 @@ is empty or contains `/` is an error Result, as is one that is not well formed (
 
 | Function | Description |
 |---|---|
-| `SLEEP(ms)` | Pause current thread for `ms` milliseconds |
+| `SLEEP(ms)` | Pause current thread for `ms` milliseconds. A negative `ms` is a runtime error, `SLEEP() duration cannot be negative` (spec v0.36.0). |
 | `MILTIME()` | Current time as epoch milliseconds (an integer) |
 | `DATE()` | Current date as `"YYYY-MM-DD"` string |
 | `TIME()` | Current time of day as `"HH:MM:SS"` string |
@@ -1680,7 +1689,7 @@ Each `SHELL()` call creates a fresh process via `/bin/sh -c <cmd>`. There are no
 
 `options` is an object: `{"headers": {"Key": "Value", ...}, "timeout": <ms>, "body": <for HTTP()>}` — all optional. (`"header"` is also accepted for `"headers"`.)
 
-**Request body.** A string body is sent as-is; any other value (object/array/number/boolean) is serialized as JSON. So `HTTP_POST(url, {"a": 1})` sends `{"a":1}` (not the bare `a=1` form). Set `"Content-Type": "application/json"` in `headers` if the server requires it. A body holding `Infinity`, `-Infinity` or `NaN` is a runtime error, and the request is not sent ([Numbers JSON cannot hold](#numbers-json-cannot-hold), spec v0.32.0).
+**Request body.** A string body is sent as-is; any other value (object/array/number/boolean) is serialized as JSON. So `HTTP_POST(url, {"a": 1})` sends `{"a":1}` (not the bare `a=1` form). Set `"Content-Type": "application/json"` in `headers` if the server requires it.
 
 **Result shape.** A request that completes returns `{status, body, headers}` as `value`, with `ok` true only for a 2xx status (4xx/5xx keep the full `value` with `ok` false). A transport-level failure (bad URL, DNS, connection refused, timeout) returns `ok` false with `value = {"status": 0, "body": "<error message>", "headers": {}}`. So `res.value` is always that object — check `res.ok` and `res.value.status`.
 
@@ -2039,7 +2048,11 @@ Common error conditions:
 | All-uppercase function definition | Cannot define function 'X': all-uppercase names are reserved for built-in and host functions |
 | Integer literal too large | Integer literal out of range: 9007199254740992 is larger than 9,007,199,254,740,991 |
 | Integer arithmetic overflow (`+` `-` `*`, `FLOOR`/`CEIL`/`ROUND`/`TRUNC` without digits, `SUM`) | Integer overflow: the result is outside ±9,007,199,254,740,991 |
-| `SUM`/`MAX`/`MIN`/`ABS`/`ROUND`/`FLOOR`/`CEIL`/`TRUNC` given a value that is not a number | SUM() requires numeric arguments |
+| Decimal arithmetic too large to represent (`+` `-` `*` `/`, `SUM`, `FLOOR`/`CEIL`/`ROUND`/`TRUNC` with digits) | Number overflow: the result is too large to represent |
+| `SUM`/`MAX`/`MIN`/`ABS`/`ROUND`/`FLOOR`/`CEIL`/`TRUNC` given a value that is not a number (for `SUM`/`MAX`/`MIN`, nor an array of numbers) | SUM() requires numeric arguments |
+| `MAX`/`MIN` given no number at all | MAX() requires at least one number |
+| `SLEEP` without a number, or with a negative one | SLEEP() requires a number argument / SLEEP() duration cannot be negative |
+| A host value holding `Infinity` or `NaN` — a property, an injected global, a host built-in's result (an external function's is an error Result) | rates.2 is Infinity, which ProperTee numbers cannot represent |
 | `digits` that is not an integer | ROUND() digits must be an integer |
 | A third argument to `ROUND`/`FLOOR`/`CEIL`/`TRUNC` | ROUND() takes at most 2 arguments |
 | A `FORMAT`/`PRINTF` format that is not valid | FORMAT() invalid format: {:.2f} |
@@ -2048,7 +2061,6 @@ Common error conditions:
 | An `ALIGN_LEFT`/`ALIGN_RIGHT`/`ALIGN_CENTER` width that is not an integer from 0 to 999 | ALIGN_LEFT() width must be an integer from 0 to 999 |
 | `TO_NUMBER` of text that is not a decimal numeral | TO_NUMBER() cannot convert 'x' to number |
 | `TO_NUMBER` of a numeral too large to represent | TO_NUMBER() value out of range: 'x' |
-| `JSON_FORMAT`, `WRITE_JSON_FILE` or an HTTP request body given a value holding `Infinity`, `-Infinity` or `NaN` | JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent |
 | `FILE_LINES` of a file that cannot be read | FILE_LINES() cannot read 'x': no such file |
 | `FILE_LINES` array used as a whole beyond the host's limit | FILE_LINES() 'x' is too large to use as a whole (494 MB, the limit is 64 MB) — go through it with a loop: loop line in ... do |
 | `FILE_LINES` array read after its file changed | FILE_LINES() cannot read 'x': it was modified after FILE_LINES() was called — call FILE_LINES() again |
@@ -2067,6 +2079,41 @@ fixed depth of 1000 levels in every runtime ([JSON text](#json-text)).
 ---
 
 ## Changelog
+
+### v0.36.0 — Numbers are finite; `SUM`, `MAX` and `MIN` take arrays
+
+Breaking, no grammar change. `Infinity` and `NaN` were never designed into the language — there is
+no way to write them, test for them, or say how they compare — yet decimal arithmetic past about
+1.8 × 10³⁰⁸ gave `Infinity` and `Infinity - Infinity` gave `NaN`, because both runtimes keep
+decimals as IEEE 754 doubles. The specification only described them afterwards (v0.25.0, v0.30.0,
+v0.32.0), and the runtimes disagreed on them: `FLOOR(NaN)` was `0` in the Java 25 runtime and `NaN`
+in the JavaScript runtime, `NaN == NaN` was `true` in one and `false` in the other, sorting with a
+`NaN` left the JavaScript runtime's array unsorted, and `SLEEP(NaN)` ended its script without a word.
+The user chose to stop them where they arise, as division by zero always was.
+
+- Decimal arithmetic whose result is too large to represent is a runtime error,
+  `Number overflow: the result is too large to represent`: `+`, `-`, `*`, `/`, `SUM`, and
+  `FLOOR`/`CEIL`/`ROUND`/`TRUNC` with `digits`. There is no `Infinity` or `NaN` any more.
+- A host value holding `Infinity` or `NaN` is refused where it comes in: a property or an injected
+  global before the run starts, an external function's result as an error Result, a host
+  built-in's as a runtime error — `rates.2 is Infinity, which ProperTee numbers cannot represent`.
+- `SUM`, `MAX` and `MIN` take arrays, as a spreadsheet's `MIN(A1:A10)` takes a range: each argument
+  is a number or an array of numbers, so `MIN(prices)` is the least price. `SUM([])` is `0`;
+  `MAX()` and `MIN([])` fail with `MAX() requires at least one number`, which replaces
+  `MAX() requires at least one argument`. This is what a script used a huge starting value for —
+  a loop that kept the least number so far — which overflowing arithmetic can no longer make.
+- `SLEEP` with a negative duration fails with `SLEEP() duration cannot be negative` in both
+  runtimes, and a value that is not a number with `SLEEP() requires a number argument`, both at the
+  call's position; the Java 25 runtime slept 0 ms and said
+  `SLEEP() requires a numeric millisecond argument`. A thread spawned as `thread t: SLEEP(300)` now
+  sleeps in the JavaScript runtime, which returned at once.
+
+Migration: a script that computed `Infinity` on purpose — usually as the starting value of a
+search for the least number — now stops at that line. Use `MIN(list)`, or start from the first
+element (`best = list.1`), which fails loudly on an empty list. A script that compared the text of
+`MAX()`'s error needs the new wording.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.35.0 — `JSON_PARSE` refuses numbers too large to represent
 
@@ -2191,7 +2238,7 @@ each runtime wrote them its own way, and neither wrote JSON:
 Now `JSON_FORMAT`, `WRITE_JSON_FILE` and an HTTP request body that is not a string fail with a
 runtime error that names the first such number and where it is:
 `JSON_FORMAT() value.rows.2.rate is Infinity, which JSON cannot represent`. `WRITE_JSON_FILE` writes
-nothing, and the HTTP request is not sent. See [Numbers JSON cannot hold](#numbers-json-cannot-hold).
+nothing, and the HTTP request is not sent. See [Numbers and JSON](#numbers-and-json).
 
 Migration: a script that wrote such a value now stops at that point instead of producing text that
 is not JSON. The error says where the number is, so its source can be fixed; to keep the number,

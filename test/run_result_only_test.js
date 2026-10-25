@@ -43,11 +43,12 @@ try {
     expect('runtime error: stderr, exit 1', run('PRINT("before")\ny = nope + 1\nreturn 1\n'),
         { code: 1, out: '', err: "Runtime error: Runtime Error at line 2:4: Variable 'nope' is not defined\n" });
 
-    // spec v0.32.0: stdout carries only JSON, which has no form for Infinity or NaN
-    expect('a result JSON cannot hold: stderr, exit 1', run('PRINT("noise")\nreturn TO_NUMBER("1e308") * 10\n'),
-        { code: 1, out: '', err: 'Error: the result is Infinity, which JSON cannot represent\n' });
-    expect('a nested one names its place', run('big = TO_NUMBER("1e308") * 10\nresult = {"list": [1, big - big]}\n'),
-        { code: 1, out: '', err: 'Error: the result contains NaN at result.list.2, which JSON cannot represent\n' });
+    // spec v0.32.0: stdout carries only JSON, which has no form for Infinity or NaN — and since
+    // spec v0.36.0 a script cannot make one: the arithmetic fails, as any runtime error does
+    expect('a number too large to represent: a runtime error, exit 1', run('PRINT("noise")\nreturn TO_NUMBER("1e308") * 10\n'),
+        { code: 1, out: '', err: 'Runtime error: Runtime Error at line 2:7: Number overflow: the result is too large to represent\n' });
+    expect('the largest decimal is written', run('return TO_NUMBER("1.7976931348623157e308")\n'),
+        { code: 0, out: '1.7976931348623157e+308\n', err: '' });
 
     const noScript = spawnSync(process.execPath, [PT, '--result-only'], { encoding: 'utf-8' });
     expect('no script: usage error', [noScript.status, noScript.stdout, noScript.stderr],

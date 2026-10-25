@@ -5451,12 +5451,36 @@ function literalOutOfRange(token) {
     return `Integer literal out of range: ${token} is larger than 9,007,199,254,740,991`;
 }
 
-// The integer range for integer-producing builtins (spec v0.13.0, v0.33.0).
+// The integer range for integer-producing builtins (spec v0.13.0, v0.33.0); NaN is not in it.
 function intResult(d) {
-    if (d < -MAX_INTEGER || d > MAX_INTEGER) {
+    if (!(Math.abs(d) <= MAX_INTEGER)) {
         throw new Error(`Runtime Error: ${INTEGER_OVERFLOW}`);
     }
     return d;
+}
+
+// Spec v0.36.0: numbers are always finite, as division by zero was always an error. A decimal
+// result too large to represent is an error, as an integer one outside the range is; it used to be
+// Infinity, and Infinity - Infinity NaN.
+const NUMBER_OVERFLOW = 'Number overflow: the result is too large to represent';
+function finiteResult(d) {
+    if (!Number.isFinite(d)) throw new Error(`Runtime Error: ${NUMBER_OVERFLOW}`);
+    return d;
+}
+
+// A host value holding Infinity or NaN cannot come in either (spec v0.36.0): the error, or null.
+// `name` is how the script reaches the value — a property's name, `FN() result`.
+function hostNonFinite(value, name) {
+    const found = firstNonFinite(value, name);
+    return found ? `${found.path} is ${found.number}, which ProperTee numbers cannot represent` : null;
+}
+
+// An external's return checked for Infinity and NaN (spec v0.36.0): an error Result instead, as a
+// thrown error gives. A Result the host built is checked by its value.
+function checkedExternal(name, result) {
+    const isResult = result !== null && typeof result === 'object' && 'ok' in result && 'value' in result;
+    const nonFinite = hostNonFinite(isResult ? result.value : result, `${name}() result`);
+    return nonFinite ? { ok: false, value: nonFinite, [TEE_RESULT]: true } : result;
 }
 
 // Spec v0.30.0: a finite number as the decimal digits PRINT shows for it — the shortest
@@ -5574,8 +5598,7 @@ function rounding(fn, args, mode) {
     if (typeof n !== 'number') throw new Error(`Runtime Error: ${fn}() requires numeric arguments`);
     if (args.length === 1) return intResult(wholeRound(n, mode));
     if (!isWholeNumber(args[1])) throw new Error(`Runtime Error: ${fn}() digits must be an integer`);
-    if (!Number.isFinite(n)) return n;
-    return digitsToNumber(roundDigits(decimalDigits(n), args[1], mode));
+    return finiteResult(digitsToNumber(roundDigits(decimalDigits(n), args[1], mode)));   // CEIL(max, -308)
 }
 
 // n rounded to a whole number; the same value as rounding its shown digits at place 0.
@@ -5590,12 +5613,27 @@ function wholeRound(n, mode) {
     return n < 0 ? -r : r;
 }
 
-// MAX/MIN: the first argument that beats every other, checked one by one like the reference.
-function minMax(fn, args, max) {
-    if (args.length === 0) throw new Error(`Runtime Error: ${fn}() requires at least one argument`);
-    let best;
+// The numbers SUM, MAX and MIN take (spec v0.36.0): each argument is a number or an array of
+// numbers, as a spreadsheet's MIN(A1:A10) takes a range — MIN(prices), MAX(sizes, 0). An array
+// inside an array is not a number. Before, an array was an error, so a script found a list's least
+// value with a loop that started from a huge number.
+function mathNumbers(fn, args) {
+    const out = [];
     for (const a of args) {
-        if (typeof a !== 'number') throw new Error(`Runtime Error: ${fn}() requires numeric arguments`);
+        for (const n of Array.isArray(a) ? a : [a]) {
+            if (typeof n !== 'number') throw new Error(`Runtime Error: ${fn}() requires numeric arguments`);
+            out.push(n);
+        }
+    }
+    return out;
+}
+
+// MAX/MIN: the first number that beats every other, checked one by one like the reference.
+function minMax(fn, args, max) {
+    const numbers = mathNumbers(fn, args);
+    if (numbers.length === 0) throw new Error(`Runtime Error: ${fn}() requires at least one number`);
+    let best;
+    for (const a of numbers) {
         if (best === undefined || (max ? a > best : a < best)) best = a;
     }
     return best;
@@ -6029,6 +6067,12 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Always present — the empty array when none (never absent); a caller-supplied `_ARGS`
         // property wins, the same precedence rule as `_PROPS`. Deliberately NOT part of _PROPS,
         // so the iterate/dump patterns above stay pure.
+        // Spec v0.36.0: numbers are finite, so a property holding Infinity or NaN is refused.
+        for (const [key, value] of Object.entries(this.properties)) {
+            const nonFinite = hostNonFinite(value, key);
+            if (nonFinite) throw new Error(`Runtime Error: ${nonFinite}`);
+        }
+
         this._argsFromProps = Object.prototype.hasOwnProperty.call(this.properties, '_ARGS');
         if (!this._argsFromProps) {
             this.properties = { ...this.properties, _ARGS: [] };
@@ -6187,20 +6231,18 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             'ALIGN_CENTER': (...args) => align('ALIGN_CENTER', args),
             // The math built-ins check their arguments like the reference runtime (spec v0.30.0).
             'SUM': (...args) => {
-                for (const a of args) {
-                    if (typeof a !== 'number') throw new Error('Runtime Error: SUM() requires numeric arguments');
-                }
-                if (args.every(a => this._isIntValue(a))) {
+                const numbers = mathNumbers('SUM', args);
+                if (numbers.every(a => this._isIntValue(a))) {
                     // Spec v0.33.0: integers add in order, like +, and a running total outside the
                     // range is the overflow (spec v0.14.0) — so every total is exact.
                     let total = 0;
-                    for (const a of args) {
+                    for (const a of numbers) {
                         total += a;
                         if (!Number.isSafeInteger(total)) throw new Error(`Runtime Error: ${INTEGER_OVERFLOW}`);
                     }
                     return total;
                 }
-                return args.reduce((a, b) => a + b, 0);
+                return finiteResult(numbers.reduce((a, b) => a + b, 0));   // too large is an error (spec v0.36.0)
             },
             'MAX': (...args) => minMax('MAX', args, true),
             'MIN': (...args) => minMax('MIN', args, false),
@@ -6618,7 +6660,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const shellThread = name === 'SHELL' ? this.activeThread : null;
             if (shellThread) this._startShellObservation(shellThread);
             try {
-                const result = func(...args);
+                const result = checkedExternal(name, func(...args));   // no Infinity or NaN (spec v0.36.0)
                 if (shellThread) this._completeShellObservation(shellThread, result);
                 return result;
             } catch (e) {
@@ -6681,11 +6723,11 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         const result = func(...safeCopyArgs);
                         if (result && typeof result.then === 'function') {
                             result.then(
-                                (val) => resolve(val),
+                                (val) => resolve(checkedExternal(name, val)),
                                 (err) => resolve(makeResult("error", false, err.message))
                             );
                         } else {
-                            resolve(result);
+                            resolve(checkedExternal(name, result));   // no Infinity or NaN (spec v0.36.0)
                         }
                     } catch (e) {
                         resolve(makeResult("error", false, e.message));
@@ -7834,6 +7876,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
      * A true result inside the range is exact here; one outside rounds to at least 2^53 in size,
      * so it is never a safe integer.
      */
+    // A decimal result too large to represent is an error (spec v0.36.0), as an integer one outside
+    // the range is.
+    _finite(d, ctx) {
+        if (!Number.isFinite(d)) throw this.createError(NUMBER_OVERFLOW, ctx);
+        return d;
+    }
+
     _intArith(l, r, op, ctx) {
         const result = op === '+' ? l + r : op === '-' ? l - r : l * r;
         if (!Number.isSafeInteger(result)) {
@@ -8151,11 +8200,11 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (this._isIntValue(left) && this._isIntValue(right)) {
                 return this._intArith(left, right, '*', ctx);   // 32-bit envelope (spec v0.13.0)
             }
-            return left * right;
+            return this._finite(left * right, ctx);
         }
         if (op === '/' || op === '%') {
             if (right === 0) throw this.createError('Division by zero', ctx);
-            return op === '/' ? left / right : left % right;
+            return this._finite(op === '/' ? left / right : left % right, ctx);
         }
     }
 
@@ -8169,7 +8218,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 if (this._isIntValue(left) && this._isIntValue(right)) {
                     return this._intArith(left, right, '+', ctx);   // 32-bit envelope (spec v0.13.0)
                 }
-                return left + right;
+                return this._finite(left + right, ctx);
             }
             if (typeof left === 'string' || typeof right === 'string') {
                 return this.functions['TO_STRING'](left) + this.functions['TO_STRING'](right);
@@ -8183,7 +8232,7 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (this._isIntValue(left) && this._isIntValue(right)) {
                 return this._intArith(left, right, '-', ctx);   // 32-bit envelope (spec v0.13.0)
             }
-            return left - right;
+            return this._finite(left - right, ctx);
         }
     }
 
@@ -8290,6 +8339,13 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const valueText = this.functions['TO_STRING'](res.value);
             throw this.createError(
                 args.length > 1 ? this.functions['TO_STRING'](args[1]) + ': ' + valueText : valueText, ctx);
+        }
+
+        // SLEEP's argument errors carry the call site's line:col too, as in the reference runtime
+        // (spec v0.36.0); the builtin table entry still makes the scheduler command.
+        if (funcName === 'SLEEP') {
+            if (typeof args[0] !== 'number') throw this.createError('SLEEP() requires a number argument', ctx);
+            if (args[0] < 0) throw this.createError('SLEEP() duration cannot be negative', ctx);
         }
 
         // Built-in function
@@ -8544,14 +8600,28 @@ class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     module: spawn.module
                 });
             } else if (this.functions[spawn.funcName]) {
-                // Built-in function: wrap in a trivial generator
+                // Built-in function: wrap in a trivial generator. SLEEP's scheduler command is
+                // yielded as at a call (spec v0.36.0): `thread t: SLEEP(300)` returned the command
+                // object without sleeping, and its argument errors carry the spawn's position.
                 const builtInFunc = this.functions[spawn.funcName];
                 const capturedArgs = spawn.args;
+                const self = this;
+                const funcName = spawn.funcName;
+                const spawnCtx = spawn.ctx;
                 specs.push({
                     name: `builtin-${spawn.funcName}-${i}`,
                     functionName: spawn.funcName,
                     generator: (function*() {
-                        return builtInFunc(...capturedArgs);
+                        if (funcName === 'SLEEP') {
+                            if (typeof capturedArgs[0] !== 'number') throw self.createError('SLEEP() requires a number argument', spawnCtx);
+                            if (capturedArgs[0] < 0) throw self.createError('SLEEP() duration cannot be negative', spawnCtx);
+                        }
+                        const result = builtInFunc(...capturedArgs);
+                        if (result && result.__schedulerCommand) {
+                            yield result;
+                            return {};
+                        }
+                        return result;
                     })(),
                     localScope: null,
                     module: spawn.module
