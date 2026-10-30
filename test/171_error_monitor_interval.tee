@@ -1,0 +1,15 @@
+// spec v0.37.0: a `multi` block checks its monitor interval before its setup and before its first
+// worker starts, as it does `limit`, so no worker is alive when the handler starts
+on error do
+    PRINT("handler:", _ERROR.message)
+end
+function work() do
+    PRINT("never: no worker starts")
+    return 1
+end
+multi r do
+    PRINT("never: the interval is checked first")
+    thread a: work()
+monitor 9007199254740992
+    PRINT("never")
+end

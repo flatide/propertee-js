@@ -1,0 +1,8 @@
+// spec v0.37.0: the handler runs only after an error. A top-level `return`, an `otherwise
+// return` included, ends the run as a success.
+on error do
+    PRINT("the handler does not run")
+end
+PRINT("start")
+x = ERR("missing") otherwise return "ended early"
+PRINT("never")

@@ -6,23 +6,23 @@ true true true
 9007199254740990 9007199254740992
 -9,007,199,254,740,991
 { "7": 1, "9007199254740991": 2 }
-[THREAD ERROR] Runtime Error at line 22:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error at line 26:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error at line 30:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error at line 34:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error: RANDOM() min cannot be greater than max
-[THREAD ERROR] Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991
-[THREAD ERROR] Runtime Error at line 58:12: Integer literal out of range: 9007199254740992 is larger than 9,007,199,254,740,991
-a false Runtime Error at line 22:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-b false Runtime Error at line 26:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-c false Runtime Error at line 30:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-d false Runtime Error at line 34:11: Integer overflow: the result is outside ±9,007,199,254,740,991
-e false Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
-f false Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
-g false Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991
-h false Runtime Error: RANDOM() min cannot be greater than max
-i false Runtime Error: RANDOM() bounds must be integers within ±9,007,199,254,740,991
-j false Runtime Error at line 58:12: Integer literal out of range: 9007199254740992 is larger than 9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 22:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 26:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 30:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 34:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 38:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 42:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 46:12: RANDOM() bounds must be integers within ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 50:12: RANDOM() min cannot be greater than max
+[THREAD ERROR] Runtime Error at line 54:12: RANDOM() bounds must be integers within ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 58:13: Integer literal out of range: 9007199254740992 is larger than 9,007,199,254,740,991
+a false Runtime Error at line 22:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+b false Runtime Error at line 26:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+c false Runtime Error at line 30:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+d false Runtime Error at line 34:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+e false Runtime Error at line 38:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+f false Runtime Error at line 42:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+g false Runtime Error at line 46:12: RANDOM() bounds must be integers within ±9,007,199,254,740,991
+h false Runtime Error at line 50:12: RANDOM() min cannot be greater than max
+i false Runtime Error at line 54:12: RANDOM() bounds must be integers within ±9,007,199,254,740,991
+j false Runtime Error at line 58:13: Integer literal out of range: 9007199254740992 is larger than 9,007,199,254,740,991

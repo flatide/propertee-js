@@ -61,7 +61,9 @@ back to `file.tee` only when no numeric version exists. Browser embedders provid
 
 ## External Functions & Result Pattern
 
-Host applications can register external functions that return result objects:
+Host applications can register external functions. The call gives the script a Result: what the
+function returns is its value, and what it throws an error carrying the message (spec v0.37.0, as
+in the Java runtime — a Result the function builds itself nests inside):
 
 ```javascript
 import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
@@ -69,8 +71,8 @@ import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
 const interpreter = new ProperTeeCustomVisitor();
 
 interpreter.registerExternal("GET_BALANCE", (user) => {
-    if (userExists(user)) return ProperTeeCustomVisitor.ok(getBalance(user));
-    return ProperTeeCustomVisitor.error("account not found");
+    if (userExists(user)) return getBalance(user);
+    throw new Error("account not found");
 });
 ```
 
@@ -101,7 +103,8 @@ REPL commands: `.vars` (show variables), `.exit` (quit).
 `--result-only` discards the script's `PRINT` output and prints only its result as one line of
 JSON: the top-level `return` value, else the final `result` global, else `{}` — the value TeeBox
 reports for a run, and the same rule as the Java CLI's `propertee2 --result-only`. stderr output
-(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1. A result
+(`[THREAD ERROR]`, warnings, a runtime error) is kept, and a runtime error exits 1; after a
+failure the result is the value an `on error` handler returned, when one ran (spec v0.37.0). A result
 always fits JSON: numbers are finite (spec v0.36.0), so arithmetic past the range of numbers is a
 runtime error (`Number overflow: the result is too large to represent`), not an Infinity that JSON
 could not hold. The check of the result stays as a guard (spec v0.32.0). Options go
@@ -192,13 +195,16 @@ every execution; in the browser bundle it is exposed as `window.checkScript`.
 import checkScript from './checkScript.js';
 
 checkScript('x = SHEL("echo hi")\n');
-// { ok: false, problems: [{ kind: 'unknown-function', line: 1, column: 4,
+// { ok: false, problems: [{ kind: 'unknown-function', line: 1, column: 5,
 //     message: "unknown function 'SHEL' (did you mean 'SHELL'?)",
 //     name: 'SHEL', suggestion: 'SHELL' }] }
 ```
 
-Problems carry `kind: 'syntax' | 'unknown-function'` with 1-based lines / 0-based columns; when
-syntax problems exist the lint is skipped (it needs a clean tree). Hosts that registered external
+Problems carry `kind: 'syntax' | 'load' | 'unknown-function'` with lines and columns counted from
+1, as in the runtime's error report (spec v0.37.0). A `load` problem is a rule the runtime refuses
+a script for before it starts: a misplaced `on error`, a `return` value on a later line, a `break`
+or `continue` outside a loop. When syntax problems exist the other checks are skipped (they need a
+clean tree). Hosts that registered external
 functions pass their visitor so those names are recognized:
 `checkScript(source, { visitor })`. The name set itself is available as
 `visitor.knownFunctionNames()` (catalog + dispatched `FAIL`/`UNWRAP` + host-registered externals).
@@ -215,7 +221,7 @@ import ProperTeeCustomVisitor from './ProperTeeCustomVisitor.js';
 
 // The visitor you embed with — registered externals become known names
 const visitor = new ProperTeeCustomVisitor({}, {}, { stdout() {}, stderr() {} }, {});
-visitor.registerExternal("GET_BALANCE", (user) => ProperTeeCustomVisitor.ok(balanceOf(user)));
+visitor.registerExternal("GET_BALANCE", (user) => balanceOf(user));
 
 const userScript = 'res = GET_BALANC("alice")\nif res.ok == true then\n    PRINT(res.value)\nend\n';
 
@@ -224,7 +230,7 @@ if (!ok) {
     // Every reported problem is a guaranteed failure — safe to reject the script outright
     for (const p of problems) {
         console.error(`line ${p.line}:${p.column} [${p.kind}] ${p.message}`);
-        // line 1:6 [unknown-function] unknown function 'GET_BALANC' (did you mean 'GET_BALANCE'?)
+        // line 1:7 [unknown-function] unknown function 'GET_BALANC' (did you mean 'GET_BALANCE'?)
     }
 }
 ```
@@ -244,7 +250,10 @@ check:
   number, or `null`, without writing anything.
 
 A function registered with `registerExternal` turns any throw into an error Result. For the throw
-to be a runtime error, as in the built-ins, install the function in `visitor.functions` directly.
+to be a runtime error, as in the built-ins, install the function in `visitor.functions` directly:
+whatever it throws is then a runtime error at its call, in a `multi` worker too, so the script's
+`on error` handler sees it (spec v0.37.0). One that throws after calling the scheduler's
+`debugStop()` stops the run instead: a stop asked for before an error is the stop's.
 
 A script's numbers are finite since spec v0.36.0, so these checks matter only for values a host
 builds itself. A host must not hand Infinity or NaN to a script either: an external's result

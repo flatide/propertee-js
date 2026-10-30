@@ -1,0 +1,8 @@
+// spec v0.37.0: `break` and `continue` act on a loop in the same function body, never on the
+// caller's: refused at load
+function skip() do
+    continue
+end
+loop i in [1, 2] do
+    skip()
+end

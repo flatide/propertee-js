@@ -35,20 +35,22 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Register async external functions using registerExternalAsync
 // Functions return Promises for truly async behavior in JS
+// The call's Result holds what a function resolves to, and what it rejects with as an error
+// (spec v0.37.0, as in the reference runtime).
 visitor.registerExternalAsync('SLOW_FETCH', async (key) => {
     await delay(50);
-    if (key === 'error') return ProperTeeCustomVisitor.error('fetch error: error');
-    return ProperTeeCustomVisitor.ok(key + '_data');
+    if (key === 'error') throw new Error('fetch error: error');
+    return key + '_data';
 });
 
 visitor.registerExternalAsync('SLOW_COMPUTE', async (n) => {
     await delay(30);
-    return ProperTeeCustomVisitor.ok(n * 10);
+    return n * 10;
 });
 
 visitor.registerExternalAsync('SLOW_TIMEOUT', async (key) => {
     await delay(500);
-    return ProperTeeCustomVisitor.ok('should not reach');
+    return 'should not reach';
 }, 100);
 
 // Run

@@ -1,4 +1,4 @@
-[THREAD ERROR] Runtime Error at line 9:4: Cannot assign to global variable '::badvar' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.
+[THREAD ERROR] Runtime Error at line 9:5: Cannot assign to global variable '::badvar' inside multi block. Functions in multi blocks can only read global variables (via ::) and write to local variables.
 done
 true
 42

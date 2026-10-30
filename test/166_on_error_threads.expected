@@ -1,0 +1,4 @@
+[THREAD ERROR] Runtime Error at line 7:12: Division by zero
+a worker's error is its entry: error
+Runtime error: Runtime Error at line 14:9: Variable 'missing' is not defined
+handler: Variable 'missing' is not defined

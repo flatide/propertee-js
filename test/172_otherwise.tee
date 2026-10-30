@@ -1,0 +1,81 @@
+// spec v0.37.0: `otherwise` ends a statement and says what to use or do when the Result on its
+// left failed: a value, continue, break, return, or a block
+a = ERR("missing") otherwise 5
+b = OK(3) otherwise 5
+PRINT(a, b)
+
+// a normal false, 0, "", [] or null is not a failure
+f1 = OK(false) otherwise "failed"
+f2 = OK(0) otherwise "failed"
+f3 = OK("") otherwise "failed"
+f4 = OK([]) otherwise "failed"
+f5 = OK(null) otherwise "failed"
+PRINT(f1, f2, "[" + f3 + "]", f4, f5)
+
+// the fallback is computed only on failure
+function noisy(v) do
+    PRINT("computing", v)
+    return v
+end
+c1 = OK(1) otherwise noisy(2)
+c2 = ERR(1) otherwise noisy(3)
+PRINT(c1, c2)
+
+// a Result as the fallback is unwrapped, one level, and fallbacks chain
+d1 = ERR("a") otherwise OK("b")
+d2 = ERR("a") otherwise ERR("b") otherwise "c"
+d3 = ERR("a") otherwise OK(OK(1))
+PRINT(d1, d2, d3, IS_RESULT(d3))
+
+// continue, break, and a block that names the failure: a global at the top level
+loop item in [OK(1), ERR("bad"), OK(3), ERR({"status": 404}), OK(5), OK(6)] do
+    v = item otherwise err do
+        PRINT("skipped:", TYPE_OF(err.message), err.value)
+        continue
+    end
+    if v == 5 then
+        w = ERR("stop") otherwise break
+    end
+    PRINT("got", v)
+end
+PRINT("after the loop:", err.value.status)
+
+// return with and without a value, after an assignment and after a return
+function first(r) do
+    v = r otherwise return "none"
+    return "got " + v
+end
+function bare(r) do
+    v = r otherwise return
+    return v
+end
+function passOn(r) do
+    return r otherwise return "passed on"
+end
+function described(r) do
+    return r otherwise err do
+        return "failed: " + err.message
+    end
+end
+PRINT(first(OK(1)), first(ERR(1)), bare(ERR(1)), passOn(ERR(1)), described(ERR("why")))
+
+// a block may set its variable; after an expression statement it may simply end
+lines = ERR("missing") otherwise do
+    lines = ["default"]
+end
+PRINT(lines)
+OK(1) otherwise PRINT("not printed")
+ERR(1) otherwise PRINT("printed: the value is computed, then dropped")
+ERR("note") otherwise err do
+    PRINT("the block ends:", err.message)
+end
+
+// a value fallback works with any target; the fallback is computed before the target's place
+function next() do
+    ::i = 2
+    return 0
+end
+rows = [10, 20, 30]
+i = 1
+rows.$i = ERR(1) otherwise next()
+PRINT(rows)

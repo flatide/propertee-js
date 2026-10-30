@@ -1,0 +1,17 @@
+// spec v0.37.0: an `otherwise` block sets its variable by running an assignment to it itself — in
+// its own code, a `multi` setup in it included — and not in a function it calls.
+x = ERR("no x") otherwise do
+    multi do
+        ::x = 42
+    end
+end
+PRINT("set in the setup:", x)
+
+function setX() do
+    ::x = 7
+end
+
+x = ERR("no x again") otherwise do
+    setX()
+end
+PRINT("not reached")

@@ -1,0 +1,27 @@
+// spec v0.37.0: `on error` runs once a runtime error has been reported, as top-level code. It
+// sees the globals as the error left them, and can call functions defined below the failed line.
+on error do
+    PRINT("handler:", _ERROR.message)
+    PRINT("at", _ERROR.line, _ERROR.column, _ERROR.source)
+    PRINT("done before the error:", done)
+    report("from the handler")
+    return {"failed": true}
+end
+
+done = 0
+PRINT("start")
+loop i in [1, 2, 3] do
+    if i == 3 then
+        x = SUBSTRING("abc", 0)
+    end
+    done = done + 1
+end
+PRINT("never")
+
+// the later definition of a name replaces the earlier one, as it would have had the run reached it
+function report(text) do
+    PRINT("first report:", text)
+end
+function report(text) do
+    PRINT("report:", text)
+end

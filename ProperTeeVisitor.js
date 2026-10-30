@@ -60,6 +60,12 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 	}
 
 
+	// Visit a parse tree produced by ProperTeeParser#ErrorHandlerStmt.
+	visitErrorHandlerStmt(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
 	// Visit a parse tree produced by ProperTeeParser#FlowStmt.
 	visitFlowStmt(ctx) {
 	  return this.visitChildren(ctx);
@@ -68,6 +74,48 @@ export default class ProperTeeVisitor extends antlr4.tree.ParseTreeVisitor {
 
 	// Visit a parse tree produced by ProperTeeParser#ExprStmt.
 	visitExprStmt(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#errorHandler.
+	visitErrorHandler(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#otherwiseClause.
+	visitOtherwiseClause(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#FallbackContinue.
+	visitFallbackContinue(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#FallbackBreak.
+	visitFallbackBreak(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#FallbackReturn.
+	visitFallbackReturn(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#FallbackBlock.
+	visitFallbackBlock(ctx) {
+	  return this.visitChildren(ctx);
+	}
+
+
+	// Visit a parse tree produced by ProperTeeParser#FallbackValue.
+	visitFallbackValue(ctx) {
 	  return this.visitChildren(ctx);
 	}
 

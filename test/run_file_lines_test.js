@@ -45,8 +45,8 @@ try {
     writeFileSync(file, 'PRINT("before")\nloop line in FILE_LINES("/data/a.txt") do\n    PRINT(line)\nend\nPRINT("never")\n');
     const r = spawnSync(process.execPath, [PT, file], { encoding: 'utf-8' });
     expect('script: output before the error', r.stdout, 'before\n');
-    expect('script: the error line', r.stderr.trim(),
-        'Runtime error: Runtime Error: FILE_LINES() is not available in this environment');
+    expect('script: the error line', r.stderr.trim(),   // at the call (spec v0.37.0)
+        'Runtime error: Runtime Error at line 2:14: FILE_LINES() is not available in this environment');
     expect('script: exit code', r.status, 1);
 } finally {
     rmSync(dir, { recursive: true, force: true });

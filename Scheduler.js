@@ -7,6 +7,7 @@ const TEE_RESULT = Symbol.for('propertee.result');
 export default class Scheduler {
     constructor(visitor) {
         this.visitor = visitor;
+        visitor.stopRequested = () => this._debugMode && this._stopped;
         this.threads = new Map();     // id -> ThreadContext
         this.nextThreadId = 0;
         this.currentThreadId = null;
@@ -375,6 +376,9 @@ export default class Scheduler {
             while (!step.done) {
                 step = gen.next();
             }
+        } catch (e) {
+            // a return ends this iteration, as it ends a function (spec v0.37.0)
+            if (e?.name !== 'ReturnException') throw e;
         } finally {
             this.visitor.activeThread = prevActiveThread;
             if (prevActiveThread && prevMonitor !== undefined) {
@@ -568,6 +572,7 @@ export default class Scheduler {
                             try {
                                 await new Promise(resolve => { this._debugResolve = resolve; });
                                 if (this._stopped) {
+                                    if (this.visitor.failureInHandler) break;   // settled below
                                     throw new Error('Execution stopped by user');
                                 }
                             } finally {
@@ -589,13 +594,23 @@ export default class Scheduler {
             }
         }
 
+        // A stop ends the run as stopped, never as completed. A stop while the `on error` handler
+        // runs ends the handler, and the run stays failed with the original error (spec v0.37.0).
+        const main = this.threads.get(0);
+        if (this._stopped && main && main.state !== ThreadState.COMPLETED && main.state !== ThreadState.ERROR) {
+            const failed = this.visitor.failureInHandler;
+            this.visitor.failureInHandler = null;
+            if (!failed) throw new Error('Execution stopped by user');
+            failed.handler = { kind: 'stopped', value: {}, error: null };
+            throw failed;
+        }
+
         // Fire final onStep callback
         if (this._debugMode && this.onStep) {
             this.onStep({ done: true });
         }
 
         // Return main thread result
-        const main = this.threads.get(0);
         if (main && main.state === ThreadState.ERROR) {
             throw main.error;
         }

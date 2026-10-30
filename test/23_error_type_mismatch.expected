@@ -1,1 +1,1 @@
-Runtime error: Runtime Error at line 4:6: Addition requires numeric or string operands. Got boolean + boolean
+Runtime error: Runtime Error at line 4:7: Addition requires numeric or string operands. Got boolean + boolean

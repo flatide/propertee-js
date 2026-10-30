@@ -1,12 +1,12 @@
-[THREAD ERROR] Runtime Error: ROUND() digits must be an integer
-[THREAD ERROR] Runtime Error: FLOOR() digits must be an integer
-[THREAD ERROR] Runtime Error: CEIL() takes at most 2 arguments
-[THREAD ERROR] Runtime Error: TRUNC() missing argument 1
-[THREAD ERROR] Runtime Error: ROUND() requires numeric arguments
-[THREAD ERROR] Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
-a false Runtime Error: ROUND() digits must be an integer
-b false Runtime Error: FLOOR() digits must be an integer
-c false Runtime Error: CEIL() takes at most 2 arguments
-d false Runtime Error: TRUNC() missing argument 1
-e false Runtime Error: ROUND() requires numeric arguments
-f false Runtime Error: Integer overflow: the result is outside ±9,007,199,254,740,991
+[THREAD ERROR] Runtime Error at line 3:12: ROUND() digits must be an integer
+[THREAD ERROR] Runtime Error at line 7:12: FLOOR() digits must be an integer
+[THREAD ERROR] Runtime Error at line 11:12: CEIL() takes at most 2 arguments
+[THREAD ERROR] Runtime Error at line 15:12: TRUNC() missing argument 1
+[THREAD ERROR] Runtime Error at line 19:12: ROUND() requires numeric arguments
+[THREAD ERROR] Runtime Error at line 23:12: Integer overflow: the result is outside ±9,007,199,254,740,991
+a false Runtime Error at line 3:12: ROUND() digits must be an integer
+b false Runtime Error at line 7:12: FLOOR() digits must be an integer
+c false Runtime Error at line 11:12: CEIL() takes at most 2 arguments
+d false Runtime Error at line 15:12: TRUNC() missing argument 1
+e false Runtime Error at line 19:12: ROUND() requires numeric arguments
+f false Runtime Error at line 23:12: Integer overflow: the result is outside ±9,007,199,254,740,991

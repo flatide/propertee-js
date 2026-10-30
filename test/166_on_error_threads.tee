@@ -1,0 +1,16 @@
+// spec v0.37.0: a worker's error stays its entry and does not run the handler; an error in a
+// `multi` setup does
+on error do
+    PRINT("handler:", _ERROR.message)
+end
+function bad() do
+    return 1 / 0
+end
+multi r do
+    thread a: bad()
+end
+PRINT("a worker's error is its entry:", r.a.status)
+multi do
+    x = ::missing
+end
+PRINT("never")

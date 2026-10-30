@@ -1,4 +1,4 @@
-# ProperTee Language Specification v0.36.0
+# ProperTee Language Specification v0.37.0
 
 ## Overview
 
@@ -137,6 +137,8 @@ PRINT(a.x)      // 1 — a is unchanged
 ```
 
 This applies everywhere values cross boundaries: variable assignment, property/element assignment, function arguments, loop variables, and thread global snapshots.
+
+An assignment computes its right side first and then the target's place, so in `rows.$i = next()` the element set is the one `i` names after `next()` ran (the order is stated since spec v0.37.0; both runtimes already kept it).
 
 ### `::` Global Variable Prefix
 
@@ -480,7 +482,7 @@ loop i < 100 do
 end
 ```
 
-`break` and `continue` affect the innermost enclosing loop only.
+`break` and `continue` affect the innermost enclosing loop only. *Enclosing* is lexical: a loop around the statement in the same function body, never a loop in the caller. A monitor body counts as a function body, since each iteration runs like a function invocation; a `multi` setup is no boundary — a `break` or `continue` there acts on its loop, inside the setup or around the block. A `break` or `continue` without such a loop is refused at load (spec v0.37.0), before the first statement: `'break' must be inside a loop`, `'continue' must be inside a loop`. Until then a function's `break` ended its caller's loop, and one outside any loop was ignored or ended the run, depending on the runtime.
 
 ### Debug Statement
 
@@ -509,6 +511,10 @@ result = add(3, 4)    // 7
 - `return value` — returns the specified value
 - `return` (bare) — returns `{}`
 - No return statement — returns `{}`
+
+The value of a `return` starts on the `return` line (spec v0.37.0). Line breaks do not end statements ([Semicolons](#semicolons)), so a bare `return` would take the next line as its value — `return` with `PRINT("x")` on the next line printed `x` and returned `{}`. A `return` whose value starts on a later line is refused at load: `The value of 'return' must start on the same line`. A bare `return` still ends a block: `return` followed by `end`, `else` or `elseif`.
+
+A function exists once its definition has run: a definition is a statement that runs when the run reaches it, and a later definition of a name replaces an earlier one (stated since spec v0.37.0). The one exception is the [`on error` handler](#on-error), before which the runtime runs the root definitions the run has not reached.
 
 ### Arguments
 
@@ -601,7 +607,9 @@ and accepts only numeric script versions.
 ### Execution and visibility
 
 Direct execution is unchanged: all top-level statements run. Import mode executes no top-level
-statements; it registers only function definitions directly under the source root. This lets the
+statements; it registers only function definitions directly under the source root. A module's
+`on error` handler is skipped in import mode (spec v0.37.0), and the load-time checks hold in a
+module as in an entry script. This lets the
 same source keep top-level self-test code without running that code when imported. Initialization
 is explicit through an ordinary function such as `file::init(...)`.
 
@@ -868,6 +876,8 @@ This guarantees no data races — threads never see each other's modifications.
 8. All threads must complete before execution continues past `end`
 9. The result collection is assigned to `resultVar` after **all** threads finish
 
+The monitor interval is checked at `multi` entry with the `limit` clause, before the snapshot and the setup phase (spec v0.37.0), so a block whose interval is out of range starts no worker. A `return` in the setup phase, or a `break` or `continue` on a loop around the block, leaves the setup: the threads collected so far do not start. A `break` or `continue` on a loop inside the setup acts on that loop only, and the setup goes on.
+
 ### Monitor Clause
 
 An optional `monitor` clause attaches a **watchdog thread** to the multi block — a thread the runtime spawns and manages automatically alongside the workers (spec v0.16.0):
@@ -887,6 +897,7 @@ end
 - Each iteration runs like a function invocation, in a **fresh local scope** — locals do not carry over between iterations. Local assignment, loops, and function calls are all allowed in the body.
 - The iteration's scope starts with one binding: the result collection variable, holding a **captured snapshot** (deep copy) of the collection taken as the iteration starts.
 - If an iteration fails, the error is reported (`[MONITOR ERROR] ...`), remaining mid-run iterations are skipped, and the final iteration still runs.
+- A `return` in the body ends that iteration, as in a function, and the watchdog keeps going (spec v0.37.0). `break` and `continue` need a loop inside the body; one without is refused at load.
 - The watchdog is exempt from the block's `limit` clause (spec v0.19.0): it does not consume a concurrency slot, and it observes waiting-for-admission threads as ordinary `"running"` entries.
 
 ```
@@ -1036,7 +1047,7 @@ the three kinds of invalid format as they occur from left to right:
 | a value that is not a number under a pattern | `FORMAT() {0.00} requires a number, got string` |
 
 `PRINTF` reports the same errors under its own name — `PRINTF() invalid format: {x}` — and, like
-the other built-ins' errors, without a line number.
+every runtime error since spec v0.37.0, at the position of its call.
 
 #### Number patterns
 
@@ -1430,7 +1441,7 @@ the letters `A` and `Z` on JavaScript.
 
 ### Results and Error Escalation
 
-Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-results-fail-and-unwrap) for the semantics.
+Added in spec v0.10.0. See [Genuine Results, `FAIL`, and `UNWRAP`](#genuine-results-fail-and-unwrap) for the semantics, and [Handling Failures](#handling-failures) for how `UNWRAP` works beside `otherwise` and `on error` (spec v0.37.0).
 
 | Function | Description |
 |---|---|
@@ -1805,13 +1816,15 @@ Result objects have three fields:
 
 For external function results, `ok` is sufficient — check `res.ok == true`. The `status` field exists primarily for multi block thread results, where it distinguishes between `"running"` (not yet finished) and `"error"` (finished with failure) — both have `ok: false`.
 
+The runtime makes an external call's Result: whatever the host function returns is the `value` of an ok Result — a Result the host built included, which then nests inside it — and what it throws is an error Result carrying its message. A host function returns the value itself, not `Result.ok(value)` (stated since spec v0.37.0; the reference runtime always did this, and the JavaScript runtime now does too).
+
 ### Genuine Results, `FAIL`, and `UNWRAP`
 
 Added in spec v0.10.0.
 
 **Genuine Results.** Result objects created by the runtime — Result-returning built-ins (`JSON_PARSE`, `SHELL`/`SHELL_CTX`, `HTTP`/`HTTP_GET`/`HTTP_POST`, the file-I/O group — all but `FILE_EXISTS`, which returns a plain boolean, and `FILE_LINES`, which returns a plain array), external function calls (sync and async, including timeout errors), and `multi` thread collection entries — and by the `OK`/`ERR` constructors are *genuine Results*: the runtime remembers their origin. A script object literal with the same three fields is a plain object, **not** a genuine Result.
 
-The distinction is invisible to `TYPE_OF` (still `"object"`), display, equality, and JSON serialization; it is observed only by `IS_RESULT` and `UNWRAP`. Copies of a genuine Result (assignment, argument passing, `PUSH`, deep copy) are genuine Results; field mutation does not remove the origin. The origin does not survive JSON: `JSON_FORMAT` renders a genuine Result as the plain three-field object, and nothing inside `JSON_PARSE`d data is a genuine Result (the wrapping Result returned by `JSON_PARSE` itself is genuine).
+The distinction is invisible to `TYPE_OF` (still `"object"`), display, equality, and JSON serialization; it is observed only by `IS_RESULT`, `UNWRAP` and `otherwise` (spec v0.37.0). Copies of a genuine Result (assignment, argument passing, `PUSH`, deep copy) are genuine Results; field mutation does not remove the origin. The origin does not survive JSON: `JSON_FORMAT` renders a genuine Result as the plain three-field object, and nothing inside `JSON_PARSE`d data is a genuine Result (the wrapping Result returned by `JSON_PARSE` itself is genuine).
 
 **Escalation.** The Result pattern makes recoverable errors explicit values; `FAIL` is the explicit escalation for the errors a script decides are fatal — it raises an ordinary runtime error at the call site, so the run fails exactly as with any other runtime error:
 
@@ -1843,8 +1856,8 @@ Host applications can register **async external functions** for blocking I/O (da
 interpreter.builtins.registerExternalAsync("DB_QUERY", new BuiltinFunction() {
     public Object call(List<Object> args) {
         String sql = (String) args.get(0);
-        // This runs on a background thread — blocking is OK
-        return Result.ok(database.execute(sql));
+        // This runs on a background thread — blocking is OK; the runtime makes the Result
+        return database.execute(sql);
     }
 }, 5000);
 ```
@@ -1853,7 +1866,7 @@ interpreter.builtins.registerExternalAsync("DB_QUERY", new BuiltinFunction() {
 // JavaScript host — async function (no timeout)
 visitor.registerExternalAsync("HTTP_GET", (url) => {
     const response = await fetch(url);
-    return Result.ok(response.json());
+    return response.json();
 });
 ```
 
@@ -1872,7 +1885,7 @@ end
 - Other threads in a `multi` block **continue executing** — only the calling thread is paused
 - Outside a `multi` block, the script simply waits (no other threads to run)
 - Results use the same Result pattern: `{ok: true, value: ...}` on success, `{ok: false, value: "error message"}` on failure
-- Thrown exceptions inside async functions are automatically wrapped as `Result.error(message)`
+- What the function returns is the value of an ok Result, and a thrown exception becomes an error Result carrying its message
 
 **Timeout:** The optional timeout parameter (milliseconds) limits how long the thread will wait. If the operation exceeds the timeout, the function returns `{status: "error", ok: false, value: "timeout"}`:
 
@@ -1923,7 +1936,7 @@ if x == 10 then    // 'if' is not available in this environment — the whole sc
 end
 ```
 
-Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`. Hiding `if` covers the whole `if`/`elseif`/`else` statement.
+Keywords that can be hidden: `if`, `loop`, `function`, `multi`, `thread`, `debug`. Hiding `if` covers the whole `if`/`elseif`/`else` statement. `on` and `otherwise` cannot be hidden: what a handler or a fallback runs stays under the host's restrictions.
 
 **Ignored functions** make a script that calls the function refuse to run:
 
@@ -1934,9 +1947,273 @@ x = SHELL("echo hello")   // 'SHELL' is not available in this environment — th
 
 Both built-in and external functions can be ignored. The check applies to normal function calls and to function calls inside multi block `thread` spawns. Each name is blocked on its own: ignoring `PRINT` leaves `PRINTF` available, so a host that wants no script output ignores both.
 
-**Load-time rejection (spec v0.14.0).** A script that names *any* blocked construct — a hidden keyword or an ignored-function call, **anywhere in the source, dead branches included** — does not run at all. The run is refused **before the first statement executes**, failing on the **first violation in document order** with `Runtime Error at line L:C: 'X' is not available in this environment`. Nothing before the offending construct runs — no output, no side effects — so in the examples above `x = 10` never executes. Because the check scans the whole tree, a blocked construct in an untaken branch (`if false then SHELL(...) end`) still refuses the script, and a blocked function reached only through a `thread` spawn (`thread a: blocked_fn()`) is rejected at load rather than inside the worker (this supersedes the spec v0.13.0 worker-containment behavior — the worker is never reached). The language has no indirect calls (call sites are literal names) and its keywords are static, so this scan is exact.
+**Load-time rejection (spec v0.14.0).** A script that names *any* blocked construct — a hidden keyword or an ignored-function call, **anywhere in the source, dead branches included** — does not run at all. The run is refused **before the first statement executes**, failing on the **first violation in document order** with `Runtime Error at line L:C: 'X' is not available in this environment`. Nothing before the offending construct runs — no output, no side effects — so in the examples above `x = 10` never executes. Because the check scans the whole tree, a blocked construct in an untaken branch (`if false then SHELL(...) end`) still refuses the script, and a blocked function reached only through a `thread` spawn (`thread a: blocked_fn()`) is rejected at load rather than inside the worker (this supersedes the spec v0.13.0 worker-containment behavior — the worker is never reached). The language has no indirect calls (call sites are literal names) and its keywords are static, so this scan is exact. The load-time checks of spec v0.37.0 — a misplaced `on error`, a `return` value on a later line, a `break` or `continue` outside a loop — refuse a script the same way, and the first violation in document order across both kinds is the one reported.
 
 The same scan is also exposed as a **host API** that returns *all* violations at once — `Engine.validate(source)` in the reference runtime, `interpreter.validate(tree)` in propertee-java, `visitor.validate(tree)` in propertee-js — each yielding one `line L:C: 'X' is not available in this environment` entry per hidden-keyword construct and ignored-function call, for hosts that want to inspect a script (e.g. report every problem in an editor) without running it.
+
+## Handling Failures
+
+Added in spec v0.37.0. A failure reaches a script in one of two ways, and each has its own tool.
+A failure nobody planned for stops the run, and `on error` gives the script one place to log,
+notify and report just before the run ends. A failure the script expects is handled on its own
+line, and `otherwise` says what to use or do instead. `UNWRAP` stays beside them:
+
+| Tool | For | Where |
+|---|---|---|
+| `UNWRAP` | A value that must be there: its value, or the run stops | Anywhere in an expression |
+| `otherwise` | A failure the script expects: what to use or do instead | At the end of a statement |
+| `on error` | What to do when the run stops | Once, right after the imports |
+
+```
+on error do
+    PRINT("Job failed:", _ERROR.message, "at line", _ERROR.line)
+    APPEND_FILE("/logs/job.log", DATE() + " " + _ERROR.message + "\n")
+    return {"failed": true, "reason": _ERROR.message}
+end
+
+input = _ARGS.1
+loop line in FILE_LINES(input) infinite do      // a file that cannot be read stops the run
+    record = JSON_PARSE(line) otherwise err do  // a line that is not JSON is skipped
+        PRINT("skipped:", err.message)
+        continue
+    end
+    PRINT(record.id)
+end
+```
+
+Neither is try/catch: nothing resumes after a runtime error, and `otherwise` looks only at a
+Result — an error raised on its left stops the run as before.
+
+### `otherwise`
+
+```
+lines = READ_LINES(f) otherwise []                  // a value instead
+lines = READ_LINES(f) otherwise continue            // the next item; also break, return
+lines = READ_LINES(f) otherwise err do              // a block; err describes the failure
+    PRINT("skipped", f, err.message)
+    continue
+end
+WRITE_FILE(path, text) otherwise PRINT("not saved") // a statement: the value is computed, then dropped
+```
+
+The value form does what a spreadsheet's `IFERROR` does. `or` stays boolean-only.
+
+**Syntax.**
+
+- `otherwise` ends a statement: an assignment, a `return` with a value, or an expression
+  statement. It never appears inside an expression: `PRINT(f() otherwise 0)` is a syntax error.
+- The fallback is a value, `continue`, `break`, `return` with or without a value, or a block
+  `do ... end`, which may name the failure: `otherwise err do ... end`.
+- A `thread` statement takes none: a worker's failure becomes its entry.
+
+```
+statement       : assignment otherwiseClause?                # AssignStmt
+                | ...
+                | expression otherwiseClause?                # ExprStmt
+                ;
+flowControl     : ...
+                | K_RETURN (expression otherwiseClause?)?    # ReturnStmt
+                ;
+otherwiseClause : K_OTHERWISE fallback ;
+fallback        : K_CONTINUE                                 # FallbackContinue
+                | K_BREAK                                    # FallbackBreak
+                | K_RETURN (expression otherwiseClause?)?    # FallbackReturn
+                | name=ID? K_DO block K_END                  # FallbackBlock
+                | expression otherwiseClause?                # FallbackValue
+                ;
+```
+
+**Rules.**
+
+1. **What it looks at** is the value on its left:
+   - a genuine Result with `ok` true gives its `value`;
+   - a genuine Result with `ok` false, `"running"` included, gives the fallback;
+   - anything else is a runtime error, even when nothing failed:
+     `'otherwise' needs a Result, but TO_NUMBER() gave a number`. A function that returns no
+     Result shows up on the first run, not on the first failure.
+
+   Genuine is the v0.10.0 brand ([Genuine Results](#genuine-results-fail-and-unwrap)): a plain
+   object with `ok` and `value` fields is not a Result.
+2. **Not try.** An error raised while the left side is computed — an argument, a member access,
+   the body of a called function — stops the run as usual.
+   `READ_JSON_FILE(f).enabled otherwise false` stops with `Property 'enabled' does not exist`.
+3. **The fallback runs only on failure.** `otherwise defaultLines()` calls `defaultLines` only when
+   the read failed. A value that came back normally — `false`, `0`, `""`, `[]`, `null` — is not a
+   failure.
+4. **A Result as the fallback is unwrapped** like `UNWRAP`: its value, or the run stops with its
+   message. `x = READ_FILE(a) otherwise READ_FILE(b)` reads "a, else b, else stop". Fallbacks
+   chain: `READ_FILE(a) otherwise READ_FILE(b) otherwise ""`. As with `UNWRAP`, one level comes
+   off, on either side of `otherwise`: a Result inside the value stays a Result, so
+   `x = ERR("a") otherwise OK(OK(1))` sets `x` to `OK(1)`.
+5. **The block** must end in a way that depends on the statement:
+
+   | The block follows | It must |
+   |---|---|
+   | An assignment to a variable — `lines = ...` | Leave — `continue`, `break`, `return` or `FAIL` — or set `lines` |
+   | An assignment to a member or an element — `config.port = ...`, `rows.$i = ...` | Leave |
+   | A `return`, a fallback `return` included | Leave |
+   | An expression statement | Nothing; it may simply end |
+
+   Reaching `end` without doing so is a runtime error, at the `end`:
+   `The 'otherwise' block must set 'lines' or leave with continue, break, return or FAIL`, or
+   `The 'otherwise' block must leave with continue, break, return or FAIL`. Setting is allowed
+   because some failures decide the value, and only for a variable, because a member's place can
+   move while the block runs: in `rows.$i = f() otherwise err do i = i + 1; rows.$i = 0 end` the
+   block sets another element. The block sets the variable by running an assignment to it itself,
+   not in a function it calls; at the top level `lines` and `::lines` are one variable. A `multi`
+   setup in the block is the block's own code with its own locals, so at the top level it sets the
+   variable as `::lines`. When the block sets it, the assignment has nothing left to do. A value fallback works with any target
+   (`rows.$i = f() otherwise 0`): the right side, fallback included, is computed before the
+   target's place, as in every assignment ([Value Semantics](#value-semantics)).
+6. **The failure** the block names is an object:
+
+   | Field | Value |
+   |---|---|
+   | `message` | Always a string — the text `UNWRAP` would report (`TO_STRING(value)`) |
+   | `value` | The failed Result's value as it is — for HTTP, `{status, body, headers}` |
+
+   Fields may be added later, never removed. The name follows the loop-variable rule: a global at
+   the top level, a local in a function, replacing a variable of that name.
+7. **Flow.** A fallback `continue`, `break` or `return` does what the statement does where it
+   stands. `continue` and `break` act on the innermost loop around them in the same function body
+   ([Break and Continue](#break-and-continue)). `return` returns from a function, ends a monitor
+   iteration, and at the top level ends the run as a success — without the handler. In a `multi`
+   setup the same rules hold. When one of them leaves the setup itself — a `return`, or a `break`
+   or `continue` whose loop is outside the block — the threads collected so far do not start; a
+   `break` or `continue` on a loop inside the setup leaves the setup running.
+8. **Everywhere.** `otherwise` works in functions, `multi` workers, monitor bodies and the
+   handler. A worker's entry is a Result, so `n = r.count otherwise 0` reads a worker's value or
+   0. In a monitor it reads the captured entry as `UNWRAP` does: a finished entry gives its
+   thread-information object (v0.21.0), and a `"running"` entry gives the fallback.
+
+`otherwise` never unwinds script code. A script function that wants its caller to recover returns
+`ERR(...)`; an error inside it stops the run. Capturing every error of a whole function stays the
+job of a `multi` worker. Thread purity keeps a failed worker from leaving half-written globals
+behind; it does not undo the worker's file writes, requests or commands.
+
+A `return` after `otherwise` takes its value from the same line: `otherwise return` followed by a
+statement on the next line is refused at load ([Return Values](#return-values)) — write
+`otherwise return {}`, or end the block there.
+
+### `on error`
+
+```
+on error do
+    PRINT("Job failed:", _ERROR.message)
+    return {"failed": true}
+end
+```
+
+**Syntax and placement.**
+
+- `on error do ... end`. `on` is a reserved word; `error` is not — it means something only after
+  `on`, so a variable named `error` still works.
+- At most one handler, at the top level, right after the imports. The grammar accepts it as a
+  statement, and a load-time check refuses it anywhere else, so the user gets a plain message
+  rather than a parser's:
+  - `'on error' must come right after the imports`
+  - `A script can have only one 'on error'`
+  - `Expected 'error' after 'on'`
+- In import mode the handler is skipped, like all top-level code. A module run directly uses its
+  own handler.
+
+**When it runs.**
+
+| Situation | Handler |
+|---|---|
+| A runtime error while the script runs — a built-in, an operator, an undefined name, the loop limit, `FAIL`, `UNWRAP` | Runs |
+| An error inside an `otherwise` block | Runs |
+| A failure taken by `otherwise` | Does not run — it never became an error |
+| An error inside an imported function | Runs; `_ERROR.source` names the module |
+| An error in a `multi` setup phase, or after the block | Runs |
+| A worker's error, a monitor iteration's error | Does not run — collected and reported as before |
+| A normal end, including a top-level `return` (an `otherwise return` at the top level too) | Does not run |
+| A script refused before it starts — a syntax error, a blocked construct, import resolution, a load-time check | Does not run |
+| A stop asked for before the error — the host's time limit, the user's Stop, the debugger's Quit — a failure the stop causes included, such as a killed `SHELL` command | Does not run — the run is stopped, not failed |
+| A stop asked for while the handler runs | Ends the handler; the run stays failed |
+| Resource exhaustion (memory, stack) | Not guaranteed |
+
+The handler runs at most once per run.
+
+**`_ERROR`.**
+
+| Field | Value |
+|---|---|
+| `message` | The error message, without the `Runtime Error at line L:C:` prefix |
+| `line`, `column` | Where the error happened, as the error report gives it — both counted from 1; for a built-in's error, the position of the call |
+| `source` | The source id — the entry script's or the module's |
+
+- `_ERROR` is set as a global just before the handler runs, replacing any global of that name.
+  Outside the handler it is an ordinary name. As a global it comes before a host property of the
+  same name in the lookup order, so a caller cannot hide the error.
+- In a function called from the handler it is `::_ERROR`, as with `_ARGS`. Passing it reads
+  better: `notify(_ERROR)`.
+- Fields may be added in later versions, never removed or renamed.
+
+**Rules.**
+
+1. **Order.** The runtime reports the original error, runs the handler, and ends the run as
+   failed. The error is reported before the handler starts, so a handler that hangs or fails
+   cannot hide it.
+2. **Scope.** The handler is top-level code: it reads and writes globals by plain name. It sees the
+   state at the moment of the error — the failed function's locals are gone, and a global not yet
+   assigned does not exist, so assign the globals it reports right after it (`done = 0`). A
+   function exists once its definition has run ([Functions](#functions)). Before the handler
+   starts, the runtime runs the definitions directly under the root that the script has not
+   reached, in order, as import mode registers them. So the handler can call a function defined
+   below the line that failed, and a later definition of a name replaces an earlier one, as it
+   would have had the run reached it. A definition that fails — an all-uppercase name (v0.12.0) —
+   is an error in the handler (rule 5).
+3. **Value for the host.** `return value` in the handler hands the value to the host with the
+   failure; without a `return` it is `{}`. The run still fails.
+4. **No resuming.** Nothing in the handler can continue the script or turn the failure into
+   success.
+5. **An error in the handler** stops the handler and is reported as `[HANDLER ERROR] ...`; the
+   handler is not entered again. The run fails with the original error, and the host gets `{}` as
+   the returned value.
+6. **Limits and stops.** The handler runs under the run's limits: the loop limit and the host's
+   time limit. A stop asked for while it runs — the time limit, the user's Stop, the debugger's
+   Quit — ends it, and the run stays failed with the original error.
+7. **Debugging.** `debug` statements and breakpoints in the handler act as in other main-thread
+   code.
+8. **`otherwise` works in the handler** as anywhere, so one step can be best-effort:
+   `APPEND_FILE(log, line) otherwise err do PRINT("log not written:", err.message) end`.
+9. **Alone.** No worker or monitor is running when the handler starts. The main thread waits at a
+   `multi` block until every thread has ended ([Multi Blocks, Semantics](#semantics)), worker and
+   monitor errors do not reach the handler, and a `multi` block checks its monitor interval before
+   its first worker starts, as it does `limit`.
+
+**What the host gets.**
+
+- A run ends in one of three ways. It **completes**, with the value it returned. It **fails**,
+  with the original error — `message`, `line`, `column` and `source`, as in `_ERROR` — and how the
+  handler ended: the value it returned (`{}` without a `return`), its error, or the stop that
+  ended it. Or the host **stops** it.
+- **Failed or stopped is settled once, when the error happens.** With no stop asked for yet, the
+  run has failed; a stop asked for later still ends the handler and whatever the run has running,
+  but the run stays failed with the original error. With a stop already asked for, the run is
+  stopped and the handler does not run, whatever the error, since a stop can itself make a call
+  fail — it kills a `SHELL` command.
+- How the host shows the returned value is host-defined; which way the run ended is not.
+
+### `UNWRAP` beside them
+
+`otherwise` does not replace `UNWRAP`:
+
+- **Inside an expression.** `otherwise` never stands there; `UNWRAP` does:
+  `loop entry in UNWRAP(LIST_DIR_NAMES(dir)) do`, `PRINT(UNWRAP(result.job).key)`. Without it the
+  value needs a line of its own and a block:
+  `entries = LIST_DIR_NAMES(dir) otherwise err do FAIL(err.message) end`.
+- A failure a built-in reports with a Result does not stop the run by itself. `UNWRAP` is the
+  short way to make it stop, and so to reach the handler.
+- **Its second argument, `message`,** names the step in the error and in `_ERROR.message`:
+  `UNWRAP(JSON_PARSE(text), "config parse")` reports `config parse: <parse error>`.
+- `otherwise` reads a Result as `UNWRAP` does: the fallback Result, `err.message` and a monitor
+  entry all follow `UNWRAP`'s reading.
+
+`UNWRAP` stays a built-in function: it is dispatched by the interpreter, so a script cannot define
+it and a host cannot replace it ([Name Resolution](#name-resolution)). Its semantics are under
+[Genuine Results, `FAIL`, and `UNWRAP`](#genuine-results-fail-and-unwrap).
 
 ## Comments
 
@@ -1949,7 +2226,7 @@ The same scan is also exposed as a **host API** that returns *all* violations at
 
 ## Semicolons
 
-Semicolons are optional and treated as whitespace. These are equivalent:
+Semicolons are optional and treated as whitespace, as line breaks are. These are equivalent:
 
 ```
 x = 1; y = 2; z = 3
@@ -1960,6 +2237,8 @@ x = 1
 y = 2
 z = 3
 ```
+
+The one place a line break matters: the value of a `return` starts on the `return` line (spec v0.37.0) — see [Return Values](#return-values).
 
 ## Output Formatting
 
@@ -2003,11 +2282,13 @@ included, use `TEXT(x, "0.00")` ([Number patterns](#number-patterns)).
 
 ## Runtime Errors
 
-ProperTee reports errors with line and column information:
+ProperTee reports every runtime error with where it happened — the line and the column, both counted from 1 (spec v0.37.0; the column was printed from 0 before). A built-in's error carries the position of its call (until spec v0.37.0 it had none):
 
 ```
 Runtime Error at line 5:3: Variable 'x' is not defined
 ```
+
+An error in the [`on error` handler](#on-error) is reported as `[HANDLER ERROR] ...`, as a worker's is as `[THREAD ERROR] ...`.
 
 Common error conditions:
 
@@ -2065,6 +2346,12 @@ Common error conditions:
 | `FILE_LINES` array used as a whole beyond the host's limit | FILE_LINES() 'x' is too large to use as a whole (494 MB, the limit is 64 MB) — go through it with a loop: loop line in ... do |
 | `FILE_LINES` array read after its file changed | FILE_LINES() cannot read 'x': it was modified after FILE_LINES() was called — call FILE_LINES() again |
 | Blocked construct present (hidden keyword / ignored function, anywhere) | 'X' is not available in this environment |
+| `otherwise` on a value that is not a genuine Result | 'otherwise' needs a Result, but TO_NUMBER() gave a number |
+| An `otherwise` block that reaches `end` without leaving or setting its variable | The 'otherwise' block must set 'x' or leave with continue, break, return or FAIL |
+| An `otherwise` block after a `return` or a member target that reaches `end` | The 'otherwise' block must leave with continue, break, return or FAIL |
+| `on error` not right after the imports, twice, or without `error` (at load) | 'on error' must come right after the imports / A script can have only one 'on error' / Expected 'error' after 'on' |
+| A `return` value starting on a later line (at load) | The value of 'return' must start on the same line |
+| `break` or `continue` without a loop in the same function body (at load) | 'break' must be inside a loop |
 
 ### Resource Limits
 
@@ -2079,6 +2366,54 @@ fixed depth of 1000 levels in every runtime ([JSON text](#json-text)).
 ---
 
 ## Changelog
+
+### v0.37.0 — `on error`, `otherwise`, and the rules that come with them
+
+Mildly breaking at the grammar level. A failure reaches a script in one of two ways, and each now
+has its own tool ([Handling Failures](#handling-failures)). `on error do ... end`, right after the
+imports, gives a run that stops one place to log, notify and report; it is not try/catch, and
+nothing resumes. `otherwise`, at the end of a statement, says what to use or do when the Result on
+its left failed: a value, `continue`, `break`, `return`, or a block that names the failure.
+`UNWRAP` stays beside them, for a value that must be there.
+
+- **Reserved words.** `on` and `otherwise` become reserved words, the same class as `elseif`
+  (v0.9.0), `limit` (v0.19.0) and `import`/`as` (v0.23.0): a variable of either name, or
+  `config.on`, stops parsing; `config."on"` still reads the key. `error` stays a name.
+- **Refused at load**, before the first statement, at the first violation in document order:
+  - a `return` whose value starts on a later line — line breaks do not end statements, so a bare
+    `return` took the next line as its value, a trap once `otherwise return` puts a `return` right
+    after a call;
+  - a `break` or `continue` without a loop in the same function body — a function's `break` used
+    to end its caller's loop, which the spec never allowed;
+  - an `on error` that is not right after the imports, a second one, or `on` without `error`.
+- **Error positions.** Every runtime error has a position: a built-in's error carries its call's
+  (it had none), and the column counts from 1, as `_ERROR.column` does (it was printed from 0).
+  Syntax errors and the hosts' validation lists count the column from 1 too.
+- **Monitor.** A `return` in a monitor body ends that iteration, and the watchdog keeps going; the
+  Java 25 runtime silently skipped the remaining mid-run iterations, and the JavaScript runtime
+  reported `[MONITOR ERROR] return`. The monitor interval is checked at `multi` entry, before the
+  setup, as `limit` is, so a block with an interval out of range starts no worker; the Java 25
+  runtime started them first.
+- **External functions.** The runtime makes an external call's Result from whatever the host
+  returns, a Result included, as the reference runtime always did; the JavaScript runtime passed a
+  host's value through. Its stubs and the playground's host functions changed to match.
+- **Stated, unchanged:** an assignment computes its right side before its target's place; a
+  function exists once its definition has run, and a later definition of a name replaces an
+  earlier one; in a `multi` setup, a `return`, or a `break` or `continue` on a loop around the
+  block, leaves the setup, and the threads it collected do not start.
+
+Migration: rename a variable named `on` or `otherwise`; give a `return` its value on the same line,
+or end the block after a bare `return`; turn a `break` or `continue` that ended a caller's loop
+into a value the caller checks; compare error text with columns counted from 1, and a built-in's
+error with its position. Hosts: a failed run hands over how the handler ended with its error
+([`on error`](#on-error), What the host gets). Both CLIs exit 0 when a run completes and 1 when it
+fails or is refused, printing the error where they always did; the Java 25 CLI exited 0 after a
+runtime error.
+
+Also in this version, a JavaScript runtime fix: reading an undefined `::name` gave
+`Global variable 'name' is not defined`; it now gives the spec's `Variable 'name' is not defined`.
+
+The Java 25 runtime and the JavaScript runtime implement this; the frozen Java 7/8 runtime does not.
 
 ### v0.36.0 — Numbers are finite; `SUM`, `MAX` and `MIN` take arrays
 

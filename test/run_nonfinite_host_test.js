@@ -30,9 +30,10 @@ async function run(source, setup) {
 
 const externals = await run('r = NOTHING()\nPRINT(r.ok, r.value)\nr = ROWS()\nPRINT(r.ok, r.value)\nr = FINE()\nPRINT(r.ok, r.value)\nr = LATER()\nPRINT(r.ok, r.value)\n', (v) => {
     v.registerExternal('NOTHING', () => NaN);
-    v.registerExternal('ROWS', () => ProperTeeCustomVisitor.ok([1, { rate: -Infinity }]));
-    v.registerExternal('FINE', () => ProperTeeCustomVisitor.ok(Number.MAX_VALUE));
-    v.registerExternalAsync('LATER', async () => ProperTeeCustomVisitor.ok(Infinity));
+    // the host returns the value; the call's Result holds it (spec v0.37.0)
+    v.registerExternal('ROWS', () => [1, { rate: -Infinity }]);
+    v.registerExternal('FINE', () => Number.MAX_VALUE);
+    v.registerExternalAsync('LATER', async () => Infinity);
 });
 const wantExternals = [
     'false NOTHING() result is NaN, which ProperTee numbers cannot represent',

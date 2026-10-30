@@ -44,7 +44,7 @@ let failed = false;
 try {
     await evaluate(visitor, 'import ok as good\nimport outer as bad\nPRINT("must not run")\n');
 } catch (e) {
-    failed = e.message.includes("module:outer line 1:0")
+    failed = e.message.includes("module:outer line 1:1")
         && e.message.includes('cannot contain import statements');
 }
 check(failed, 'nested import was not rejected with module source identity');
@@ -61,8 +61,8 @@ try {
     await evaluate(isolated,
         'import isolated as lib\nsecret = 99\nPRINT(lib::read())\n');
 } catch (e) {
-    isolatedFailure = e.message.includes('module:isolated line 1:26')
-        && e.message.includes("Global variable 'secret' is not defined");
+    isolatedFailure = e.message.includes('module:isolated line 1:27')
+        && e.message.includes("Variable 'secret' is not defined");   // the spec's message (v0.37.0 fix)
 }
 check(isolatedFailure, 'module globals were not isolated from entry globals');
 

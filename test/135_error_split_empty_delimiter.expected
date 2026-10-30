@@ -1,2 +1,2 @@
 [ 'a', 'b', 'c' ]
-Runtime error: Runtime Error: SPLIT() requires a non-empty delimiter
+Runtime error: Runtime Error at line 4:7: SPLIT() requires a non-empty delimiter

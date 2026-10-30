@@ -5,10 +5,10 @@
 [ 'z', 'a', 'm' ]
 x 10
 y 20
-[THREAD ERROR] Runtime Error: KEYS() argument must be an object
-[THREAD ERROR] Runtime Error: KEYS() argument must be an object
-[THREAD ERROR] Runtime Error: KEYS() argument must be an object
+[THREAD ERROR] Runtime Error at line 26:5: KEYS() argument must be an object
+[THREAD ERROR] Runtime Error at line 30:5: KEYS() argument must be an object
+[THREAD ERROR] Runtime Error at line 34:5: KEYS() argument must be an object
 false
 false
 false
-Runtime Error: KEYS() argument must be an object
+Runtime Error at line 26:5: KEYS() argument must be an object

@@ -1,0 +1,10 @@
+// spec v0.37.0: an error in the handler ends it and is reported as [HANDLER ERROR]; the run
+// fails with the first error, and the handler is not entered again
+on error do
+    PRINT("handler starts:", _ERROR.message)
+    PRINT(_ERROR.missing)
+    PRINT("never")
+end
+PRINT("start")
+config = UNWRAP(ERR("no such file"), "config read")
+PRINT("never")

@@ -7,10 +7,12 @@
 // judgment of TeeBox's server-side /admin/scripts/validate (TeeBox 1.13.0).
 //
 // Returns { ok, problems } where each problem is
-//   { kind: 'syntax' | 'unknown-function', line, column, message, name?, suggestion? }
-// Lines are 1-based, columns 0-based (ANTLR convention, matching runtime errors).
-// When syntax problems exist the lint is skipped (it needs a clean tree) — fix the
-// syntax first, then the lint pass runs on the next call.
+//   { kind: 'syntax' | 'load' | 'unknown-function', line, column, message, name?, suggestion? }
+// Lines and columns count from 1, as in the runtime's error report (spec v0.37.0). A 'load'
+// problem is a load-time rule the runtime refuses the script for (spec v0.37.0): a misplaced
+// `on error`, a `return` value on a later line, a `break` or `continue` outside a loop.
+// When syntax problems exist the other checks are skipped (they need a clean tree) — fix the
+// syntax first, then they run on the next call.
 //
 // options.visitor: an existing ProperTeeCustomVisitor whose known-name set to use —
 // pass the instance you registered host externals on so they are not flagged.
@@ -26,7 +28,7 @@ class CollectingErrorListener extends antlr4.error.ErrorListener {
         this.problems = problems;
     }
     syntaxError(recognizer, offendingSymbol, line, column, msg, err) {
-        this.problems.push({ kind: 'syntax', line, column, message: msg });
+        this.problems.push({ kind: 'syntax', line, column: column + 1, message: msg });
     }
 }
 
@@ -48,11 +50,14 @@ function checkScript(source, options = {}) {
 
     const visitor = options.visitor
         ?? new ProperTeeCustomVisitor({}, {}, { stdout() {}, stderr() {} }, {});
+    for (const v of visitor._loadViolations(tree)) {
+        problems.push({ kind: 'load', line: v.line, column: v.column + 1, message: v.message });
+    }
     for (const p of visitor.lintUnknownFunctions(tree)) {
         problems.push({
             kind: 'unknown-function',
             line: p.line,
-            column: p.column,
+            column: p.column + 1,
             message: `unknown function '${p.name}'`
                 + (p.suggestion ? ` (did you mean '${p.suggestion}'?)` : ''),
             name: p.name,

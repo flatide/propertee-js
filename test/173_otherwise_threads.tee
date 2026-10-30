@@ -1,0 +1,37 @@
+// spec v0.37.0: a worker's entry is a Result, so `otherwise` reads it. In a monitor it reads the
+// captured entry as UNWRAP does: a running entry gives the fallback, a finished one its thread
+// information. A `return` in a monitor body ends that iteration, as in a function.
+function work(n) do
+    SLEEP(30)
+    return n * 10
+end
+function fails() do
+    return 1 / 0
+end
+multi r do
+    thread a: work(4)
+    thread b: fails()
+monitor 10
+    info = r.a otherwise return {}
+    PRINT("finished:", info.key, info.functionName, info.state, info.returnValue)
+end
+n = r.a otherwise 0
+m = r.b otherwise -1
+PRINT(n, m)
+
+// break and continue in a setup act on their loop: one around the block leaves the setup, and
+// the threads it collected do not start; one inside the setup leaves it running
+loop i in [1, 2, 3] do
+    multi s do
+        if ::i == 2 then
+            continue
+        end
+        loop j in [1, 2] do
+            if j == 1 then
+                continue
+            end
+            thread t: work(j)
+        end
+    end
+    PRINT("block", i, s.t.value)
+end

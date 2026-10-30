@@ -1,1 +1,1 @@
-Runtime error: Runtime Error at line 5:11: Variable 'x' is not defined in local scope. Use ::x to access the global variable.
+Runtime error: Runtime Error at line 5:12: Variable 'x' is not defined in local scope. Use ::x to access the global variable.

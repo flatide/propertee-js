@@ -1,0 +1,7 @@
+// spec v0.37.0: a `return` value starts on the `return` line. Line breaks do not end statements,
+// so this bare `return` would take the next line as its value: refused at load.
+function load(f) do
+    lines = READ_LINES(f) otherwise return
+    process(lines)
+end
+PRINT("not printed")

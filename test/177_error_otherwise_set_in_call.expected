@@ -1,0 +1,2 @@
+set in the setup: 42
+Runtime error: Runtime Error at line 16:1: The 'otherwise' block must set 'x' or leave with continue, break, return or FAIL

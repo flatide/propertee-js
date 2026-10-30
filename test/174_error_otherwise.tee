@@ -1,0 +1,42 @@
+// spec v0.37.0: what `otherwise` refuses, each caught as its thread's error Result
+function notResult() do
+    return TO_NUMBER("5") otherwise 0
+end
+function plainObject() do
+    plain = {"status": "error", "ok": false, "value": "x"}
+    return plain otherwise 0
+end
+function notTry() do
+    cfg = ERR("no such file")
+    return cfg.enabled otherwise false
+end
+function failedFallback() do
+    return ERR("a") otherwise ERR("the fallback failed too")
+end
+function notSet() do
+    v = ERR(1) otherwise do
+    end
+    return v
+end
+function memberTarget() do
+    cfg = {"port": 1}
+    cfg.port = ERR(1) otherwise do
+    end
+    return cfg
+end
+function afterReturn() do
+    return ERR(1) otherwise do
+    end
+end
+multi r do
+    thread notResult: notResult()
+    thread plainObject: plainObject()
+    thread notTry: notTry()
+    thread failedFallback: failedFallback()
+    thread notSet: notSet()
+    thread memberTarget: memberTarget()
+    thread afterReturn: afterReturn()
+end
+loop k, e in r do
+    PRINT(k, e.ok, e.value)
+end

@@ -76,12 +76,12 @@ function hostNonFinite(value, name) {
     return found ? `${found.path} is ${found.number}, which ProperTee numbers cannot represent` : null;
 }
 
-// An external's return checked for Infinity and NaN (spec v0.36.0): an error Result instead, as a
-// thrown error gives. A Result the host built is checked by its value.
-function checkedExternal(name, result) {
-    const isResult = result !== null && typeof result === 'object' && 'ok' in result && 'value' in result;
-    const nonFinite = hostNonFinite(isResult ? result.value : result, `${name}() result`);
-    return nonFinite ? { ok: false, value: nonFinite, [TEE_RESULT]: true } : result;
+// An external call's Result (spec v0.37.0, as the reference runtime gives it): whatever the host
+// returned, as the value of an ok Result — a Result the host built included — or an error Result
+// when the value holds Infinity or NaN (spec v0.36.0), as a thrown error gives.
+function externalResult(name, value) {
+    const nonFinite = hostNonFinite(value, `${name}() result`);
+    return nonFinite ? makeResult('error', false, nonFinite) : makeResult('done', true, value);
 }
 
 // Spec v0.30.0: a finite number as the decimal digits PRINT shows for it — the shortest
@@ -646,6 +646,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Active thread context (set by scheduler)
         this.activeThread = null;
+        // Whether the run was asked to stop (set by the scheduler): an error after the stop is
+        // the stop's, as in the reference runtime (spec v0.37.0)
+        this.stopRequested = () => false;
 
         // Host environment restrictions
         this.hiddenKeywords = new Set();
@@ -1163,24 +1166,26 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         this.functions = { ...defaultFunctions, ...builtInFunctions };
 
+        // The stubs below throw: an external's throw is its error Result (spec v0.37.0).
+
         // SHELL_CTX — stub (no process execution in JS runtime)
         this.registerExternal('SHELL_CTX', (...args) => {
-            return makeResult("error", false, "SHELL_CTX() is not available in this environment");
+            throw new Error("SHELL_CTX() is not available in this environment");
         });
 
         // SHELL — stub (no process execution in JS runtime)
         this.registerExternalAsync('SHELL', (...args) => {
-            return makeResult("error", false, "SHELL() is not available in this environment");
+            throw new Error("SHELL() is not available in this environment");
         });
 
         // ENV — stub (no OS environment access in JS runtime)
         this.registerExternal('ENV', (...args) => {
-            return makeResult("error", false, "ENV() is not available in this environment");
+            throw new Error("ENV() is not available in this environment");
         });
 
         // File I/O — stubs (no filesystem access in JS runtime)
         const fileStub = (name) => (...args) => {
-            return makeResult("error", false, name + "() is not available in this environment");
+            throw new Error(name + "() is not available in this environment");
         };
         for (const name of ['FILE_EXISTS', 'FILE_INFO', 'READ_FILE', 'READ_LINES', 'READ_JSON_FILE', 'WRITE_FILE', 'WRITE_JSON_FILE', 'WRITE_LINES', 'APPEND_FILE', 'MKDIR', 'LIST_DIR', 'LIST_DIR_NAMES', 'DELETE_FILE']) {
             this.registerExternal(name, fileStub(name));
@@ -1255,21 +1260,22 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // The function can return Result.ok(value) or Result.error(msg) explicitly,
     // or throw an exception which is automatically caught and wrapped as
     // {ok: false, value: "error message"}.
+    // The call gives a Result, as in the reference runtime (spec v0.37.0): what the host returns
+    // is the value of an ok Result, a Result included, and what it throws an error Result. The
+    // value is copied, so a host that keeps it cannot change the script's.
     registerExternal(name, func) {
         requireReplaceableName(name);   // host-API error for PRINT/PRINTF/SLEEP/FAIL/UNWRAP (spec v0.13.0)
         this.functions[name] = (...args) => {
             const shellThread = name === 'SHELL' ? this.activeThread : null;
             if (shellThread) this._startShellObservation(shellThread);
+            let result;
             try {
-                const result = checkedExternal(name, func(...args));   // no Infinity or NaN (spec v0.36.0)
-                if (shellThread) this._completeShellObservation(shellThread, result);
-                return result;
+                result = externalResult(name, this.deepCopy(func(...args)));   // no Infinity or NaN (spec v0.36.0)
             } catch (e) {
-                // Keep the historical key shape (no `status`); brand only (spec v0.10.0).
-                const result = { ok: false, value: e.message, [TEE_RESULT]: true };
-                if (shellThread) this._completeShellObservation(shellThread, result);
-                return result;
+                result = makeResult('error', false, e.message);
             }
+            if (shellThread) this._completeShellObservation(shellThread, result);
+            return result;
         };
     }
 
@@ -1324,11 +1330,11 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         const result = func(...safeCopyArgs);
                         if (result && typeof result.then === 'function') {
                             result.then(
-                                (val) => resolve(checkedExternal(name, val)),
+                                (val) => resolve(externalResult(name, self.deepCopy(val))),
                                 (err) => resolve(makeResult("error", false, err.message))
                             );
                         } else {
-                            resolve(checkedExternal(name, result));   // no Infinity or NaN (spec v0.36.0)
+                            resolve(externalResult(name, self.deepCopy(result)));   // no Infinity or NaN (spec v0.36.0)
                         }
                     } catch (e) {
                         resolve(makeResult("error", false, e.message));
@@ -1418,20 +1424,70 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         return out;
     }
 
-    // Host API (issue #9): one "line L:C: 'X' is not available in this environment" string per violation.
+    // Host API (issue #9): one "line L:C: 'X' is not available in this environment" string per
+    // violation, the column from 1 (spec v0.37.0).
     validate(tree) {
         return this._blockedConstructs(tree).map(
-            v => `line ${v.line}:${v.column}: '${v.name}' is not available in this environment`);
+            v => `line ${v.line}:${v.column + 1}: '${v.name}' is not available in this environment`);
     }
 
-    // Load-time rejection (spec v0.14.0): throw the first blocked construct (document order) as a
-    // runtime error, matching the runtime backstop's message/position — or return without throwing
-    // when clean. Called before the program runs.
-    _rejectIfBlocked(tree) {
-        if (this.hiddenKeywords.size === 0 && this.ignoredFunctions.size === 0) return;
-        const v = this._blockedConstructs(tree)[0];
-        if (v) throw new Error(
-            `Runtime Error at line ${v.line}:${v.column}: '${v.name}' is not available in this environment`);
+    // The load-time checks of spec v0.37.0, every violation as {message, line, column} (the
+    // column as ANTLR counts it, from 0): `on error` comes right after the imports, at most once,
+    // and names `error`; a `return` value starts on the `return` line; `break` and `continue` act
+    // on a loop in the same function body — a function body and a monitor body start without one,
+    // a multi setup is no boundary.
+    _loadViolations(tree) {
+        const out = [];
+        const report = (message, token) => out.push({ message, line: token.line, column: token.column });
+        const statements = tree.statement();
+        const placed = statements.length > 0 && statements[0] instanceof ProperTeeParser.ErrorHandlerStmtContext
+            ? statements[0].errorHandler() : null;
+        const sameLine = (keyword, value) => {
+            if (value && value.start.line !== keyword.line) {
+                report("The value of 'return' must start on the same line", keyword);
+            }
+        };
+        const walk = (t, loopsAround) => {
+            let loops = loopsAround;
+            if (t instanceof ProperTeeParser.ErrorHandlerContext) {
+                if (t !== placed) {
+                    report(placed ? "A script can have only one 'on error'"
+                        : "'on error' must come right after the imports", t.K_ON().symbol);
+                }
+                if (t.ID().getText() !== 'error') report("Expected 'error' after 'on'", t.ID().symbol);
+            } else if (t instanceof ProperTeeParser.BreakStmtContext || t instanceof ProperTeeParser.FallbackBreakContext) {
+                if (loops === 0) report("'break' must be inside a loop", t.K_BREAK().symbol);
+            } else if (t instanceof ProperTeeParser.ContinueStmtContext || t instanceof ProperTeeParser.FallbackContinueContext) {
+                if (loops === 0) report("'continue' must be inside a loop", t.K_CONTINUE().symbol);
+            } else if (t instanceof ProperTeeParser.ReturnStmtContext || t instanceof ProperTeeParser.FallbackReturnContext) {
+                sameLine(t.K_RETURN().symbol, t.expression());
+            } else if (t instanceof ProperTeeParser.BlockContext) {
+                if (t.parentCtx instanceof ProperTeeParser.IterationStmtContext) loops++;
+                else if (t.parentCtx instanceof ProperTeeParser.FunctionDefContext
+                        || t.parentCtx instanceof ProperTeeParser.MonitorClauseContext) loops = 0;
+            }
+            for (const child of t.children ?? []) walk(child, loops);
+        };
+        walk(tree, 0);
+        return out;
+    }
+
+    // Load-time rejection (spec v0.14.0, v0.37.0): throw the first violation in document order —
+    // of the load-time checks, or a blocked construct — as a runtime error, matching the runtime
+    // backstop's message/position, or return without throwing when clean. Called before the
+    // program runs; `sourceId` names an imported module.
+    _refuseAtLoad(tree, sourceId = null) {
+        const found = this._loadViolations(tree);
+        if (this.hiddenKeywords.size > 0 || this.ignoredFunctions.size > 0) {
+            for (const v of this._blockedConstructs(tree)) {
+                found.push({ message: `'${v.name}' is not available in this environment`, line: v.line, column: v.column });
+            }
+        }
+        let first = null;
+        for (const v of found) {
+            if (!first || v.line < first.line || (v.line === first.line && v.column < first.column)) first = v;
+        }
+        if (first) throw this._errorAt(first.message, first, sourceId);
     }
 
     _checkKeywordAllowed(keyword, ctx) {
@@ -1513,7 +1569,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
     getLocation(ctx) {
         if (ctx && ctx.start) {
-            return `line ${ctx.start.line}:${ctx.start.column}`;
+            return `line ${ctx.start.line}:${ctx.start.column + 1}`;
         }
         return 'unknown location';
     }
@@ -1524,12 +1580,39 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     _sourceError(message, ctx, sourceId) {
-        const line = ctx?.start?.line;
-        const column = ctx?.start?.column;
-        if (sourceId && sourceId !== '<memory>') {
-            return new Error(`Runtime Error at ${sourceId} line ${line}:${column}: ${message}`);
-        }
-        return new Error(`Runtime Error at line ${line}:${column}: ${message}`);
+        return this._errorAt(message, ctx?.start, sourceId);
+    }
+
+    // A runtime error at a token ({line, column}, the column from 0 as ANTLR counts it). The
+    // report counts the column from 1 (spec v0.37.0), and the parts ride the error as `tee`, for
+    // the `on error` handler's _ERROR.
+    _errorAt(message, token, sourceId) {
+        const line = token?.line;
+        const column = token ? token.column + 1 : undefined;
+        const where = sourceId && sourceId !== '<memory>' ? `${sourceId} line` : 'line';
+        const error = new Error(`Runtime Error at ${where} ${line}:${column}: ${message}`);
+        error.tee = { message, line, column, sourceId: sourceId || this.sourceId };
+        return error;
+    }
+
+    // Every runtime error has a position (spec v0.37.0): one raised without its own — a
+    // built-in's, which carries the position of its call — gets the position of `ctx`.
+    _positioned(e, ctx) {
+        if (!(e instanceof Error) || e.tee || typeof e.message !== 'string'
+                || !e.message.startsWith('Runtime Error: ')) return e;
+        return this.createError(e.message.slice('Runtime Error: '.length), ctx);
+    }
+
+    // A built-in's error, at its call (spec v0.37.0), and so is a host function's exception, so
+    // the script's `on error` sees it.
+    _atCall(e, ctx) {
+        if (e instanceof Error && !this._isScriptError(e)) return this.createError(e.message || e.name, ctx);
+        return this._positioned(e, ctx);
+    }
+
+    // A script's runtime error, as against a control-flow signal or the scheduler's own.
+    _isScriptError(e) {
+        return e instanceof Error && typeof e.message === 'string' && e.message.startsWith('Runtime Error');
     }
 
     // ProperTee type name for error messages (same names as TYPE_OF).
@@ -1628,8 +1711,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     *visitRoot(ctx) {
         this.hasExplicitReturn = false;   // per run: REPL snippets reuse one visitor
         this.returnValue = {};
+        this.failureInHandler = null;
         this._loadImports(ctx);
-        this._rejectIfBlocked(ctx);   // spec v0.14.0: refuse the whole script before any statement runs
+        this._refuseAtLoad(ctx);   // spec v0.14.0, v0.37.0: refuse the whole script before any statement runs
         let result = null;
         const statements = ctx.statement();
         let i = 0;
@@ -1646,7 +1730,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                         yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
                         continue; // retry same statement
                     }
-                    throw inner;
+                    throw this._positioned(inner, statements[i]);
                 }
             }
             return result;
@@ -1656,7 +1740,62 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 this.returnValue = e.value;
                 return e.value;
             }
+            if (this._isScriptError(e)) throw yield* this._failure(e, statements, i);
             throw e;
+        }
+    }
+
+    // ---- on error (spec v0.37.0) ----
+
+    // The main thread failed. With an `on error` handler, the error is reported — through the
+    // host's failureReporter, else as the line "Runtime error: <report>" on stderr — and the
+    // handler runs; the error then carries how it ended as `handler` ({kind, value, error}), and
+    // a host that prints the run's error itself skips an error that has one. A stop asked for
+    // before the error makes the run stopped instead, the handler not run.
+    *_failure(e, statements, at) {
+        if (this.stopRequested()) throw new Error('Execution stopped by user');
+        if (statements.length === 0 || !(statements[0] instanceof ProperTeeParser.ErrorHandlerStmtContext)) return e;
+        if (!e.tee) e = this._positioned(e, statements[at] || statements[0]);
+        if (this.failureReporter) this.failureReporter(e);
+        else this.stderr('Runtime error: ' + e.message);
+        // A stop while the handler runs ends it, and the scheduler then fails the run with this
+        // error (Scheduler.run): the run stays failed.
+        this.failureInHandler = e;
+        try {
+            e.handler = yield* this._runHandler(statements[0].errorHandler(), e, statements, at);
+        } finally {
+            this.failureInHandler = null;
+        }
+        return e;
+    }
+
+    // The handler is top-level code. First the root definitions the run has not reached, in
+    // order, as import mode registers them, so it can call a function defined below the failed
+    // line. An error in it ends it ([HANDLER ERROR]), or, after a stop asked for, ends it as
+    // stopped; the run fails with the original error.
+    *_runHandler(handler, e, statements, at) {
+        try {
+            for (let i = at + 1; i < statements.length; i++) {
+                if (statements[i] instanceof ProperTeeParser.FuncDefStmtContext) yield* this.visit(statements[i]);
+            }
+            const t = e.tee || {};
+            this._getVariables()._ERROR = {
+                message: t.message ?? e.message,
+                line: t.line ?? 0,
+                column: t.column ?? 0,
+                source: t.sourceId || this.sourceId
+            };
+            yield* this.visitBlock(handler.block());
+            return { kind: 'returned', value: {}, error: null };
+        } catch (he) {
+            if (he instanceof ReturnException) return { kind: 'returned', value: he.value, error: null };
+            if (he instanceof BreakException || he instanceof ContinueException) {
+                return { kind: 'returned', value: {}, error: null };   // unreachable: refused at load
+            }
+            if (!this._isScriptError(he)) throw he;
+            if (this.stopRequested()) return { kind: 'stopped', value: {}, error: null };
+            this.stderr('[HANDLER ERROR] ' + he.message);
+            return { kind: 'failed', value: {}, error: he };
         }
     }
 
@@ -1768,17 +1907,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         const root = parser.root();
         if (errors.length > 0) {
             const e = errors[0];
-            throw new Error(`Runtime Error at ${sourceId} line ${e.line}:${e.column}: ` +
-                `Invalid module '${identity}': syntax error - ${e.msg}`);
+            throw this._errorAt(`Invalid module '${identity}': syntax error - ${e.msg}`, e, sourceId);
         }
         return root;
     }
 
     _rejectModuleIfBlocked(root, sourceId) {
-        if (this.hiddenKeywords.size === 0 && this.ignoredFunctions.size === 0) return;
-        const v = this._blockedConstructs(root)[0];
-        if (v) throw new Error(`Runtime Error at ${sourceId} line ${v.line}:${v.column}: ` +
-            `'${v.name}' is not available in this environment`);
+        this._refuseAtLoad(root, sourceId);   // the load-time checks hold in a module too (spec v0.37.0)
     }
 
     _makeFunctionDef(ctx, module) {
@@ -1809,7 +1944,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                     yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
                     continue;
                 }
-                throw inner;
+                throw this._positioned(inner, statements[i]);
             }
         }
         return result;
@@ -1818,14 +1953,24 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     // --- Statements ---
 
     *visitAssignStmt(ctx) {
-        return yield* this.visit(ctx.assignment());
+        if (!ctx.otherwiseClause()) return yield* this.visit(ctx.assignment());
+        const assignment = ctx.assignment();
+        const value = yield* this._valueOrFallback(assignment.expression(), ctx.otherwiseClause(),
+            this._targetOf(assignment.lvalue()));
+        if (value === SET_BY_BLOCK) return null;
+        return yield* this._assignValue(assignment, value);
     }
 
     *visitAssignment(ctx) {
+        const value = yield* this.visit(ctx.expression());
+        return yield* this._assignValue(ctx, value);
+    }
+
+    // The right side is computed first, then the target's place (spec v0.37.0 states the order).
+    *_assignValue(ctx, value) {
         // spec v0.16.0: the monitor is a watchdog thread — assignment follows the same
         // rules as workers (locals writable, :: writes error); no monitor-specific ban.
         const lvalueCtx = ctx.lvalue();
-        const value = yield* this.visit(ctx.expression());
         const scopeStack = this._getScopeStack();
         const variables = this._getVariables();
 
@@ -1843,6 +1988,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
             // Write directly to globals (bypasses local scopes)
             variables[varName] = this.deepCopy(value);
+            this._noteSet(varName, variables);
             return value;
         }
 
@@ -1859,11 +2005,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                 );
             }
 
-            if (scopeStack.length > 0) {
-                scopeStack[scopeStack.length - 1][varName] = this.deepCopy(value);
-            } else {
-                variables[varName] = this.deepCopy(value);
-            }
+            const scope = scopeStack.length > 0 ? scopeStack[scopeStack.length - 1] : variables;
+            scope[varName] = this.deepCopy(value);
+            this._noteSet(varName, scope);
             return value;
         }
 
@@ -1912,7 +2056,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             const varName = lvalueCtx.ID().getText();
             if (varName in variables) return variables[varName];
             if (varName in this.properties) return this.properties[varName];
-            throw new Error(`Runtime Error: Global variable '${varName}' is not defined`);
+            throw new Error(`Runtime Error: Variable '${varName}' is not defined`);
         }
 
         if (lvalueCtx.constructor.name === 'VarLValueContext') {
@@ -1967,7 +2111,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         if (varName in variables) return variables[varName];
         if (varName in this.properties) return this.properties[varName];
-        throw new Error(`Runtime Error: Global variable '${varName}' is not defined`);
+        throw new Error(`Runtime Error: Variable '${varName}' is not defined`);
     }
 
     *visitPropLValue(ctx) {
@@ -2233,7 +2377,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitReturnStmt(ctx) {
-        const value = ctx.expression() ? yield* this.visit(ctx.expression()) : {};
+        const value = !ctx.expression() ? {}
+            : !ctx.otherwiseClause() ? yield* this.visit(ctx.expression())
+            : yield* this._valueOrFallback(ctx.expression(), ctx.otherwiseClause(), LEAVE);
         throw new ReturnException(value);
     }
 
@@ -2388,7 +2534,128 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
     }
 
     *visitExprStmt(ctx) {
-        return yield* this.visit(ctx.expression());
+        if (!ctx.otherwiseClause()) return yield* this.visit(ctx.expression());
+        const value = yield* this._valueOrFallback(ctx.expression(), ctx.otherwiseClause(), NONE);
+        return value === SET_BY_BLOCK ? null : value;
+    }
+
+    *visitErrorHandlerStmt(ctx) {
+        return null;   // the handler runs only after an error (spec v0.37.0)
+    }
+
+    // ---- otherwise (spec v0.37.0) ----
+
+    // What the statement an `otherwise` ends asks of its block (rule 5).
+    _targetOf(lvalueCtx) {
+        const kind = lvalueCtx.constructor.name;
+        if (kind === 'VarLValueContext') return { variable: lvalueCtx.ID().getText(), global: false, leave: false };
+        if (kind === 'GlobalVarLValueContext') return { variable: lvalueCtx.ID().getText(), global: true, leave: false };
+        return LEAVE;   // a member or element target
+    }
+
+    *_valueOrFallback(left, otherwiseCtx, target) {
+        const value = yield* this.visit(left);
+        return yield* this._otherwise(value, left, otherwiseCtx, target);
+    }
+
+    // Rule 1: the value on the left must be a genuine Result. An ok one gives its value; a failed
+    // or running one gives the fallback, which runs only then (rule 3).
+    *_otherwise(value, left, otherwiseCtx, target) {
+        if (!isGenuineResult(value)) throw this.createError(this._needsResult(left, value), left);
+        if (value.ok === true) return value.value;
+        const fallback = otherwiseCtx.fallback();
+        if (fallback instanceof ProperTeeParser.FallbackContinueContext) throw new ContinueException();
+        if (fallback instanceof ProperTeeParser.FallbackBreakContext) throw new BreakException();
+        if (fallback instanceof ProperTeeParser.FallbackReturnContext) {
+            const returned = !fallback.expression() ? {}
+                : !fallback.otherwiseClause() ? yield* this.visit(fallback.expression())
+                : yield* this._valueOrFallback(fallback.expression(), fallback.otherwiseClause(), LEAVE);
+            throw new ReturnException(returned);
+        }
+        if (fallback instanceof ProperTeeParser.FallbackValueContext) {
+            if (fallback.otherwiseClause()) {
+                return yield* this._valueOrFallback(fallback.expression(), fallback.otherwiseClause(), target);
+            }
+            // Rule 4: a Result as the fallback gives its value, or stops as UNWRAP would; one level
+            const v = yield* this.visit(fallback.expression());
+            if (!isGenuineResult(v)) return v;
+            if (v.ok === true) return v.value;
+            throw this.createError(this.functions['TO_STRING'](v.value), fallback.expression());
+        }
+        return yield* this._fallbackBlock(value, fallback, target);
+    }
+
+    // Rule 5: the block runs with the failure named, and must end as its statement needs — leave,
+    // or set the statement's variable; after an expression statement it may simply end.
+    *_fallbackBlock(failed, block, target) {
+        if (block.name) {
+            const failure = { message: this.functions['TO_STRING'](failed.value), value: failed.value };
+            const scopeStack = this._getScopeStack();
+            if (scopeStack.length > 0) scopeStack[scopeStack.length - 1][block.name.text] = this.deepCopy(failure);
+            else this._getVariables()[block.name.text] = this.deepCopy(failure);   // the loop-variable rule
+        }
+        const trackers = this._setTrackers();
+        const scopeStack = this._getScopeStack();
+        // where the variable lives — the globals, or the function's scope — and the calls running
+        // now: the block sets it itself, a multi setup in it included, not in a function it calls
+        const tracker = target.variable == null ? null : {
+            name: target.variable,
+            scope: target.global || scopeStack.length === 0 ? this._getVariables() : scopeStack[scopeStack.length - 1],
+            calls: this._trackerOwner()._calls || 0,
+            set: false
+        };
+        if (tracker) trackers.push(tracker);
+        try {
+            yield* this.visitBlock(block.block());
+        } finally {
+            if (tracker) trackers.pop();
+        }
+        const end = block.K_END().symbol;
+        if (tracker) {
+            if (tracker.set) return SET_BY_BLOCK;
+            throw this._errorAt(`The 'otherwise' block must set '${target.variable}' or leave with continue, break, return or FAIL`,
+                end, this._getCurrentModule()?.sourceId || this.sourceId);
+        }
+        if (target.leave) {
+            throw this._errorAt("The 'otherwise' block must leave with continue, break, return or FAIL",
+                end, this._getCurrentModule()?.sourceId || this.sourceId);
+        }
+        return null;
+    }
+
+    // The thread whose open `otherwise` blocks and running calls these are.
+    _trackerOwner() {
+        return this.activeThread || this;
+    }
+
+    _setTrackers() {
+        const owner = this._trackerOwner();
+        if (!owner._setTrackers) owner._setTrackers = [];
+        return owner._setTrackers;
+    }
+
+    // Mark the open blocks this assignment sets: the same variable, assigned by the block, not a call.
+    _noteSet(name, scope) {
+        const trackers = this._setTrackers();
+        if (trackers.length === 0) return;
+        const calls = this._trackerOwner()._calls || 0;
+        for (const t of trackers) {
+            if (t.calls === calls && t.scope === scope && t.name === name) t.set = true;
+        }
+    }
+
+    // 'otherwise' needs a Result, but TO_NUMBER() gave a number — named after what was on its left.
+    _needsResult(left, value) {
+        const type = this._valueTypeName(value);
+        const what = value === TEE_NULL ? 'null' : (/^[ao]/.test(type) ? 'an ' : 'a ') + type;
+        let source = `the value on its left is ${what}`;
+        if (left instanceof ProperTeeParser.AtomExprContext) {
+            const atom = left.atom();
+            if (atom instanceof ProperTeeParser.FuncAtomContext) source = `${atom.functionCall().funcName.text}() gave ${what}`;
+            else if (atom instanceof ProperTeeParser.VarReferenceContext) source = `${atom.ID().getText()} is ${what}`;
+            else if (atom instanceof ProperTeeParser.GlobalVarReferenceContext) source = `::${atom.ID().getText()} is ${what}`;
+        }
+        return `'otherwise' needs a Result, but ${source}`;
     }
 
     // --- Expressions (use yield* delegation, no scheduler yields) ---
@@ -2448,7 +2715,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         // Built-in properties
         if (name in this.properties) return this.properties[name];
 
-        throw this.createError(`Global variable '${name}' is not defined`, ctx);
+        throw this.createError(`Variable '${name}' is not defined`, ctx);
     }
 
     *visitIntegerAtom(ctx) {
@@ -2949,9 +3216,16 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             if (args[0] < 0) throw this.createError('SLEEP() duration cannot be negative', ctx);
         }
 
-        // Built-in function
+        // Built-in function. Its error carries the position of the call (spec v0.37.0), and so
+        // does a host function's exception, so the script's `on error` sees it.
         if (this.functions[funcName]) {
-            const result = this.functions[funcName](...args);
+            let result;
+            try {
+                result = this.functions[funcName](...args);
+            } catch (e) {
+                if (e instanceof AsyncPendingError) throw e;
+                throw this._atCall(e, ctx);
+            }
 
             // SLEEP returns a scheduler command
             if (result && result.__schedulerCommand) {
@@ -3012,6 +3286,8 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Push scope
         scopeStack.push(localScope);
+        const owner = this._trackerOwner();   // a call an `otherwise` block makes does not set its variable
+        owner._calls = (owner._calls || 0) + 1;
 
         const previousFunctionContext = this.currentFunctionContext;
         this.currentFunctionContext = funcDef;
@@ -3031,7 +3307,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
                             continue;
                         }
-                        throw inner;
+                        throw this._positioned(inner, stmts[si]);
                     }
                 }
             }
@@ -3046,6 +3322,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             throw e;
         } finally {
             scopeStack.pop();
+            owner._calls--;
             if (crossingModuleBoundary) {
                 if (this.activeThread) {
                     this.activeThread.scopeStack = previousScopeStack;
@@ -3086,6 +3363,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
             }
             limit = v;
         }
+
+        // The monitor interval is checked here too, before the setup and before the first worker
+        // starts (spec v0.37.0, as the reference runtime) — an interval out of range starts none.
+        const monitorClause = ctx.monitorClause();
+        const monitorInterval = monitorClause
+            ? this._intLiteral(monitorClause.INTEGER().getText(), monitorClause)   // an INTEGER literal (the integer range)
+            : 0;
 
         // Deep-copy snapshot of globals for thread purity
         const rootVariables = this.activeThread?.rootGlobalSnapshot || this.variables;
@@ -3217,7 +3501,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             if (typeof capturedArgs[0] !== 'number') throw self.createError('SLEEP() requires a number argument', spawnCtx);
                             if (capturedArgs[0] < 0) throw self.createError('SLEEP() duration cannot be negative', spawnCtx);
                         }
-                        const result = builtInFunc(...capturedArgs);
+                        let result;
+                        try {
+                            result = builtInFunc(...capturedArgs);
+                        } catch (e) {
+                            if (e instanceof AsyncPendingError) throw e;
+                            throw self._atCall(e, spawnCtx);   // at the spawn (spec v0.37.0)
+                        }
                         if (result && result.__schedulerCommand) {
                             yield result;
                             return {};
@@ -3236,12 +3526,9 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
 
         // Monitor spec
         let monitorSpec = null;
-        const monitorClause = ctx.monitorClause();
         if (monitorClause) {
-            const intervalToken = monitorClause.INTEGER().getText();
-            const interval = this._intLiteral(intervalToken, monitorClause);   // an INTEGER literal (the integer range)
             monitorSpec = {
-                interval: interval,
+                interval: monitorInterval,
                 blockCtx: monitorClause.block()
             };
         }
@@ -3303,7 +3590,7 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
                             yield { __schedulerCommand: true, type: 'AWAIT_ASYNC' };
                             continue;
                         }
-                        throw inner;
+                        throw this._positioned(inner, stmts[si]);
                     }
                 }
             }
@@ -3321,6 +3608,13 @@ export default class ProperTeeCustomVisitor extends ProperTeeVisitor {
         }
     }
 }
+
+// What an `otherwise` block's statement asks of it (spec v0.37.0): nothing after an expression
+// statement; leaving after a return or a member/element target; a variable target is
+// {variable, global, leave: false}. SET_BY_BLOCK: the block set the variable itself.
+const NONE = { variable: null, global: false, leave: false };
+const LEAVE = { variable: null, global: false, leave: true };
+const SET_BY_BLOCK = Symbol('set by the otherwise block');
 
 // Flow control exceptions
 class BreakException extends Error {

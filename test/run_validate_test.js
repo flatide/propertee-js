@@ -43,8 +43,8 @@ end
     visitor.setHiddenKeywords(['multi']);
     visitor.setIgnoredFunctions(['SHELL']);
     expectEqual('dead-branch detection', visitor.validate(parse(deadBranch)), [
-        "line 5:4: 'multi' is not available in this environment",
-        "line 6:17: 'SHELL' is not available in this environment",
+        "line 5:5: 'multi' is not available in this environment",
+        "line 6:18: 'SHELL' is not available in this environment",
     ]);
 
     // spec v0.14.0: running the script is now REFUSED at load — the dead-branch violation rejects
@@ -59,7 +59,7 @@ end
     } catch (e) {
         rejected = e.message;
     }
-    expectEqual('load-time rejection', rejected, "Runtime Error at line 5:4: 'multi' is not available in this environment");
+    expectEqual('load-time rejection', rejected, "Runtime Error at line 5:5: 'multi' is not available in this environment");
 }
 
 // 2. All six hideable keywords, each construct reported with its position.
@@ -77,12 +77,12 @@ end
     const visitor = new ProperTeeCustomVisitor({}, {}, {stdout: () => {}, stderr: () => {}}, {});
     visitor.setHiddenKeywords(['if', 'loop', 'function', 'multi', 'thread', 'debug']);
     expectEqual('all six keywords', visitor.validate(parse(script)), [
-        "line 1:0: 'function' is not available in this environment",
-        "line 4:0: 'if' is not available in this environment",
-        "line 5:0: 'loop' is not available in this environment",
-        "line 6:0: 'debug' is not available in this environment",
-        "line 7:0: 'multi' is not available in this environment",
-        "line 8:4: 'thread' is not available in this environment",
+        "line 1:1: 'function' is not available in this environment",
+        "line 4:1: 'if' is not available in this environment",
+        "line 5:1: 'loop' is not available in this environment",
+        "line 6:1: 'debug' is not available in this environment",
+        "line 7:1: 'multi' is not available in this environment",
+        "line 8:5: 'thread' is not available in this environment",
     ]);
 }
 
@@ -92,7 +92,7 @@ end
     visitor.setHiddenKeywords(['if']);
     expectEqual('elseif chain once', visitor.validate(parse(
         'x = 2\nif x == 1 then PRINT(1)\nelseif x == 2 then PRINT(2)\nelse PRINT(3)\nend\n')), [
-        "line 2:0: 'if' is not available in this environment",
+        "line 2:1: 'if' is not available in this environment",
     ]);
     expectEqual('clean script', visitor.validate(parse('PRINT(LEN([1, 2, 3]))\n')), []);
 }

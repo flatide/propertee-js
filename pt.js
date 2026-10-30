@@ -112,7 +112,7 @@ class ErrorListener extends antlr4.error.ErrorListener {
         this.errors = [];
     }
     syntaxError(recognizer, offendingSymbol, line, column, msg) {
-        this.errors.push(`Line ${line}:${column} - ${msg}`);
+        this.errors.push(`Line ${line}:${column + 1} - ${msg}`);   // the column from 1 (spec v0.37.0)
     }
 }
 
@@ -223,7 +223,10 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
     try {
         await scheduler.run(mainGenerator);
     } catch (e) {
-        console.error(`Runtime error: ${e.message}`);
+        // A failure an `on error` handler followed was reported before the handler ran (spec
+        // v0.37.0); under --result-only the handler's value is the result.
+        if (!e.handler) console.error(`Runtime error: ${e.message}`);
+        else if (resultOnly) console.log(visitor.functions['JSON_FORMAT'](e.handler.value));
         process.exit(1);
     }
     if (resultOnly) {
@@ -298,7 +301,8 @@ if (scriptFile && existsSync(resolve(scriptFile))) {
                 console.log('=>', visitor.functions['TO_STRING'](result));
             }
         } catch (e) {
-            console.error(`Runtime error: ${e.message}`);
+            // reported already when the snippet's `on error` handler ran (spec v0.37.0)
+            if (!e.handler) console.error(`Runtime error: ${e.message}`);
         }
     }
 

@@ -11,14 +11,34 @@ modulePath
     ;
 
 statement
-    : assignment    # AssignStmt
-    | ifStatement   # IfStmt
-    | iterationStmt # iterStmt
-    | functionDef   # FuncDefStmt
-    | parallelStmt  # ParallelExecStmt
-    | spawnStmt     # SpawnExecStmt
-    | flowControl   # FlowStmt
-    | expression    # ExprStmt
+    : assignment otherwiseClause?   # AssignStmt
+    | ifStatement                   # IfStmt
+    | iterationStmt                 # iterStmt
+    | functionDef                   # FuncDefStmt
+    | parallelStmt                  # ParallelExecStmt
+    | spawnStmt                     # SpawnExecStmt
+    | errorHandler                  # ErrorHandlerStmt
+    | flowControl                   # FlowStmt
+    | expression otherwiseClause?   # ExprStmt
+    ;
+
+// `on error do ... end` (spec v0.37.0). The ID must be `error`; the handler comes right after the
+// imports, at most once — both checked at load.
+errorHandler
+    : K_ON ID K_DO block K_END
+    ;
+
+// `otherwise` (spec v0.37.0) ends a statement: what to use or do when the Result on its left failed.
+otherwiseClause
+    : K_OTHERWISE fallback
+    ;
+
+fallback
+    : K_CONTINUE                                 # FallbackContinue
+    | K_BREAK                                    # FallbackBreak
+    | K_RETURN (expression otherwiseClause?)?    # FallbackReturn
+    | name=ID? K_DO block K_END                  # FallbackBlock
+    | expression otherwiseClause?                # FallbackValue
     ;
 
 assignment
@@ -68,7 +88,7 @@ iterationStmt
 flowControl
     : K_BREAK              # BreakStmt
     | K_CONTINUE           # ContinueStmt
-    | K_RETURN expression? # ReturnStmt
+    | K_RETURN (expression otherwiseClause?)? # ReturnStmt
     | K_DEBUG              # DebugStmt
     ;
 
@@ -159,6 +179,8 @@ K_MONITOR   : 'monitor';
 K_DEBUG     : 'debug';
 K_IMPORT    : 'import';
 K_AS        : 'as';
+K_ON        : 'on';
+K_OTHERWISE : 'otherwise';
 
 GLOBAL_PREFIX : '::' ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;

@@ -30,19 +30,20 @@ const ioStreams = {
 };
 const visitor = new ProperTeeCustomVisitor({}, {}, ioStreams, {});
 
-// Register external functions using registerExternal
+// Register external functions using registerExternal: the call's Result holds what a function
+// returns, and what it throws as an error (spec v0.37.0, as in the reference runtime)
 const balances = { alice: 3000, bob: 0 };
 
 visitor.registerExternal('GET_BALANCE', (user) => {
     if (balances.hasOwnProperty(user)) {
-        return ProperTeeCustomVisitor.ok(balances[user]);
+        return balances[user];
     }
-    return ProperTeeCustomVisitor.error('account not found');
+    throw new Error('account not found');
 });
 
 visitor.registerExternal('DIVIDE_SAFE', (a, b) => {
     if (b === 0) throw new Error('division by zero');
-    return ProperTeeCustomVisitor.ok(a / b);
+    return a / b;
 });
 
 // Run

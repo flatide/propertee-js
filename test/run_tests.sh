@@ -158,6 +158,17 @@ else
         FAIL=$((FAIL + 1))
     fi
 
+    # Host-API test (spec v0.37.0): on error as a host sees it, and external Results
+    actual=$(node "$SCRIPT_DIR/run_on_error_test.js" 2>&1)
+    if [ "$actual" = "OK" ]; then
+        printf "${GREEN}PASS${NC} on_error (host API)\n"
+        PASS=$((PASS + 1))
+    else
+        printf "${RED}FAIL${NC} on_error (host API)\n"
+        echo "$actual" | head -20 | sed 's/^/  /'
+        FAIL=$((FAIL + 1))
+    fi
+
     # Builtin test (spec v0.25.0): TO_NUMBER's non-ASCII cases, kept out of the ASCII fixtures.
     actual=$(node "$SCRIPT_DIR/run_to_number_test.js" 2>&1)
     if [ "$actual" = "OK" ]; then

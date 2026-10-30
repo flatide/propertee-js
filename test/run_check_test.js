@@ -27,7 +27,7 @@ function expectEqual(label, actual, expected) {
 {
     const r = checkScript('x = SHEL("echo hi")\n');
     expectEqual('typo flagged', r.problems, [{
-        kind: 'unknown-function', line: 1, column: 4,
+        kind: 'unknown-function', line: 1, column: 5,   // from 1, as the error report (spec v0.37.0)
         message: "unknown function 'SHEL' (did you mean 'SHELL'?)",
         name: 'SHEL', suggestion: 'SHELL'
     }]);
@@ -74,6 +74,19 @@ function expectEqual(label, actual, expected) {
         ['FAIL', 'UNWRAP', 'PRINT', 'PRINTF', 'SLEEP'].every(n => names.includes(n)), true);
     expectEqual('catalog sample present',
         ['ALIGN_LEFT', 'CONTAINS', 'FILE_LINES', 'FORMAT', 'JSON_PARSE', 'LIST_DIR_NAMES', 'SHELL', 'TEXT', 'TRUNC', 'TYPE_OF'].every(n => names.includes(n)), true);
+}
+
+// 8. Load-time rules (spec v0.37.0) are problems too, from 1 like the rest.
+{
+    const r = checkScript('function f(r) do\n    v = r otherwise return\n    PRINT(v)\nend\nbreak\n');
+    expectEqual('load rules flagged', r.problems, [
+        { kind: 'load', line: 2, column: 21, message: "The value of 'return' must start on the same line" },
+        { kind: 'load', line: 5, column: 1, message: "'break' must be inside a loop" }
+    ]);
+    expectEqual('a handler right after the imports is fine',
+        checkScript('on error do\n    PRINT(_ERROR.message)\nend\nPRINT(1)\n').ok, true);
+    expectEqual('a syntax error counts from 1',
+        checkScript('x = (1\n').problems[0].column >= 1, true);
 }
 
 if (failures > 0) process.exit(1);

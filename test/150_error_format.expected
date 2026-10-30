@@ -1,26 +1,26 @@
-[THREAD ERROR] Runtime Error: FORMAT() requires a string format
-[THREAD ERROR] Runtime Error: FORMAT() format has 2 placeholders, got 3 values
-[THREAD ERROR] Runtime Error: FORMAT() format has 1 placeholder, got 0 values
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {:.2f}
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {1}
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {0.0.0}
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: { 0.00 }
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: {x}
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: unclosed {
-[THREAD ERROR] Runtime Error: FORMAT() invalid format: unmatched }
-[THREAD ERROR] Runtime Error: FORMAT() {0.00} requires a number, got string
-[THREAD ERROR] Runtime Error: PRINTF() {#,##0} requires a number, got boolean
-a false Runtime Error: FORMAT() requires a string format
-b false Runtime Error: FORMAT() format has 2 placeholders, got 3 values
-c false Runtime Error: FORMAT() format has 1 placeholder, got 0 values
-d false Runtime Error: FORMAT() invalid format: {:.2f}
-e false Runtime Error: FORMAT() invalid format: {1}
-f false Runtime Error: FORMAT() invalid format: {0.0.0}
-g false Runtime Error: FORMAT() invalid format: { 0.00 }
-h false Runtime Error: FORMAT() invalid format: {x}
-i false Runtime Error: FORMAT() invalid format: unclosed {
-j false Runtime Error: FORMAT() invalid format: unmatched }
-k false Runtime Error: FORMAT() {0.00} requires a number, got string
-l false Runtime Error: PRINTF() {#,##0} requires a number, got boolean
+[THREAD ERROR] Runtime Error at line 4:12: FORMAT() requires a string format
+[THREAD ERROR] Runtime Error at line 8:12: FORMAT() format has 2 placeholders, got 3 values
+[THREAD ERROR] Runtime Error at line 12:12: FORMAT() format has 1 placeholder, got 0 values
+[THREAD ERROR] Runtime Error at line 16:12: FORMAT() invalid format: {:.2f}
+[THREAD ERROR] Runtime Error at line 20:12: FORMAT() invalid format: {1}
+[THREAD ERROR] Runtime Error at line 24:12: FORMAT() invalid format: {0.0.0}
+[THREAD ERROR] Runtime Error at line 28:12: FORMAT() invalid format: { 0.00 }
+[THREAD ERROR] Runtime Error at line 32:12: FORMAT() invalid format: {x}
+[THREAD ERROR] Runtime Error at line 36:12: FORMAT() invalid format: unclosed {
+[THREAD ERROR] Runtime Error at line 40:12: FORMAT() invalid format: unmatched }
+[THREAD ERROR] Runtime Error at line 44:12: FORMAT() {0.00} requires a number, got string
+[THREAD ERROR] Runtime Error at line 48:5: PRINTF() {#,##0} requires a number, got boolean
+a false Runtime Error at line 4:12: FORMAT() requires a string format
+b false Runtime Error at line 8:12: FORMAT() format has 2 placeholders, got 3 values
+c false Runtime Error at line 12:12: FORMAT() format has 1 placeholder, got 0 values
+d false Runtime Error at line 16:12: FORMAT() invalid format: {:.2f}
+e false Runtime Error at line 20:12: FORMAT() invalid format: {1}
+f false Runtime Error at line 24:12: FORMAT() invalid format: {0.0.0}
+g false Runtime Error at line 28:12: FORMAT() invalid format: { 0.00 }
+h false Runtime Error at line 32:12: FORMAT() invalid format: {x}
+i false Runtime Error at line 36:12: FORMAT() invalid format: unclosed {
+j false Runtime Error at line 40:12: FORMAT() invalid format: unmatched }
+k false Runtime Error at line 44:12: FORMAT() {0.00} requires a number, got string
+l false Runtime Error at line 48:5: PRINTF() {#,##0} requires a number, got boolean
 before
-Runtime error: Runtime Error: PRINTF() format has 2 placeholders, got 1 value
+Runtime error: Runtime Error at line 72:1: PRINTF() format has 2 placeholders, got 1 value

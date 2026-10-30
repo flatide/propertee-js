@@ -1,0 +1,6 @@
+on error do
+    PRINT("first")
+end
+on error do
+    PRINT("second")
+end

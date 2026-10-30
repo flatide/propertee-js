@@ -1,2 +1,2 @@
 before
-Runtime error: Runtime Error: FIND() requires a non-empty search string
+Runtime error: Runtime Error at line 3:7: FIND() requires a non-empty search string

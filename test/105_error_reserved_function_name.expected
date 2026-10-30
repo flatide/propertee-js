@@ -1,2 +1,2 @@
 before
-Runtime error: Runtime Error at line 3:0: Cannot define function 'LEN': all-uppercase names are reserved for built-in and host functions
+Runtime error: Runtime Error at line 3:1: Cannot define function 'LEN': all-uppercase names are reserved for built-in and host functions

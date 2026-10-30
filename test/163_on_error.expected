@@ -1,0 +1,6 @@
+start
+Runtime error: Runtime Error at line 15:13: SUBSTRING() start must be an integer of 1 or more
+handler: SUBSTRING() start must be an integer of 1 or more
+at 15 13 <memory>
+done before the error: 2
+report: from the handler

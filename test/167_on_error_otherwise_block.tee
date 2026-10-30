@@ -1,0 +1,11 @@
+// spec v0.37.0: an error inside an `otherwise` block runs the handler, and `otherwise` works in
+// the handler, so one step there can be best-effort
+on error do
+    PRINT("handler:", _ERROR.message, "at line", _ERROR.line)
+    ERR("log not written") otherwise err do
+        PRINT("best effort:", err.message)
+    end
+end
+config = ERR("no such file") otherwise err do
+    FAIL("config read: " + err.message)
+end

@@ -1,0 +1,4 @@
+PRINT("not printed: the script is refused before its first statement")
+on error do
+    PRINT("handler")
+end

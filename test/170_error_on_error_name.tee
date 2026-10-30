@@ -1,0 +1,4 @@
+on failure do
+    PRINT("handler")
+end
+PRINT("not printed")

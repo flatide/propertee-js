@@ -1,52 +1,52 @@
-[THREAD ERROR] Runtime Error: TEXT() missing argument 1
-[THREAD ERROR] Runtime Error: TEXT() missing argument 2
-[THREAD ERROR] Runtime Error: TEXT() takes at most 2 arguments
-[THREAD ERROR] Runtime Error: TEXT() requires a string pattern
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0.0.0'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: ''
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '.2f'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0.'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '.00'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0#'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0.#0'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: ',0'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0,'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '#,##0,'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0%%'
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: '0원'
-[THREAD ERROR] Runtime Error: TEXT() requires a number, got string
-[THREAD ERROR] Runtime Error: TEXT() requires a number, got boolean
-[THREAD ERROR] Runtime Error: TEXT() invalid pattern: 'y'
-[THREAD ERROR] Runtime Error: ALIGN_RIGHT() missing argument 1
-[THREAD ERROR] Runtime Error: ALIGN_LEFT() missing argument 2
-[THREAD ERROR] Runtime Error: ALIGN_RIGHT() takes at most 2 arguments
-[THREAD ERROR] Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-[THREAD ERROR] Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-[THREAD ERROR] Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-[THREAD ERROR] Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-a false Runtime Error: TEXT() missing argument 1
-b false Runtime Error: TEXT() missing argument 2
-c false Runtime Error: TEXT() takes at most 2 arguments
-d false Runtime Error: TEXT() requires a string pattern
-e false Runtime Error: TEXT() invalid pattern: '0.0.0'
-f false Runtime Error: TEXT() invalid pattern: ''
-g false Runtime Error: TEXT() invalid pattern: '.2f'
-h false Runtime Error: TEXT() invalid pattern: '0.'
-i false Runtime Error: TEXT() invalid pattern: '.00'
-j false Runtime Error: TEXT() invalid pattern: '0#'
-k false Runtime Error: TEXT() invalid pattern: '0.#0'
-l false Runtime Error: TEXT() invalid pattern: ',0'
-m false Runtime Error: TEXT() invalid pattern: '0,'
-n false Runtime Error: TEXT() invalid pattern: '#,##0,'
-o false Runtime Error: TEXT() invalid pattern: '0%%'
-p false Runtime Error: TEXT() invalid pattern: '0원'
-q false Runtime Error: TEXT() requires a number, got string
-r false Runtime Error: TEXT() requires a number, got boolean
-s false Runtime Error: TEXT() invalid pattern: 'y'
-t false Runtime Error: ALIGN_RIGHT() missing argument 1
-u false Runtime Error: ALIGN_LEFT() missing argument 2
-v false Runtime Error: ALIGN_RIGHT() takes at most 2 arguments
-w false Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-x false Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-y false Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
-z false Runtime Error: ALIGN_CENTER() width must be an integer from 0 to 999
+[THREAD ERROR] Runtime Error at line 7:12: TEXT() missing argument 1
+[THREAD ERROR] Runtime Error at line 11:12: TEXT() missing argument 2
+[THREAD ERROR] Runtime Error at line 15:12: TEXT() takes at most 2 arguments
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() requires a string pattern
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0.0.0'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: ''
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '.2f'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0.'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '.00'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0#'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0.#0'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: ',0'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0,'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '#,##0,'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0%%'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: '0원'
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() requires a number, got string
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() requires a number, got boolean
+[THREAD ERROR] Runtime Error at line 3:12: TEXT() invalid pattern: 'y'
+[THREAD ERROR] Runtime Error at line 19:12: ALIGN_RIGHT() missing argument 1
+[THREAD ERROR] Runtime Error at line 23:12: ALIGN_LEFT() missing argument 2
+[THREAD ERROR] Runtime Error at line 27:12: ALIGN_RIGHT() takes at most 2 arguments
+[THREAD ERROR] Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+[THREAD ERROR] Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+[THREAD ERROR] Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+[THREAD ERROR] Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+a false Runtime Error at line 7:12: TEXT() missing argument 1
+b false Runtime Error at line 11:12: TEXT() missing argument 2
+c false Runtime Error at line 15:12: TEXT() takes at most 2 arguments
+d false Runtime Error at line 3:12: TEXT() requires a string pattern
+e false Runtime Error at line 3:12: TEXT() invalid pattern: '0.0.0'
+f false Runtime Error at line 3:12: TEXT() invalid pattern: ''
+g false Runtime Error at line 3:12: TEXT() invalid pattern: '.2f'
+h false Runtime Error at line 3:12: TEXT() invalid pattern: '0.'
+i false Runtime Error at line 3:12: TEXT() invalid pattern: '.00'
+j false Runtime Error at line 3:12: TEXT() invalid pattern: '0#'
+k false Runtime Error at line 3:12: TEXT() invalid pattern: '0.#0'
+l false Runtime Error at line 3:12: TEXT() invalid pattern: ',0'
+m false Runtime Error at line 3:12: TEXT() invalid pattern: '0,'
+n false Runtime Error at line 3:12: TEXT() invalid pattern: '#,##0,'
+o false Runtime Error at line 3:12: TEXT() invalid pattern: '0%%'
+p false Runtime Error at line 3:12: TEXT() invalid pattern: '0원'
+q false Runtime Error at line 3:12: TEXT() requires a number, got string
+r false Runtime Error at line 3:12: TEXT() requires a number, got boolean
+s false Runtime Error at line 3:12: TEXT() invalid pattern: 'y'
+t false Runtime Error at line 19:12: ALIGN_RIGHT() missing argument 1
+u false Runtime Error at line 23:12: ALIGN_LEFT() missing argument 2
+v false Runtime Error at line 27:12: ALIGN_RIGHT() takes at most 2 arguments
+w false Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+x false Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+y false Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999
+z false Runtime Error at line 31:12: ALIGN_CENTER() width must be an integer from 0 to 999

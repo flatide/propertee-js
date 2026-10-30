@@ -922,6 +922,8 @@
                 <button class="ref-chip kw" onclick="insertText('function')">function</button>
                 <button class="ref-chip kw" onclick="insertText('thread')">thread</button>
                 <button class="ref-chip kw" onclick="insertText('return')">return</button>
+                <button class="ref-chip kw" onclick="insertText('otherwise')">otherwise</button>
+                <button class="ref-chip kw" onclick="insertText('on error do')">on error</button>
                 <button class="ref-chip kw" onclick="insertText('debug')">debug</button>
                 <button class="ref-chip kw" onclick="insertText('multi')">multi</button>
                 <button class="ref-chip kw" onclick="insertText('monitor')">monitor</button>
@@ -1040,7 +1042,7 @@ PRINT("Hello, World!")</textarea>
                 this.lines = [];
             }
             syntaxError(recognizer, offendingSymbol, line, column, msg, err) {
-                this.errors.push(`Line ${line}:${column} - ${msg}`);
+                this.errors.push(`Line ${line}:${column + 1} - ${msg}`);   // the column from 1 (spec v0.37.0)
                 this.lines.push(line);
             }
         }
@@ -1248,7 +1250,7 @@ PRINT("Hello, World!")</textarea>
                 { name: 'JSON_FORMAT', sig: 'JSON_FORMAT(v)', desc: 'Serialize any value to JSON.', returns: 'A JSON string.', fails: 'None: every value can be written, since numbers are finite (spec v0.36.0).', sample: 'PRINT(JSON_FORMAT({"a": [1, 2]}))', output: '{"a":[1,2]}' },
             ]},
             { cat: 'Results', fns: [
-                { name: 'FAIL', sig: 'FAIL(message)', desc: 'Raise a runtime error at the call site — the explicit escalation for errors a script decides are fatal (spec v0.10.0).', returns: 'Never returns.', fails: 'Always — that is its purpose. The script stops exactly as with any runtime error; inside a multi thread, only that thread fails.', sample: 'res = JSON_PARSE("{bad")\nif not res.ok then\n    FAIL("config parse failed: " + res.value)\nend', output: 'Runtime Error at line 3:4: config parse failed: Invalid JSON: Expected property name or \'}\' in JSON at position 1 (line 1 column 2)', outputNote: 'example' },
+                { name: 'FAIL', sig: 'FAIL(message)', desc: 'Raise a runtime error at the call site — the explicit escalation for errors a script decides are fatal (spec v0.10.0).', returns: 'Never returns.', fails: 'Always — that is its purpose. The script stops exactly as with any runtime error; inside a multi thread, only that thread fails.', sample: 'res = JSON_PARSE("{bad")\nif not res.ok then\n    FAIL("config parse failed: " + res.value)\nend', output: 'Runtime Error at line 3:5: config parse failed: Invalid JSON: Expected property name or \'}\' in JSON at position 1 (line 1 column 2)', outputNote: 'example' },
                 { name: 'UNWRAP', sig: 'UNWRAP(res, [message])', desc: 'The value of an ok genuine Result; an error Result escalates like FAIL with TO_STRING(res.value), prefixed "message: " when given.', returns: 'res.value when res.ok is true.', fails: 'Runtime error when res.ok is false, or when res is not a genuine Result (script literals are not — build them with OK/ERR).', sample: 'cfg = UNWRAP(JSON_PARSE("{\\"a\\": 1}"), "config")\nPRINT(cfg.a)', output: '1' },
                 { name: 'OK', sig: 'OK([value])', desc: 'Construct a genuine Result {status: "done", ok: true, value}.', returns: 'A genuine Result. Missing value → {}.', fails: 'Does not fail.', sample: 'r = OK(42)\nPRINT(r.ok, UNWRAP(r))', output: 'true 42' },
                 { name: 'ERR', sig: 'ERR([value])', desc: 'Construct a genuine error Result {status: "error", ok: false, value}. value may be any type (structured errors allowed).', returns: 'A genuine Result. Missing value → {}.', fails: 'Does not fail (UNWRAP on it does).', sample: 'r = ERR("boom")\nPRINT(r.ok, r.value)', output: 'false boom' },
@@ -1592,8 +1594,10 @@ end`
         // playground installs a fresh in-memory filesystem + ENV map per run so these builtins actually
         // work for demos, matching the core's Result-pattern contract (Result = {status, ok, value};
         // FILE_EXISTS returns a bare boolean; ENV returns a bare string, or {} when unset & no default).
-        // Results are built with the runtime's host helpers, so they are genuine (spec v0.10.0) and
-        // UNWRAP / IS_RESULT accept them as they do on a real host.
+        // The file, ENV and HTTP functions are installed as built-ins: those the spec makes return a
+        // Result build it with the runtime's host helpers, so it is genuine (spec v0.10.0) and
+        // UNWRAP / IS_RESULT accept it as they do on a real host. SHELL goes through registerExternal,
+        // whose call makes the Result from what it returns or throws (spec v0.37.0).
         function installPlaygroundPlatform(visitor) {
             const files = {};   // path -> string content
             const dirs = { '': true, '/': true };
@@ -1617,40 +1621,40 @@ end`
             };
             const isInt = (n) => typeof n === 'number' && Math.floor(n) === n;
 
-            visitor.registerExternal('ENV', (name, def) => {
-                if (typeof name !== 'string') throw new Error('ENV() requires a string argument');
+            visitor.functions['ENV'] = (name, def) => {
+                if (typeof name !== 'string') throw new Error('Runtime Error: ENV() requires a string argument');
                 if (name in env) return env[name];
                 return def !== undefined ? def : {};
-            });
+            };
 
-            visitor.registerExternal('FILE_EXISTS', (p) => {
-                if (typeof p !== 'string') throw new Error('FILE_EXISTS() requires a string argument');
+            visitor.functions['FILE_EXISTS'] = (p) => {
+                if (typeof p !== 'string') throw new Error('Runtime Error: FILE_EXISTS() requires a string argument');
                 p = norm(p);
                 return (p in files) || (p in dirs);
-            });
+            };
 
-            visitor.registerExternal('MKDIR', (p) => {
+            visitor.functions['MKDIR'] = (p) => {
                 if (typeof p !== 'string') return err('MKDIR() requires a string argument');
                 mkdirp(p); return ok({});
-            });
+            };
 
-            visitor.registerExternal('WRITE_FILE', (p, content) => {
+            visitor.functions['WRITE_FILE'] = (p, content) => {
                 if (typeof p !== 'string') return err('WRITE_FILE() first argument must be a string path');
                 p = norm(p); mkdirp(parentOf(p)); files[p] = content == null ? '' : String(content); return ok({});
-            });
+            };
 
-            visitor.registerExternal('WRITE_LINES', (p, lines) => {
+            visitor.functions['WRITE_LINES'] = (p, lines) => {
                 if (typeof p !== 'string') return err('WRITE_LINES() first argument must be a string path');
                 if (!Array.isArray(lines)) return err('WRITE_LINES() second argument must be an array');
                 p = norm(p); mkdirp(parentOf(p)); files[p] = lines.map(String).join('\n') + '\n'; return ok({});
-            });
+            };
 
-            visitor.registerExternal('APPEND_FILE', (p, content) => {
+            visitor.functions['APPEND_FILE'] = (p, content) => {
                 if (typeof p !== 'string') return err('APPEND_FILE() first argument must be a string path');
                 p = norm(p); mkdirp(parentOf(p)); files[p] = (files[p] || '') + (content == null ? '' : String(content)); return ok({});
-            });
+            };
 
-            visitor.registerExternal('READ_LINES', (p, start, count) => {
+            visitor.functions['READ_LINES'] = (p, start, count) => {
                 if (typeof p !== 'string') return err('READ_LINES() first argument must be a string path');
                 p = norm(p);
                 if (!(p in files)) return err('READ_LINES() file not found: ' + p);
@@ -1663,7 +1667,7 @@ end`
                 const s = start !== undefined ? start : 1;
                 const slice = count !== undefined ? lines.slice(s - 1, s - 1 + count) : lines.slice(s - 1);
                 return ok(slice);
-            });
+            };
 
             // FILE_LINES (spec v0.26.0): the file's lines as a plain array — not a Result, so a
             // missing file is a runtime error, which is why it is installed as a builtin rather than
@@ -1682,12 +1686,12 @@ end`
             };
 
             // READ_FILE (spec v0.18.0): the whole file as one string — WRITE_FILE's counterpart.
-            visitor.registerExternal('READ_FILE', (p) => {
+            visitor.functions['READ_FILE'] = (p) => {
                 if (typeof p !== 'string') return err('READ_FILE() requires a string argument');
                 p = norm(p);
                 if (!(p in files)) return err('READ_FILE() file not found: ' + p);
                 return ok(files[p]);
-            });
+            };
 
             // WRITE_JSON_FILE (spec v0.18.0): READ_JSON_FILE's counterpart — JSON_FORMAT output
             // + one trailing newline, overwrite. A value JSON cannot hold (Infinity, NaN) is a
@@ -1703,25 +1707,25 @@ end`
 
             // READ_JSON_FILE (spec v0.18.0): read + JSON-parse in one call. Same value conversion and
             // errors as JSON_PARSE (spec v0.35.0); a leading UTF-8 BOM is ignored.
-            visitor.registerExternal('READ_JSON_FILE', (p) => {
+            visitor.functions['READ_JSON_FILE'] = (p) => {
                 if (typeof p !== 'string') return err('READ_JSON_FILE() requires a string argument');
                 p = norm(p);
                 if (!(p in files)) return err('READ_JSON_FILE() file not found: ' + p);
                 let content = files[p];
                 if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
                 return ProperTeeCustomVisitor.parseJson(content, 'READ_JSON_FILE');   // as JSON_PARSE reads it
-            });
+            };
 
             // A file's size in bytes, as a real host reports it: the UTF-8 length, not the UTF-16 one.
             const utf8Bytes = (text) => new TextEncoder().encode(text).length;
 
-            visitor.registerExternal('FILE_INFO', (p) => {
+            visitor.functions['FILE_INFO'] = (p) => {
                 if (typeof p !== 'string') return err('FILE_INFO() requires a string argument');
                 p = norm(p);
                 if (p in files) return ok({ type: 'file', size: utf8Bytes(files[p]), modified: now });
                 if (p in dirs) return ok({ type: 'dir', size: 0, modified: now });
                 return err('FILE_INFO() path not found: ' + p);
-            });
+            };
 
             // A glob over one entry name, read as the Java runtime reads it (getPathMatcher("glob:")):
             // * ? [abc] [a-z] [!abc] {a,b}, and \ before a character to take it literally. Returns a
@@ -1817,23 +1821,23 @@ end`
                 return match ? entries.filter(e => match.test(e.name)) : entries;
             };
 
-            visitor.registerExternal('LIST_DIR', (p, pattern) => {
+            visitor.functions['LIST_DIR'] = (p, pattern) => {
                 const entries = listEntries('LIST_DIR', p, pattern);
                 return Array.isArray(entries) ? ok(entries) : entries;
-            });
+            };
 
-            visitor.registerExternal('LIST_DIR_NAMES', (p, pattern) => {
+            visitor.functions['LIST_DIR_NAMES'] = (p, pattern) => {
                 const entries = listEntries('LIST_DIR_NAMES', p, pattern);
                 return Array.isArray(entries) ? ok(entries.map(e => ({ name: e.name, type: e.type }))) : entries;
-            });
+            };
 
-            visitor.registerExternal('DELETE_FILE', (p) => {
+            visitor.functions['DELETE_FILE'] = (p) => {
                 if (typeof p !== 'string') return err('DELETE_FILE() requires a string argument');
                 p = norm(p);
                 if (p in files) { delete files[p]; return ok({}); }
                 if (p in dirs) { delete dirs[p]; return ok({}); }
                 return err('DELETE_FILE() path not found: ' + p);
-            });
+            };
 
             // --- Shell mock --------------------------------------------------------------------
             // A real host runs an actual shell; the browser can't. This tiny emulator supports a few
@@ -1882,7 +1886,7 @@ end`
                 }
             };
 
-            visitor.registerExternal('SHELL_CTX', (cwd, envObj) => {
+            visitor.functions['SHELL_CTX'] = (cwd, envObj) => {
                 if (typeof cwd !== 'string') return err('SHELL_CTX() first argument must be a string (directory path)');
                 const d = norm(cwd);
                 if (!(d in dirs)) return err('SHELL_CTX() directory does not exist: ' + cwd);
@@ -1892,7 +1896,7 @@ end`
                     for (const k of Object.keys(envObj)) ctxEnv[k] = envObj[k];
                 }
                 return ok({ cwd: d, env: ctxEnv });
-            });
+            };
 
             visitor.registerExternal('SHELL', (a, b) => {
                 // SHELL(cmd) or SHELL(ctx, cmd). A ctx is the (auto-unwrapped) SHELL_CTX result, i.e.
@@ -1907,10 +1911,13 @@ end`
                 const maybeCtx = asCtx(a);
                 if (maybeCtx && b !== undefined) { ctx = maybeCtx; cmd = b; }
                 else { cmd = a; }
-                if (typeof cmd !== 'string') return err('SHELL() command must be a string');
+                // registerExternal makes the call's Result (spec v0.37.0): the returned text, or the
+                // thrown output as the error value — and observes the command for a monitor
+                if (typeof cmd !== 'string') throw new Error('SHELL() command must be a string');
                 const res = runShell(ctx, cmd);
                 const text = res.value.replace(/[\r\n]+$/, '');
-                return res.ok ? ok(text) : err(text);
+                if (!res.ok) throw new Error(text);
+                return text;
             });
 
             // --- HTTP mock ---------------------------------------------------------------------
@@ -1953,7 +1960,7 @@ end`
             // As in the reference, a URL that is not a string is an error Result before the body is looked at.
             visitor.functions['HTTP'] = (method, url, opts) => runHttp(String(method || 'GET'), url, optHeaders(opts),
                 typeof url === 'string' ? coerceBody('HTTP', optBody(opts)) : null);
-            visitor.registerExternal('HTTP_GET', (url, opts) => runHttp('GET', url, optHeaders(opts), null));
+            visitor.functions['HTTP_GET'] = (url, opts) => runHttp('GET', url, optHeaders(opts), null);
             visitor.functions['HTTP_POST'] = (url, body, opts) => runHttp('POST', url, optHeaders(opts),
                 typeof url === 'string' ? coerceBody('HTTP_POST', body) : null);
         }
@@ -2835,6 +2842,8 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
                 installPlaygroundPlatform(visitor);
+                // an `on error` handler's output follows the error, reported here first (spec v0.37.0)
+                visitor.failureReporter = (e) => appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
                 if (reportUnknownFunctions(visitor, tree)) return;
                 const scheduler = new Scheduler(visitor);
                 const mainGenerator = visitor.visitRoot(tree);
@@ -2843,7 +2852,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
                 appendOutput('Finished with result: ' + resultText(result) + '\n', '#a6e3a1');
 
             } catch (e) {
-                appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
+                if (!e.handler) appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
                 const errLines = parseErrorLines(e.message);
                 if (errLines.length > 0) highlightErrorLines(errLines);
                 console.error(e);
@@ -3041,6 +3050,8 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
                 const visitor = new ProperTeeCustomVisitor(properties, {}, ioStreams, options);
                 installPlaygroundPlatform(visitor);
+                // an `on error` handler's output follows the error, reported here first (spec v0.37.0)
+                visitor.failureReporter = (e) => appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
                 if (reportUnknownFunctions(visitor, tree)) return;
                 const scheduler = new Scheduler(visitor);
                 activeScheduler = scheduler;
@@ -3070,10 +3081,12 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
 
             } catch (e) {
                 if (e.message !== 'Execution stopped by user') {
-                    appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
+                    if (!e.handler) appendOutput(runtimeErrorText(e) + '\n', '#f38ba8');
                     const errLines = parseErrorLines(e.message);
                     if (errLines.length > 0) highlightErrorLines(errLines);
                     console.error(e);
+                    // a stop while the `on error` handler ran: the run stays failed
+                    if (e.handler && e.handler.kind === 'stopped') appendOutput('Execution stopped.\n', '#d97706');
                 } else {
                     appendOutput('Execution stopped.\n', '#d97706');
                 }
@@ -3102,7 +3115,7 @@ PRINT("parallel:", totals.a.value, totals.b.value)`
         // Syntax highlighting
         function highlightSyntax(code) {
             var builtins = 'PRINT|PRINTF|FORMAT|TEXT|ALIGN_LEFT|ALIGN_RIGHT|ALIGN_CENTER|SUM|MAX|MIN|ABS|FLOOR|CEIL|ROUND|TRUNC|LEN|TO_NUMBER|TO_STRING|TYPE_OF|SLEEP|PUSH|POP|CONCAT|SLICE|CHARS|SPLIT|WORDS|JOIN|SUBSTRING|UPPERCASE|LOWERCASE|TRIM|CONTAINS|STARTS_WITH|ENDS_WITH|FIND|FIND_FIRST|FIND_LAST|MATCHES|REGEX_FIND|REGEX_FIND_ALL|REPLACE|HAS_KEY|KEYS|VALUES|ENTRIES|MERGE|REMOVE_KEY|SORT|SORT_DESC|SORT_BY|SORT_BY_DESC|REVERSE|RANDOM|MILTIME|DATE|TIME|JSON_PARSE|JSON_FORMAT|ENV|FILE_EXISTS|FILE_INFO|READ_FILE|READ_LINES|FILE_LINES|READ_JSON_FILE|WRITE_JSON_FILE|WRITE_FILE|WRITE_LINES|APPEND_FILE|MKDIR|LIST_DIR|LIST_DIR_NAMES|DELETE_FILE|HTTP_GET|HTTP_POST|HTTP|SHELL|SHELL_CTX|FAIL|UNWRAP|OK|ERR|IS_RESULT';
-            var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|and|or|not';
+            var keywords = 'if|then|elseif|else|end|loop|in|do|infinite|limit|break|continue|return|debug|function|thread|multi|monitor|on|otherwise|and|or|not';
             var pattern = new RegExp(
                 '(\\/\\*[\\s\\S]*?\\*\\/)'                         // block comments
                 + '|(\\/\\/[^\\n]*)'                               // line comments
